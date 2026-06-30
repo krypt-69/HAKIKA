@@ -1,0 +1,17 @@
+{
+  "name": "hakika-frontend",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:business": "npm --workspace @hakika/business run dev",
+    "dev:customer": "npm --workspace @hakika/customer run dev",
+    "dev:admin": "npm --workspace @hakika/admin run dev"
+  },
+  "overrides": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@hakika/auth",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "types": "index.ts",
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-router-dom": "^6.0.0"
+  },
+  "dependencies": {
+    "@hakika/types": "file:../types",
+    "@hakika/config": "file:../config"
+  }
+}
