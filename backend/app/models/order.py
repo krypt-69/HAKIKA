@@ -21,6 +21,7 @@ class OrderStatus(str, enum.Enum):
     completed = "completed"
     delivery_failed = "delivery_failed"
     cancelled = "cancelled"
+    dispute_review = "dispute_review"
 
 class Order(Base):
     __tablename__ = "orders"

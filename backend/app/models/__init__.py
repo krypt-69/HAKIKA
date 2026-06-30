@@ -17,4 +17,5 @@ from app.models.trust_event import TrustEvent
 from app.models.notification import Notification
 from app.models.audit_log import AuditLog
 from app.models.customer_contact_log import CustomerContactLog
+from app.models.dispute import Dispute
 from app.models.refresh_token import RefreshToken
