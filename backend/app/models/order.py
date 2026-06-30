@@ -1,10 +1,26 @@
 import uuid
-from sqlalchemy import String, Numeric, Boolean, TIMESTAMP, ForeignKey, Integer, Integer
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import String, Numeric, Boolean, TIMESTAMP, ForeignKey, Integer
+from sqlalchemy.dialects.postgresql import UUID, ENUM
 from sqlalchemy.orm import Mapped, mapped_column
 from geoalchemy2 import Geography
 from app.models.base import Base
 from datetime import datetime
+import enum
+
+class OrderStatus(str, enum.Enum):
+    created = "created"
+    waiting_acceptance = "waiting_acceptance"
+    accepted = "accepted"
+    preparing = "preparing"
+    ready_for_delivery = "ready_for_delivery"
+    out_for_delivery = "out_for_delivery"
+    arrived = "arrived"
+    customer_confirmed_delivery = "customer_confirmed_delivery"
+    payment_pending = "payment_pending"
+    paid = "paid"
+    completed = "completed"
+    delivery_failed = "delivery_failed"
+    cancelled = "cancelled"
 
 class Order(Base):
     __tablename__ = "orders"
@@ -12,7 +28,11 @@ class Order(Base):
     order_number: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     customer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("customers.id"))
     business_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("businesses.id"))
-    status: Mapped[str] = mapped_column(String, nullable=False, default="created")  # ENUM in DB
+    status: Mapped[OrderStatus] = mapped_column(
+        ENUM(OrderStatus, name='order_status', create_type=False),
+        default=OrderStatus.created,
+        nullable=False
+    )
     subtotal: Mapped[float] = mapped_column(Numeric, nullable=False)
     delivery_fee: Mapped[float] = mapped_column(Numeric, nullable=False, default=0)
     total_amount: Mapped[float] = mapped_column(Numeric, nullable=False)

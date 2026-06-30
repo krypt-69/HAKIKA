@@ -1,12 +1,14 @@
 from pydantic import BaseModel
 import uuid
 from decimal import Decimal
+from datetime import datetime
 
 class OrderItemCreate(BaseModel):
     product_id: uuid.UUID
     quantity: int
 
-class OrderCreate(BaseModel):
+class OrderCreateRequest(BaseModel):
+    phone: str
     business_id: uuid.UUID
     items: list[OrderItemCreate]
     delivery_lat: float
@@ -15,19 +17,21 @@ class OrderCreate(BaseModel):
 class OrderItemResponse(BaseModel):
     id: uuid.UUID
     product_name: str
-    unit_price: Decimal
+    unit_price: float
     quantity: int
-
-    class Config:
-        from_attributes = True
+    product_id: uuid.UUID | None
 
 class OrderResponse(BaseModel):
     id: uuid.UUID
     order_number: str
     status: str
-    subtotal: Decimal
-    delivery_fee: Decimal
-    total_amount: Decimal
+    subtotal: float
+    delivery_fee: float
+    total_amount: float
+    customer_id: uuid.UUID
+    business_id: uuid.UUID
+    items: list[OrderItemResponse] = []
+    created_at: datetime | None
 
     class Config:
         from_attributes = True
