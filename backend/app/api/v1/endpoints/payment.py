@@ -7,6 +7,7 @@ from app.repositories.order_repository import OrderRepository
 from app.repositories.customer_repository import CustomerRepository
 from app.repositories.ledger_repository import LedgerRepository
 from app.services.payment_service import PaymentService
+from app.integrations.intasend.webhook import verify_signature
 from app.core.config import settings
 import uuid
 
@@ -31,6 +32,16 @@ async def payment_callback(
     request: Request,
     service: PaymentService = Depends(get_payment_service)
 ):
+    # Read the raw body for signature verification
+    raw_body = await request.body()
+    signature = request.headers.get("X-IntaSend-Signature")
+
+    # Verify webhook signature if secret is configured
+    if settings.intasend_webhook_secret:
+        if not verify_signature(raw_body, signature):
+            raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
+    # Parse JSON and process
     payload = await request.json()
     return await service.process_callback(payload)
 
@@ -46,5 +57,7 @@ async def mock_callback(
     checkout_id: str,
     service: PaymentService = Depends(get_payment_service)
 ):
-    """Simulate a successful payment callback for any checkout (mock mode)."""
+    """Simulate a successful payment callback (only when INTASEND_MODE=mock)."""
+    if settings.intasend_mode != "mock":
+        raise HTTPException(status_code=400, detail="Mock payments not enabled")
     return await service.process_callback({"id": checkout_id, "paid": True})

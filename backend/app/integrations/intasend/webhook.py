@@ -1,19 +1,23 @@
 import hmac
 import hashlib
-import json
 from app.core.config import settings
-import logging
 
-logger = logging.getLogger("hakika.intasend.webhook")
-
-def verify_webhook_signature(payload: bytes, signature: str) -> bool:
-    """Verify that the webhook request came from IntaSend."""
+def verify_signature(payload: bytes, signature_header: str | None) -> bool:
+    """
+    Verify the IntaSend webhook signature.
+    Returns True if the signature is valid, False otherwise.
+    """
     if not settings.intasend_webhook_secret:
-        logger.warning("No webhook secret configured, skipping signature verification")
+        # In sandbox without webhook secret configured, skip verification
         return True
+
+    if not signature_header:
+        return False
+
     expected = hmac.new(
         settings.intasend_webhook_secret.encode(),
         payload,
         hashlib.sha256
     ).hexdigest()
-    return hmac.compare_digest(expected, signature)
+
+    return hmac.compare_digest(expected, signature_header)
