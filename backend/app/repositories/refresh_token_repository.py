@@ -1,9 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.refresh_token import RefreshToken
-from app.core.security import hash_password
+from datetime import datetime
 import uuid
-from datetime import datetime, timezone
 
 class RefreshTokenRepository:
     def __init__(self, db: AsyncSession):
@@ -25,7 +24,7 @@ class RefreshTokenRepository:
             select(RefreshToken).where(
                 RefreshToken.token_hash == token_hash,
                 RefreshToken.revoked == False,
-                RefreshToken.expires_at > datetime.now(timezone.utc)
+                RefreshToken.expires_at > datetime.utcnow()
             )
         )
         return result.scalar_one_or_none()
