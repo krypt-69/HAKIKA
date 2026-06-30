@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import String, Numeric, Boolean, TIMESTAMP, ForeignKey, Integer
+from sqlalchemy import String, Numeric, Boolean, TIMESTAMP, ForeignKey, Integer, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from geoalchemy2 import Geography
