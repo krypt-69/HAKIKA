@@ -6,7 +6,6 @@ from app.models.payment import PaymentStatus
 from app.models.payment_attempt import PaymentAttemptStatus
 from app.models.order import OrderStatus
 from app.models.ledger_entry import LedgerTransactionType
-from app.integrations.intasend.payments import IntaSendPayments
 from app.core.config import settings
 from fastapi import HTTPException, status
 import uuid
@@ -26,7 +25,13 @@ class PaymentService:
         self.order_repo = order_repo
         self.customer_repo = customer_repo
         self.ledger_repo = ledger_repo
-        self.intasend = IntaSendPayments()
+
+        if settings.intasend_mode == "mock":
+            from app.integrations.intasend.mock_client import mock_instance
+            self.intasend = mock_instance
+        else:
+            from app.integrations.intasend.payments import IntaSendPayments
+            self.intasend = IntaSendPayments()
 
     async def initiate_payment(self, order_id: uuid.UUID) -> dict:
         order = await self.order_repo.get_by_id(order_id)
@@ -61,7 +66,7 @@ class PaymentService:
         )
 
         try:
-            response = await self.intasend.request_stk_push(
+            response = await self.intasend.send_stk_push(
                 phone=customer.phone_normalized,
                 amount=float(order.total_amount),
                 reference=payment.idempotency_key
@@ -78,11 +83,10 @@ class PaymentService:
                 "checkout_id": checkout_id,
             }
         except Exception as e:
-            logger.error(f"IntaSend checkout failed: {e}")
+            logger.error(f"Payment initiation failed: {e}")
             raise HTTPException(status_code=500, detail=f"Payment initiation failed: {str(e)}")
 
     async def process_callback(self, payload: dict) -> dict:
-        # IntaSend sends a flat JSON with api_ref matching our idempotency_key
         state = payload.get('state')
         api_ref = payload.get('api_ref')
         if not api_ref:
@@ -145,8 +149,9 @@ class PaymentService:
         for payment in pending:
             if payment.provider_reference:
                 try:
-                    status_data = await self.intasend.verify_payment(payment.provider_reference)
-                    state = status_data.get('state') or status_data.get('invoice', {}).get('state')
+                    status_data = await self.intasend.check_transaction_status(payment.provider_reference)
+                    invoice = status_data.get('invoice', status_data)
+                    state = invoice.get('state') or status_data.get('state')
                     callback_payload = {
                         "api_ref": payment.idempotency_key,
                         "state": state,
