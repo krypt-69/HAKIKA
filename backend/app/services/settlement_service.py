@@ -37,32 +37,25 @@ class SettlementService:
         if settlement.retry_count >= 3:
             raise HTTPException(status_code=400, detail="Max retries exceeded")
 
-        # Mark processing
         await self.settlement_repo.update_status(settlement, SettlementStatus.processing)
 
         try:
-            # Get business payment destination
             methods = await self.payment_method_repo.get_by_business(settlement.business_id)
             if not methods:
                 raise ValueError("No payment method configured")
-            destination = methods[0]  # first active
-
             # TODO: actual IntaSend B2B payout
-            # For now we simulate with a success (or use a mock)
             payout_ref = f"payout-{settlement.id}"
 
-            # Success
             await self.settlement_repo.update_status(settlement, SettlementStatus.completed, payout_ref)
 
-            # Create ledger entry
             await self.ledger_repo.create_entry(
                 LedgerTransactionType.business_settlement,
                 -float(settlement.amount),
                 order_id=settlement.order_id,
+                payment_id=settlement.payment_id,
                 business_id=settlement.business_id
             )
 
-            # Audit log
             audit = AuditLog(
                 table_name='settlements',
                 record_id=settlement.id,
@@ -77,7 +70,6 @@ class SettlementService:
 
         except Exception as e:
             await self.settlement_repo.update_status(settlement, SettlementStatus.failed)
-            # Log failure
             audit = AuditLog(
                 table_name='settlements',
                 record_id=settlement.id,
