@@ -1,6 +1,7 @@
 from app.repositories.user_repository import UserRepository
 from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.repositories.customer_repository import CustomerRepository
+from app.repositories.rider_repository import RiderRepository
 from app.core.security import (
     hash_password, verify_password, hash_token,
     create_access_token, create_refresh_token, decode_refresh_token
@@ -15,11 +16,13 @@ class AuthService:
         self,
         user_repo: UserRepository,
         refresh_repo: RefreshTokenRepository,
-        customer_repo: CustomerRepository
+        customer_repo: CustomerRepository,
+        rider_repo: RiderRepository = None
     ):
         self.user_repo = user_repo
         self.refresh_repo = refresh_repo
         self.customer_repo = customer_repo
+        self.rider_repo = rider_repo
 
     async def register(self, email: str, password: str, phone: str | None, role: str):
         existing = await self.user_repo.get_by_email(email)
@@ -27,6 +30,13 @@ class AuthService:
             raise ValueError("Email already registered")
         hashed = hash_password(password)
         user = await self.user_repo.create(email, hashed, phone, role)
+
+        # If rider, try to link to a pending rider record with the same email
+        if role == 'rider' and self.rider_repo:
+            rider = await self.rider_repo.get_by_email(email)
+            if rider and rider.status.value == 'pending':
+                await self.rider_repo.link_user(rider, user.id)
+
         return user
 
     async def login(self, email: str, password: str) -> TokenResponse:
@@ -35,7 +45,6 @@ class AuthService:
             raise ValueError("Invalid credentials")
         access = create_access_token(str(user.id), user.role.value)
         refresh = create_refresh_token(str(user.id))
-        # Store deterministic hash of the refresh token
         token_hash = hash_token(refresh)
         expires = datetime.utcnow() + timedelta(days=30)
         await self.refresh_repo.create(user.id, token_hash, expires)
@@ -49,7 +58,6 @@ class AuthService:
                 raise ValueError()
         except Exception:
             raise ValueError("Invalid refresh token")
-        # Lookup using deterministic hash
         token_hash = hash_token(token)
         rt = await self.refresh_repo.get_valid_token(token_hash)
         if not rt:

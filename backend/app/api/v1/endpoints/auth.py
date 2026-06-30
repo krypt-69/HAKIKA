@@ -4,6 +4,7 @@ from app.database.session import get_db
 from app.repositories.user_repository import UserRepository
 from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.repositories.customer_repository import CustomerRepository
+from app.repositories.rider_repository import RiderRepository
 from app.services.auth_service import AuthService
 from app.schemas.user import (
     UserCreateRequest,
@@ -22,14 +23,14 @@ def get_auth_service(db: AsyncSession = Depends(get_db)):
     user_repo = UserRepository(db)
     refresh_repo = RefreshTokenRepository(db)
     customer_repo = CustomerRepository(db)
-    return AuthService(user_repo, refresh_repo, customer_repo)
+    rider_repo = RiderRepository(db)
+    return AuthService(user_repo, refresh_repo, customer_repo, rider_repo)
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     request: UserCreateRequest,
     service: AuthService = Depends(get_auth_service)
 ):
-    # Only allow owner registration publicly; rider registration requires separate flow
     if request.role not in [UserRole.owner, UserRole.rider]:
         raise HTTPException(status_code=400, detail="Invalid role for public registration")
     try:
