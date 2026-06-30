@@ -1,8 +1,9 @@
 from pydantic import BaseModel, EmailStr
 from app.models.user import UserRole
 import uuid
+from datetime import datetime
 
-class UserCreate(BaseModel):
+class UserCreateRequest(BaseModel):
     email: EmailStr
     password: str
     phone: str | None = None
@@ -17,11 +18,21 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class Token(BaseModel):
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
 
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+class CustomerSessionRequest(BaseModel):
+    phone: str
+
+class CustomerSessionResponse(BaseModel):
+    session_token: str
+    customer_id: uuid.UUID

@@ -19,3 +19,11 @@
 - All ORM models mapped to existing tables.
 - Core Pydantic schemas created.
 - GeoAlchemy2 integrated for PostGIS columns.
+
+## Phase 4 – Authentication System
+**Date:** 2026-06-30
+**Status:** ✅ Complete
+- JWT access/refresh tokens for owners/riders/admins.
+- Refresh token rotation with hashed storage.
+- Customer phone-based session in Redis.
+- Registration (owner/rider), login, refresh endpoints.
