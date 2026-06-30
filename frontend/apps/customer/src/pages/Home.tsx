@@ -20,43 +20,54 @@ const Home: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [manualLat, setManualLat] = useState('-1.286');
+  const [manualLon, setManualLon] = useState('36.817');
 
-  const fetchDiscovery = async () => {
-    const response = await fetch('http://localhost:8000/api/v1/categories');
-    const cats = await response.json();
-    setCategories(cats || []);
-  };
+  useEffect(() => {
+    fetch('http://localhost:8000/api/v1/categories')
+      .then(r => r.json())
+      .then(data => setCategories(data || []));
+  }, []);
 
-  useEffect(() => { fetchDiscovery(); }, []);
-
-  const requestLocation = () => {
-    if (!navigator.geolocation) {
-      setError('Geolocation not supported');
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-        fetchBusinesses(pos.coords.latitude, pos.coords.longitude, selectedCategory);
-      },
-      (err) => setError('Location access denied. Enable GPS or search manually.')
-    );
-  };
-
-  const fetchBusinesses = async (lat: number, lon: number, categoryId?: number) => {
+  const fetchBusinesses = async (lat: number, lon: number, catId?: number) => {
     setLoading(true);
     setError('');
     try {
       const params = new URLSearchParams({ lat: String(lat), lon: String(lon) });
-      if (categoryId) params.set('category_id', String(categoryId));
+      if (catId) params.set('category_id', String(catId));
       const resp = await fetch(`http://localhost:8000/api/v1/businesses/discover?${params.toString()}`);
       const data = await resp.json();
-      setBusinesses(data || []);
+      if (!Array.isArray(data)) throw new Error('Invalid response');
+      setBusinesses(data);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUseRealGPS = () => {
+    if (!navigator.geolocation) {
+      setError('Geolocation not supported');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const loc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        setLocation(loc);
+        fetchBusinesses(loc.lat, loc.lon, selectedCategory);
+      },
+      () => setError('Location denied. Use manual coordinates below.')
+    );
+  };
+
+  const handleUseManual = () => {
+    const lat = parseFloat(manualLat);
+    const lon = parseFloat(manualLon);
+    if (isNaN(lat) || isNaN(lon)) return setError('Invalid coordinates');
+    const loc = { lat, lon };
+    setLocation(loc);
+    fetchBusinesses(lat, lon, selectedCategory);
   };
 
   const handleCategoryChange = (catId: number | undefined) => {
@@ -66,7 +77,6 @@ const Home: React.FC = () => {
 
   return (
     <div style={{ padding: 20 }}>
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Hakika</h1>
         <div>
@@ -85,24 +95,21 @@ const Home: React.FC = () => {
         </select>
       </div>
 
-      {/* Location button */}
-      {!location && (
-        <button onClick={requestLocation} style={{ padding: '10px 20px', marginBottom: 20 }}>
-          Find Businesses Near Me
-        </button>
-      )}
-      {location && (
-        <p style={{ color: '#666', marginBottom: 10 }}>
-          Showing businesses near you
-          <button onClick={requestLocation} style={{ marginLeft: 12 }}>Refresh</button>
-        </p>
-      )}
+      {/* Location controls */}
+      <div style={{ marginBottom: 20, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button onClick={handleUseRealGPS}>Use My Real Location</button>
+        <span>or enter coordinates:</span>
+        <input value={manualLat} onChange={e => setManualLat(e.target.value)} placeholder="Lat" style={{ width: 80 }} />
+        <input value={manualLon} onChange={e => setManualLon(e.target.value)} placeholder="Lon" style={{ width: 80 }} />
+        <button onClick={handleUseManual}>Search</button>
+      </div>
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      {/* Business list */}
       {loading && <p>Loading...</p>}
-      {!loading && businesses.length === 0 && location && <p>No businesses found nearby.</p>}
+
+      {location && !loading && businesses.length === 0 && (
+        <p>No businesses found near ({location.lat.toFixed(4)}, {location.lon.toFixed(4)}). Try different coordinates.</p>
+      )}
 
       <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
         {businesses.map((biz) => (
