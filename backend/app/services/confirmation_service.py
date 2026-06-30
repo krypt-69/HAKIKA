@@ -8,6 +8,9 @@ from app.models.audit_log import AuditLog
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
+import logging
+
+logger = logging.getLogger("hakika")
 
 class ConfirmationService:
     def __init__(
@@ -72,19 +75,27 @@ class ConfirmationService:
         await self.order_repo.update_status(order, OrderStatus.payment_pending)
         await self.db.commit()
 
-        # Trigger payment creation
-        from app.repositories.payment_repository import PaymentRepository
-        from app.repositories.customer_repository import CustomerRepository
-        from app.repositories.ledger_repository import LedgerRepository
-        from app.services.payment_service import PaymentService
+        # Try to initiate payment – failure should not break confirmation
+        payment_result = {"status": "initiation_failed"}
+        try:
+            from app.repositories.payment_repository import PaymentRepository
+            from app.repositories.customer_repository import CustomerRepository
+            from app.repositories.ledger_repository import LedgerRepository
+            from app.services.payment_service import PaymentService
 
-        payment_repo = PaymentRepository(self.db)
-        customer_repo = CustomerRepository(self.db)
-        ledger_repo = LedgerRepository(self.db)
-        payment_service = PaymentService(payment_repo, self.order_repo, customer_repo, ledger_repo)
+            payment_repo = PaymentRepository(self.db)
+            customer_repo = CustomerRepository(self.db)
+            ledger_repo = LedgerRepository(self.db)
+            payment_service = PaymentService(payment_repo, self.order_repo, customer_repo, ledger_repo)
 
-        payment_result = await payment_service.initiate_payment(order_id)
-        return {"status": "payment_pending", "payment": payment_result}
+            payment_result = await payment_service.initiate_payment(order_id)
+        except Exception as e:
+            logger.error(f"Payment initiation failed for order {order_id}: {e}")
+
+        return {
+            "status": "payment_pending",
+            "payment": payment_result
+        }
 
     async def report_problem(self, order_id: uuid.UUID, phone: str, reason: str):
         order = await self.order_repo.get_by_id(order_id)
