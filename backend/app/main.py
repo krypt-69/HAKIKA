@@ -7,12 +7,27 @@ from app.core.error_handlers import (
     validation_exception_handler,
     generic_exception_handler
 )
+from app.core.logging_config import setup_json_logging
+import logging
+
+setup_json_logging()
+logger = logging.getLogger("hakika")
+
+# Sentry
+if settings.sentry_dsn:
+    import sentry_sdk
+    from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+    sentry_sdk.init(dsn=settings.sentry_dsn, traces_sample_rate=1.0)
+    logger.info("Sentry enabled")
 
 app = FastAPI(
     title="Hakika API",
     description="Hakika Version 1.0",
     version="0.1.0",
 )
+
+if settings.sentry_dsn:
+    app.add_middleware(SentryAsgiMiddleware)
 
 app.include_router(api_router, prefix="/api/v1")
 

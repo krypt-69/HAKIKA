@@ -1,14 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.session import get_db
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, require_owner
 from app.repositories.payment_repository import PaymentRepository
 from app.repositories.order_repository import OrderRepository
 from app.repositories.customer_repository import CustomerRepository
 from app.repositories.ledger_repository import LedgerRepository
 from app.services.payment_service import PaymentService
-from app.integrations.intasend.webhook import verify_signature
 from app.core.config import settings
+from app.integrations.intasend.mock_client import mock_instance
+from app.models.user import User
 import uuid
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -23,6 +24,7 @@ def get_payment_service(db: AsyncSession = Depends(get_db)):
 @router.post("/{order_id}/initiate")
 async def initiate_payment(
     order_id: str,
+    current_user: User = Depends(require_owner),   # only owners/admins
     service: PaymentService = Depends(get_payment_service)
 ):
     return await service.initiate_payment(uuid.UUID(order_id))
@@ -32,16 +34,12 @@ async def payment_callback(
     request: Request,
     service: PaymentService = Depends(get_payment_service)
 ):
-    # Read the raw body for signature verification
     raw_body = await request.body()
     signature = request.headers.get("X-IntaSend-Signature")
-
-    # Verify webhook signature if secret is configured
     if settings.intasend_webhook_secret:
+        from app.integrations.intasend.webhook import verify_signature
         if not verify_signature(raw_body, signature):
             raise HTTPException(status_code=401, detail="Invalid webhook signature")
-
-    # Parse JSON and process
     payload = await request.json()
     return await service.process_callback(payload)
 
@@ -57,7 +55,10 @@ async def mock_callback(
     checkout_id: str,
     service: PaymentService = Depends(get_payment_service)
 ):
-    """Simulate a successful payment callback (only when INTASEND_MODE=mock)."""
-    if settings.intasend_mode != "mock":
-        raise HTTPException(status_code=400, detail="Mock payments not enabled")
-    return await service.process_callback({"id": checkout_id, "paid": True})
+    ref = mock_instance.get_reference(checkout_id)
+    if not ref:
+        raise HTTPException(status_code=404, detail="Mock checkout not found")
+    return await service.process_callback({
+        "api_ref": ref,
+        "state": "COMPLETE"
+    })
