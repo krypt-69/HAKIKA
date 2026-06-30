@@ -9,6 +9,7 @@ interface AuthState {
     logout: () => void;
     isAuthenticated: boolean;
     isLoading: boolean;
+    getClient: () => ReturnType<typeof createClient>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -18,18 +19,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
     const [isLoading, setIsLoading] = useState(true);
 
-    const client = createClient({ token });
+    const getClient = useCallback(() => createClient({ token }), [token]);
 
     const login = useCallback(async (email: string, password: string) => {
-        const response = await client.auth.login(email, password);
+        const response = await getClient().auth.login(email, password);
         const accessToken = response.access_token;
         localStorage.setItem('token', accessToken);
         localStorage.setItem('refreshToken', response.refresh_token);
         setToken(accessToken);
-        // Decode token to get user info (simple JWT decode without verification)
         const payload = JSON.parse(atob(accessToken.split('.')[1]));
         setUser({ id: payload.sub, email: payload.email || email, role: payload.role });
-    }, []);
+    }, [getClient]);
 
     const logout = useCallback(() => {
         localStorage.removeItem('token');
@@ -39,14 +39,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     useEffect(() => {
-        // Check if token exists and is valid
         if (token) {
             try {
                 const payload = JSON.parse(atob(token.split('.')[1]));
                 if (payload.exp * 1000 > Date.now()) {
                     setUser({ id: payload.sub, email: payload.email || '', role: payload.role });
+                    setIsLoading(false);
                 } else {
-                    // Token expired, try refresh
                     const refreshToken = localStorage.getItem('refreshToken');
                     if (refreshToken) {
                         createClient().auth.refresh(refreshToken).then(res => {
@@ -55,9 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             setToken(res.access_token);
                             const newPayload = JSON.parse(atob(res.access_token.split('.')[1]));
                             setUser({ id: newPayload.sub, email: newPayload.email || '', role: newPayload.role });
-                        }).catch(() => {
-                            logout();
-                        }).finally(() => setIsLoading(false));
+                        }).catch(() => logout()).finally(() => setIsLoading(false));
                     } else {
                         logout();
                         setIsLoading(false);
@@ -73,7 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, isLoading }}>
+        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, isLoading, getClient }}>
             {children}
         </AuthContext.Provider>
     );
