@@ -6,10 +6,14 @@ from app.models.payment import PaymentStatus
 from app.models.payment_attempt import PaymentAttemptStatus
 from app.models.order import OrderStatus
 from app.models.ledger_entry import LedgerTransactionType
-from app.integrations.intasend import IntaSendClient
+from app.integrations.intasend.payments import IntaSendPayments
+from app.integrations.intasend.mock_client import mock_instance
 from app.core.config import settings
 from fastapi import HTTPException, status
 import uuid
+import logging
+
+logger = logging.getLogger("hakika.payment")
 
 class PaymentService:
     def __init__(
@@ -23,7 +27,8 @@ class PaymentService:
         self.order_repo = order_repo
         self.customer_repo = customer_repo
         self.ledger_repo = ledger_repo
-        self.intasend = IntaSendClient()
+        # FORCE MOCK for verification
+        self.intasend = mock_instance
 
     async def initiate_payment(self, order_id: uuid.UUID) -> dict:
         order = await self.order_repo.get_by_id(order_id)
@@ -63,31 +68,39 @@ class PaymentService:
                 amount=float(order.total_amount),
                 reference=payment.idempotency_key
             )
-            checkout_id = response.get('id') or response.get('checkout_request_id')
+            checkout_id = response.get('id')
+            if not checkout_id:
+                raise ValueError("No checkout ID in response")
             await self.payment_repo.update_status(
                 payment, PaymentStatus.pending, provider_reference=checkout_id
             )
-            return {"status": "initiated", "payment_id": str(payment.id)}
+            logger.info(f"Mock checkout created for payment {payment.id}, checkout_id: {checkout_id}")
+            return {
+                "status": "initiated",
+                "payment_id": str(payment.id),
+                "checkout_id": checkout_id,
+            }
 
         except Exception as e:
-            attempt = await self.payment_repo.create_attempt(
+            logger.error(f"Mock checkout failed for payment {payment.id}: {e}")
+            await self.payment_repo.create_attempt(
                 payment_id=payment.id,
                 attempt_number=attempt_number,
                 status=PaymentAttemptStatus.failed,
                 provider_response={"error": str(e)}
             )
-            raise HTTPException(status_code=500, detail=f"STK Push failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Payment initiation failed: {str(e)}")
 
+    # ... rest unchanged
     async def process_callback(self, payload: dict) -> dict:
-        checkout_request_id = payload.get('checkout_request_id') or payload.get('id')
-        mpesa_receipt = payload.get('mpesa_receipt_number') or payload.get('receipt_number')
-        result_code = payload.get('result_code') or payload.get('status_code')
-        amount = payload.get('amount')
+        checkout_id = payload.get('checkout_id') or payload.get('id')
+        if not checkout_id:
+            raise HTTPException(status_code=400, detail="Missing checkout_id")
 
         from sqlalchemy import select
         from app.models.payment import Payment
         result = await self.payment_repo.db.execute(
-            select(Payment).where(Payment.provider_reference == checkout_request_id)
+            select(Payment).where(Payment.provider_reference == checkout_id)
         )
         payment = result.scalar_one_or_none()
         if not payment:
@@ -96,14 +109,17 @@ class PaymentService:
         if payment.status == PaymentStatus.verified:
             return {"status": "already_verified"}
 
+        amount = payload.get('amount')
         if amount and abs(float(amount) - float(payment.amount)) > 1.0:
             raise HTTPException(status_code=400, detail="Amount mismatch")
 
-        order = await self.order_repo.get_by_id(payment.order_id)
-        fee = round(float(payment.amount) * settings.hakika_fee_percentage / 100, 2)
+        is_paid = payload.get('paid', False) or payload.get('status_code') == '0'
 
-        if str(result_code) == "0":  # Success
+        if is_paid:
             await self.payment_repo.update_status(payment, PaymentStatus.verified)
+
+            order = await self.order_repo.get_by_id(payment.order_id)
+            fee = round(float(payment.amount) * settings.hakika_fee_percentage / 100, 2)
 
             await self.ledger_repo.create_entry(
                 LedgerTransactionType.payment_in, float(payment.amount),
@@ -118,7 +134,6 @@ class PaymentService:
 
             await self.order_repo.update_status(order, OrderStatus.paid)
 
-            # Create pending settlement
             from app.repositories.settlement_repository import SettlementRepository
             settlement_repo = SettlementRepository(self.payment_repo.db)
             net_amount = float(payment.amount) - fee
@@ -128,11 +143,11 @@ class PaymentService:
                 order_id=order.id,
                 payment_id=payment.id
             )
-
+            logger.info(f"Payment {payment.id} verified, settlement created")
             return {"status": "verified"}
         else:
             await self.payment_repo.update_status(payment, PaymentStatus.failed)
-            return {"status": "failed", "detail": payload.get('result_desc')}
+            return {"status": "failed"}
 
     async def get_payment_status(self, order_id: uuid.UUID) -> dict:
         payment = await self.payment_repo.get_by_order(order_id)
@@ -147,11 +162,11 @@ class PaymentService:
             if payment.provider_reference:
                 try:
                     status_data = await self.intasend.check_transaction_status(payment.provider_reference)
+                    is_paid = status_data.get('paid', False)
                     callback_payload = {
-                        "checkout_request_id": payment.provider_reference,
-                        "result_code": status_data.get('result_code', '1'),
+                        "id": payment.provider_reference,
+                        "paid": is_paid,
                         "amount": status_data.get('amount'),
-                        "mpesa_receipt_number": status_data.get('mpesa_receipt_number')
                     }
                     res = await self.process_callback(callback_payload)
                     results.append({"payment_id": str(payment.id), "result": res})

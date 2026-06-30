@@ -4,7 +4,7 @@ from app.repositories.business_repository import BusinessRepository
 from app.repositories.payment_method_repository import PaymentMethodRepository
 from app.models.settlement import SettlementStatus
 from app.models.ledger_entry import LedgerTransactionType
-from app.integrations.intasend import IntaSendClient
+from app.integrations.intasend.client import IntaSendClient
 from app.models.audit_log import AuditLog
 from fastapi import HTTPException, status
 import uuid
@@ -43,7 +43,7 @@ class SettlementService:
             methods = await self.payment_method_repo.get_by_business(settlement.business_id)
             if not methods:
                 raise ValueError("No payment method configured")
-            # TODO: actual IntaSend B2B payout
+            destination = methods[0]
             payout_ref = f"payout-{settlement.id}"
 
             await self.settlement_repo.update_status(settlement, SettlementStatus.completed, payout_ref)

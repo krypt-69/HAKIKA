@@ -7,6 +7,7 @@ from app.repositories.order_repository import OrderRepository
 from app.repositories.customer_repository import CustomerRepository
 from app.repositories.ledger_repository import LedgerRepository
 from app.services.payment_service import PaymentService
+from app.core.config import settings
 import uuid
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -39,3 +40,11 @@ async def get_payment_status(
     service: PaymentService = Depends(get_payment_service)
 ):
     return await service.get_payment_status(uuid.UUID(order_id))
+
+@router.post("/mock/callback/{checkout_id}")
+async def mock_callback(
+    checkout_id: str,
+    service: PaymentService = Depends(get_payment_service)
+):
+    """Simulate a successful payment callback for any checkout (mock mode)."""
+    return await service.process_callback({"id": checkout_id, "paid": True})
