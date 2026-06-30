@@ -18,4 +18,5 @@ from app.models.notification import Notification
 from app.models.audit_log import AuditLog
 from app.models.customer_contact_log import CustomerContactLog
 from app.models.dispute import Dispute
+from app.models.payment_attempt import PaymentAttempt
 from app.models.refresh_token import RefreshToken

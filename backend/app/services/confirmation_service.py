@@ -4,6 +4,7 @@ from app.repositories.delivery_repository import DeliveryRepository
 from app.repositories.trust_event_repository import TrustEventRepository
 from app.repositories.dispute_repository import DisputeRepository
 from app.models.order import OrderStatus
+from app.models.audit_log import AuditLog
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
@@ -26,7 +27,6 @@ class ConfirmationService:
         self.db = db
 
     async def _verify_customer_phone(self, phone: str, order_customer_id: uuid.UUID) -> uuid.UUID:
-        # Normalize and find customer
         if phone.startswith("0"):
             normalized = "+254" + phone[1:]
         elif phone.startswith("254"):
@@ -47,41 +47,44 @@ class ConfirmationService:
 
         customer_id = await self._verify_customer_phone(phone, order.customer_id)
 
-        # Ensure at least one delivery attempt exists
         attempts = await self.delivery_repo.get_attempts_for_order(order_id)
         if not attempts:
             raise HTTPException(status_code=400, detail="No delivery attempt recorded")
 
-        # Prevent duplicate confirmation
-        if order.status in (OrderStatus.customer_confirmed_delivery, OrderStatus.payment_pending, OrderStatus.paid, OrderStatus.completed):
+        if order.status in (OrderStatus.customer_confirmed_delivery, OrderStatus.payment_pending,
+                            OrderStatus.paid, OrderStatus.completed):
             raise HTTPException(status_code=400, detail="Delivery already confirmed")
 
-        # Create trust event (neutral score, but records confirmation)
         await self.trust_event_repo.create_trust_event(
-            subject_type='customer',
-            subject_id=customer_id,
-            event_type='CUSTOMER_CONFIRMED_DELIVERY',
-            score_change=0.0,
+            subject_type='customer', subject_id=customer_id,
+            event_type='CUSTOMER_CONFIRMED_DELIVERY', score_change=0.0,
             reason="Customer confirmed delivery"
         )
 
-        # Log audit event
-        from app.models.audit_log import AuditLog
         audit = AuditLog(
-            table_name='orders',
-            record_id=order.id,
+            table_name='orders', record_id=order.id,
             action='CUSTOMER_CONFIRMED_DELIVERY',
             new_values={"status": "customer_confirmed_delivery"}
         )
         self.db.add(audit)
 
-        # Update order status
         await self.order_repo.update_status(order, OrderStatus.customer_confirmed_delivery)
-        # Then move to payment_pending (we can do it in one step, but spec wants both states visible? The frozen spec shows two separate steps, but we'll transition to payment_pending right after for simplicity)
         await self.order_repo.update_status(order, OrderStatus.payment_pending)
         await self.db.commit()
 
-        return {"status": "payment_pending"}
+        # Trigger payment creation
+        from app.repositories.payment_repository import PaymentRepository
+        from app.repositories.customer_repository import CustomerRepository
+        from app.repositories.ledger_repository import LedgerRepository
+        from app.services.payment_service import PaymentService
+
+        payment_repo = PaymentRepository(self.db)
+        customer_repo = CustomerRepository(self.db)
+        ledger_repo = LedgerRepository(self.db)
+        payment_service = PaymentService(payment_repo, self.order_repo, customer_repo, ledger_repo)
+
+        payment_result = await payment_service.initiate_payment(order_id)
+        return {"status": "payment_pending", "payment": payment_result}
 
     async def report_problem(self, order_id: uuid.UUID, phone: str, reason: str):
         order = await self.order_repo.get_by_id(order_id)
@@ -92,34 +95,24 @@ class ConfirmationService:
 
         customer_id = await self._verify_customer_phone(phone, order.customer_id)
 
-        # Check if dispute already exists for this order
         existing = await self.dispute_repo.get_by_order(order_id)
         if existing:
             raise HTTPException(status_code=400, detail="Dispute already exists for this order")
 
-        # Create dispute
         dispute = await self.dispute_repo.create(order_id, customer_id, reason)
 
-        # Trust event
         await self.trust_event_repo.create_trust_event(
-            subject_type='customer',
-            subject_id=customer_id,
-            event_type='CUSTOMER_REPORTED_PROBLEM',
-            score_change=0.0,
-            reason=reason
+            subject_type='customer', subject_id=customer_id,
+            event_type='CUSTOMER_REPORTED_PROBLEM', score_change=0.0, reason=reason
         )
 
-        # Audit log
-        from app.models.audit_log import AuditLog
         audit = AuditLog(
-            table_name='disputes',
-            record_id=dispute.id,
+            table_name='disputes', record_id=dispute.id,
             action='DISPUTE_CREATED',
             new_values={"order_id": str(order_id), "reason": reason}
         )
         self.db.add(audit)
 
-        # Move order to dispute_review
         await self.order_repo.update_status(order, OrderStatus.dispute_review)
         await self.db.commit()
 

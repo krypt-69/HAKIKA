@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 30
     customer_session_expire_hours: int = 24
 
+    # IntaSend
+    intasend_api_url: str = "https://sandbox.intasend.com/api/v1"
+    intasend_public_key: str = ""
+    intasend_secret_key: str = ""
+    intasend_webhook_secret: str = ""
+    hakika_fee_percentage: float = 2.0
+
     class Config:
         env_file = ".env"
 
