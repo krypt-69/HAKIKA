@@ -1,6 +1,6 @@
 import uuid
-from sqlalchemy import String, Enum as SAEnum
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import String
+from sqlalchemy.dialects.postgresql import UUID, ENUM
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 import enum
@@ -16,4 +16,4 @@ class User(Base):
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     phone: Mapped[str | None] = mapped_column(String, nullable=True)
-    role: Mapped[UserRole] = mapped_column(SAEnum(UserRole), nullable=False)
+    role: Mapped[UserRole] = mapped_column(ENUM(UserRole, name='user_role', create_type=False), nullable=False)

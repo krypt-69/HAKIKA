@@ -1,6 +1,6 @@
 import uuid
-from sqlalchemy import String, Numeric, TIMESTAMP, ForeignKey, Enum as SAEnum
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import String, Numeric, TIMESTAMP, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID, JSONB, ENUM
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 from datetime import datetime
@@ -22,7 +22,7 @@ class Payment(Base):
     provider_reference: Mapped[str | None] = mapped_column(String, nullable=True)
     idempotency_key: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     amount: Mapped[float] = mapped_column(Numeric, nullable=False)
-    payment_type: Mapped[PaymentType] = mapped_column(SAEnum(PaymentType), default=PaymentType.FINAL_PAYMENT)
-    status: Mapped[PaymentStatus] = mapped_column(SAEnum(PaymentStatus), default=PaymentStatus.pending)
+    payment_type: Mapped[PaymentType] = mapped_column(ENUM(PaymentType, name='payment_type', create_type=False), default=PaymentType.FINAL_PAYMENT)
+    status: Mapped[PaymentStatus] = mapped_column(ENUM(PaymentStatus, name='payment_status', create_type=False), default=PaymentStatus.pending)
     provider_specific_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     last_checked_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)

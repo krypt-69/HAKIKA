@@ -1,6 +1,6 @@
 import uuid
-from sqlalchemy import TIMESTAMP, ForeignKey, Enum as SAEnum
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import TIMESTAMP, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID, ENUM
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 from datetime import datetime
@@ -16,4 +16,4 @@ class DeliveryAssignment(Base):
     order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("orders.id"))
     rider_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("riders.id"))
     assigned_at: Mapped[datetime] = mapped_column(TIMESTAMP, default=datetime.utcnow)
-    status: Mapped[AssignmentStatus] = mapped_column(SAEnum(AssignmentStatus), default=AssignmentStatus.assigned)
+    status: Mapped[AssignmentStatus] = mapped_column(ENUM(AssignmentStatus, name='assignment_status', create_type=False), default=AssignmentStatus.assigned)

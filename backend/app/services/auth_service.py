@@ -34,7 +34,7 @@ class AuthService:
         access = create_access_token(str(user.id), user.role.value)
         refresh = create_refresh_token(str(user.id))
         # Store refresh token hash
-        expires = datetime.now(timezone.utc) + timedelta(days=30)
+        expires = datetime.utcnow() + timedelta(days=30)
         await self.refresh_repo.create(user.id, hash_password(refresh), expires)
         return TokenResponse(access_token=access, refresh_token=refresh)
 
@@ -58,7 +58,7 @@ class AuthService:
         # Issue new pair
         access = create_access_token(str(user.id), user.role.value)
         new_refresh = create_refresh_token(str(user.id))
-        expires = datetime.now(timezone.utc) + timedelta(days=30)
+        expires = datetime.utcnow() + timedelta(days=30)
         await self.refresh_repo.create(user.id, hash_password(new_refresh), expires)
         return TokenResponse(access_token=access, refresh_token=new_refresh)
 

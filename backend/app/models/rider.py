@@ -1,6 +1,6 @@
 import uuid
-from sqlalchemy import String, Enum as SAEnum, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import String, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID, ENUM
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 import enum
@@ -18,4 +18,4 @@ class Rider(Base):
     name: Mapped[str | None] = mapped_column(String, nullable=True)
     email: Mapped[str | None] = mapped_column(String, nullable=True)
     phone: Mapped[str | None] = mapped_column(String, nullable=True)
-    status: Mapped[RiderStatus] = mapped_column(SAEnum(RiderStatus), default=RiderStatus.pending)
+    status: Mapped[RiderStatus] = mapped_column(ENUM(RiderStatus, name='rider_status', create_type=False), default=RiderStatus.pending)
