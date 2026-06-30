@@ -1,0 +1,9 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+redis==5.2.1
+pydantic-settings==2.7.1
+psycopg2-binary==2.9.10  # only for migrations later, not used in app
+alembic==1.14.1
+httpx==0.28.1  # for tests
