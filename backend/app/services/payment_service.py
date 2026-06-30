@@ -7,7 +7,6 @@ from app.models.payment_attempt import PaymentAttemptStatus
 from app.models.order import OrderStatus
 from app.models.ledger_entry import LedgerTransactionType
 from app.integrations.intasend.payments import IntaSendPayments
-from app.integrations.intasend.mock_client import mock_instance
 from app.core.config import settings
 from fastapi import HTTPException, status
 import uuid
@@ -27,8 +26,7 @@ class PaymentService:
         self.order_repo = order_repo
         self.customer_repo = customer_repo
         self.ledger_repo = ledger_repo
-        # FORCE MOCK for verification
-        self.intasend = mock_instance
+        self.intasend = IntaSendPayments()
 
     async def initiate_payment(self, order_id: uuid.UUID) -> dict:
         order = await self.order_repo.get_by_id(order_id)
@@ -63,7 +61,7 @@ class PaymentService:
         )
 
         try:
-            response = await self.intasend.send_stk_push(
+            response = await self.intasend.request_stk_push(
                 phone=customer.phone_normalized,
                 amount=float(order.total_amount),
                 reference=payment.idempotency_key
@@ -74,33 +72,26 @@ class PaymentService:
             await self.payment_repo.update_status(
                 payment, PaymentStatus.pending, provider_reference=checkout_id
             )
-            logger.info(f"Mock checkout created for payment {payment.id}, checkout_id: {checkout_id}")
             return {
                 "status": "initiated",
                 "payment_id": str(payment.id),
                 "checkout_id": checkout_id,
             }
-
         except Exception as e:
-            logger.error(f"Mock checkout failed for payment {payment.id}: {e}")
-            await self.payment_repo.create_attempt(
-                payment_id=payment.id,
-                attempt_number=attempt_number,
-                status=PaymentAttemptStatus.failed,
-                provider_response={"error": str(e)}
-            )
+            logger.error(f"IntaSend checkout failed: {e}")
             raise HTTPException(status_code=500, detail=f"Payment initiation failed: {str(e)}")
 
-    # ... rest unchanged
     async def process_callback(self, payload: dict) -> dict:
-        checkout_id = payload.get('checkout_id') or payload.get('id')
-        if not checkout_id:
-            raise HTTPException(status_code=400, detail="Missing checkout_id")
+        # IntaSend sends a flat JSON with api_ref matching our idempotency_key
+        state = payload.get('state')
+        api_ref = payload.get('api_ref')
+        if not api_ref:
+            raise HTTPException(status_code=400, detail="Missing api_ref in callback")
 
         from sqlalchemy import select
         from app.models.payment import Payment
         result = await self.payment_repo.db.execute(
-            select(Payment).where(Payment.provider_reference == checkout_id)
+            select(Payment).where(Payment.idempotency_key == api_ref)
         )
         payment = result.scalar_one_or_none()
         if not payment:
@@ -109,13 +100,7 @@ class PaymentService:
         if payment.status == PaymentStatus.verified:
             return {"status": "already_verified"}
 
-        amount = payload.get('amount')
-        if amount and abs(float(amount) - float(payment.amount)) > 1.0:
-            raise HTTPException(status_code=400, detail="Amount mismatch")
-
-        is_paid = payload.get('paid', False) or payload.get('status_code') == '0'
-
-        if is_paid:
+        if state == 'COMPLETE':
             await self.payment_repo.update_status(payment, PaymentStatus.verified)
 
             order = await self.order_repo.get_by_id(payment.order_id)
@@ -146,8 +131,7 @@ class PaymentService:
             logger.info(f"Payment {payment.id} verified, settlement created")
             return {"status": "verified"}
         else:
-            await self.payment_repo.update_status(payment, PaymentStatus.failed)
-            return {"status": "failed"}
+            return {"status": "pending", "state": state}
 
     async def get_payment_status(self, order_id: uuid.UUID) -> dict:
         payment = await self.payment_repo.get_by_order(order_id)
@@ -161,12 +145,11 @@ class PaymentService:
         for payment in pending:
             if payment.provider_reference:
                 try:
-                    status_data = await self.intasend.check_transaction_status(payment.provider_reference)
-                    is_paid = status_data.get('paid', False)
+                    status_data = await self.intasend.verify_payment(payment.provider_reference)
+                    state = status_data.get('state') or status_data.get('invoice', {}).get('state')
                     callback_payload = {
-                        "id": payment.provider_reference,
-                        "paid": is_paid,
-                        "amount": status_data.get('amount'),
+                        "api_ref": payment.idempotency_key,
+                        "state": state,
                     }
                     res = await self.process_callback(callback_payload)
                     results.append({"payment_id": str(payment.id), "result": res})

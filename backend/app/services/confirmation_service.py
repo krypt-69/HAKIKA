@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 import logging
 
-logger = logging.getLogger("hakika")
+logger = logging.getLogger("hakika.confirmation")
 
 class ConfirmationService:
     def __init__(
@@ -75,7 +75,7 @@ class ConfirmationService:
         await self.order_repo.update_status(order, OrderStatus.payment_pending)
         await self.db.commit()
 
-        # Try to initiate payment – failure should not break confirmation
+        # Try to initiate payment – return details on success, graceful on failure
         payment_result = {"status": "initiation_failed"}
         try:
             from app.repositories.payment_repository import PaymentRepository

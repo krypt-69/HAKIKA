@@ -6,37 +6,41 @@ logger = logging.getLogger("hakika.intasend")
 
 class IntaSendClient:
     def __init__(self):
-        self.base_url = settings.intasend_api_url.rstrip('/')  # https://api.intasend.com
-        self.public_key = settings.intasend_public_key
+        self.base_url = "https://sandbox.intasend.com"
         self.secret_key = settings.intasend_secret_key
-        self.test_mode = settings.intasend_test_mode
 
     def _headers(self) -> dict:
         return {
-            "X-IntaSend-Public-API-Key": self.public_key,
+            "Authorization": f"Bearer {self.secret_key}",
             "Content-Type": "application/json",
         }
 
-    async def send_stk_push(self, phone: str, amount: float, reference: str) -> dict:
-        """Create a checkout (STK Push). IntaSend API: POST /api/v1/checkout/"""
-        url = f"{self.base_url}/api/v1/checkout/"
+    async def create_checkout(self, phone: str, amount: float, reference: str) -> dict:
+        """Send STK Push. POST /api/v1/payment/mpesa-stk-push/"""
+        url = f"{self.base_url}/api/v1/payment/mpesa-stk-push/"
+        # Convert phone to international format: 07XX... → 2547XX...
+        if phone.startswith("0"):
+            phone = "254" + phone[1:]
+        elif phone.startswith("+"):
+            phone = phone[1:]
+        elif not phone.startswith("254"):
+            phone = "254" + phone
         payload = {
             "phone_number": phone,
-            "amount": str(amount),
+            "amount": int(amount),
             "currency": "KES",
-            "method": "M-PESA",
             "api_ref": reference,
         }
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(url, json=payload, headers=self._headers())
-            logger.info(f"IntaSend Checkout: {resp.status_code} {resp.text}")
+            logger.info(f"IntaSend STK Push: {resp.status_code} {resp.text}")
             if resp.status_code >= 400:
-                raise Exception(f"IntaSend Checkout failed: {resp.text}")
+                raise Exception(f"IntaSend STK Push failed: {resp.text}")
             return resp.json()
 
     async def check_transaction_status(self, checkout_id: str) -> dict:
-        """Check the status of a checkout. GET /api/v1/checkout/{id}/"""
-        url = f"{self.base_url}/api/v1/checkout/{checkout_id}/"
+        """Check status of a checkout."""
+        url = f"{self.base_url}/api/v1/payment/status/{checkout_id}/"
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(url, headers=self._headers())
             resp.raise_for_status()
