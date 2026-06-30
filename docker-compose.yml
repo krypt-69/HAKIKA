@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  api:
+    build: ./backend
+    container_name: hakika-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - backend/.env.docker
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hakika-network
+
+  db:
+    image: postgis/postgis:15-3.4
+    container_name: hakika-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-hakika}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-hakika_dev}
+      POSTGRES_DB: ${DB_NAME:-hakika_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-hakika} -d ${DB_NAME:-hakika_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - hakika-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: hakika-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - hakika-network
+
+networks:
+  hakika-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
