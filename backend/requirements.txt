@@ -7,3 +7,4 @@ pydantic-settings==2.7.1
 psycopg2-binary==2.9.10  # only for migrations later, not used in app
 alembic==1.14.1
 httpx==0.28.1  # for tests
+geoalchemy2==0.15.2
