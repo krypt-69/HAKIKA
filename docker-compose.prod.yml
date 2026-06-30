@@ -1,0 +1,30 @@
+services:
+  api:
+    restart: always
+    environment:
+      - APP_ENV=production
+      - DEBUG=false
+    env_file:
+      - backend/.env.production
+    # Production uses gunicorn instead of uvicorn reload
+    command: >
+      sh -c "alembic upgrade head &&
+             gunicorn app.main:app
+               --workers 4
+               --worker-class uvicorn.workers.UvicornWorker
+               --bind 0.0.0.0:8000
+               --access-logfile -
+               --error-logfile -"
+    # No source code mounting in production
+    volumes: []
+
+  db:
+    restart: always
+    # Production database uses stronger credentials
+    environment:
+      POSTGRES_USER: ${DB_USER:-hakika_prod}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-hakika_prod}
+
+  redis:
+    restart: always
