@@ -42,9 +42,19 @@ export function createClient(opts: ClientOptions = {}) {
                     method: 'POST', body: JSON.stringify({ refresh_token: refreshToken }),
                 }),
         },
+        discovery: {
+            categories: () => request('/categories'),
+            nearbyBusinesses: (lat: number, lon: number, radius?: number, categoryId?: number) => {
+                const params = new URLSearchParams({ lat: String(lat), lon: String(lon) });
+                if (radius) params.set('radius', String(radius));
+                if (categoryId) params.set('category_id', String(categoryId));
+                return request(`/businesses/discover?${params.toString()}`);
+            },
+        },
         businesses: {
             list: () => request('/businesses'),
             get: (id: string) => request(`/businesses/${id}`),
+            profile: (id: string) => request(`/businesses/${id}/profile`),
             create: (data: any) => request('/businesses', { method: 'POST', body: JSON.stringify(data) }),
             update: (id: string, data: any) => request(`/businesses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
             delete: (id: string) => request(`/businesses/${id}`, { method: 'DELETE' }),
@@ -60,9 +70,15 @@ export function createClient(opts: ClientOptions = {}) {
         },
         orders: {
             listBusiness: () => request('/orders/business/my'),
+            listCustomer: (phone: string) => request(`/orders/customer/my?phone=${encodeURIComponent(phone)}`),
             get: (id: string) => request(`/orders/${id}`),
+            create: (data: any) => request('/orders', { method: 'POST', body: JSON.stringify(data) }),
             accept: (id: string) => request(`/orders/${id}/accept`, { method: 'PUT' }),
             cancel: (id: string) => request(`/orders/${id}/business-cancel`, { method: 'PUT' }),
+            confirm: (id: string, phone: string) =>
+                request(`/orders/${id}/confirm`, { method: 'POST', body: JSON.stringify({ phone }) }),
+            reportProblem: (id: string, phone: string, reason: string) =>
+                request(`/orders/${id}/report-problem`, { method: 'POST', body: JSON.stringify({ phone, reason }) }),
         },
         delivery: {
             assignRider: (orderId: string, riderId: string) =>
