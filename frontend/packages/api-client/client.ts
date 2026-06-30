@@ -21,7 +21,10 @@ export function createClient(opts: ClientOptions = {}) {
             const error = await response.json().catch(() => ({ message: response.statusText }));
             throw new Error(error?.detail || error?.message || response.statusText);
         }
-        return response.json();
+        if (response.status === 204) return undefined as unknown as T;
+        const text = await response.text();
+        if (!text) return undefined as unknown as T;
+        return JSON.parse(text);
     }
 
     return {
@@ -54,6 +57,21 @@ export function createClient(opts: ClientOptions = {}) {
             update: (id: string, data: any) =>
                 request(`/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
             delete: (id: string) => request(`/products/${id}`, { method: 'DELETE' }),
+        },
+        orders: {
+            listBusiness: () => request('/orders/business/my'),
+            get: (id: string) => request(`/orders/${id}`),
+            accept: (id: string) => request(`/orders/${id}/accept`, { method: 'PUT' }),
+            cancel: (id: string) => request(`/orders/${id}/business-cancel`, { method: 'PUT' }),
+        },
+        delivery: {
+            assignRider: (orderId: string, riderId: string) =>
+                request(`/delivery/orders/${orderId}/assign?rider_id=${riderId}`, { method: 'PUT' }),
+        },
+        riders: {
+            listByBusiness: (businessId: string) => request(`/riders/${businessId}`),
+            create: (businessId: string, data: any) =>
+                request(`/riders/${businessId}`, { method: 'POST', body: JSON.stringify(data) }),
         },
     };
 }
