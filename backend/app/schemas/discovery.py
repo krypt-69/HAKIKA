@@ -9,14 +9,19 @@ class CategoryResponse(BaseModel):
         from_attributes = True
 
 class DiscoveredBusiness(BaseModel):
-    id: uuid.UUID
+    id: str
     name: str
     category_id: int
-    description: Optional[str]
+    category_name: Optional[str] = None
+    description: Optional[str] = None
     trust_score: float
-    logo_url: Optional[str]
+    logo_url: Optional[str] = None
+    slug: Optional[str] = None
     distance_meters: float
-    location: Optional[dict]
+    location: Optional[dict] = None
+    address_text: Optional[str] = None
+    cover_url: Optional[str] = None
+    operating_hours: list = []
 
 class ProductInfo(BaseModel):
     id: uuid.UUID

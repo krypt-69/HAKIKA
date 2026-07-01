@@ -3,7 +3,6 @@ from sqlalchemy import select, func
 from geoalchemy2.shape import to_shape
 from app.models.business import Business
 from app.models.location import Location
-from app.models.product import Product
 from app.models.category import Category
 from app.models.operating_hours import OperatingHours
 from app.repositories.category_repository import CategoryRepository
@@ -42,7 +41,6 @@ class DiscoveryService:
             .subquery()
         )
 
-        # Explicitly load slug by selecting the whole Business model
         query = (
             select(Business, subq.c.distance)
             .join(subq, Business.id == subq.c.business_id)
@@ -56,8 +54,19 @@ class DiscoveryService:
         result = await self.db.execute(query)
         rows = result.all()
 
+        # Preload category names
+        cat_ids = {b.category_id for b, _ in rows}
+        cat_map = {}
+        if cat_ids:
+            cat_result = await self.db.execute(
+                select(Category).where(Category.id.in_(cat_ids))
+            )
+            for cat in cat_result.scalars().all():
+                cat_map[cat.id] = cat.name
+
         businesses = []
         for business, distance in rows:
+            # Location
             loc_query = select(Location).where(
                 Location.business_id == business.id,
                 Location.is_primary == True
@@ -65,19 +74,38 @@ class DiscoveryService:
             loc_result = await self.db.execute(loc_query)
             location = loc_result.scalar_one_or_none()
             lat_lon = {"lat": 0.0, "lon": 0.0}
+            address_text = None
             if location:
                 point = to_shape(location.coordinates)
                 lat_lon = {"lat": point.y, "lon": point.x}
+                address_text = location.address_text
+
+            # Operating hours (summary)
+            hours_query = select(OperatingHours).where(
+                OperatingHours.business_id == business.id
+            ).order_by(OperatingHours.day_of_week)
+            hours_result = await self.db.execute(hours_query)
+            hours = hours_result.scalars().all()
+            hours_list = [{
+                "day_of_week": h.day_of_week,
+                "opens_at": str(h.opens_at) if h.opens_at else None,
+                "closes_at": str(h.closes_at) if h.closes_at else None,
+                "is_closed": h.is_closed
+            } for h in hours]
 
             businesses.append({
                 "id": str(business.id),
                 "name": business.name,
                 "category_id": business.category_id,
+                "category_name": cat_map.get(business.category_id, "Unknown"),
                 "description": business.description,
                 "trust_score": float(business.trust_score),
                 "logo_url": business.logo_url,
                 "slug": business.slug,
                 "distance_meters": round(distance, 2),
                 "location": lat_lon,
+                "address_text": address_text,
+                "cover_url": f"/api/v1/businesses/{business.id}/cover",
+                "operating_hours": hours_list,
             })
         return businesses

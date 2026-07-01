@@ -21,7 +21,8 @@ const BusinessProfile: React.FC = () => {
 
     useEffect(() => {
         if (!slug) return;
-        api.businessById(slug!)
+        // Use the public endpoint which now returns location, hours, products with images
+        api.businessById(slug)
             .then(data => {
                 setBusiness(data);
                 setProducts(data.products || []);
@@ -63,27 +64,64 @@ const BusinessProfile: React.FC = () => {
         window.location.href = `/order?business=${business?.id}`;
     };
 
+    const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
     if (loading) return <div style={{ padding: 20 }}>Loading...</div>;
     if (error) return <div style={{ padding: 20, color: 'red' }}>{error}</div>;
     if (!business) return <div style={{ padding: 20 }}>Business not found</div>;
 
+    const logoSrc = `http://localhost:8000/api/v1/businesses/${business.id}/logo`;
+    const coverSrc = `http://localhost:8000/api/v1/businesses/${business.id}/cover`;
+
     return (
         <div style={{ padding: 20 }}>
             <button onClick={() => window.history.back()}>← Back</button>
-            <div style={{ display: 'flex', gap: 20, marginTop: 20 }}>
-                <img
-                    src={`http://localhost:8000/api/v1/businesses/${business.id}/logo`}
-                    style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 8 }}
-                    onError={e => (e.currentTarget.style.display = 'none')}
-                />
-                <div>
-                    <h1>{business.name}</h1>
-                    <p>⭐ {business.trust_score?.toFixed(0)}%</p>
-                    <p>{business.description}</p>
-                    <p>📍 {business.location?.address_text}</p>
+
+            {/* Header section */}
+            <div style={{ marginTop: 20 }}>
+                {/* Cover image */}
+                <div style={{ height: 200, overflow: 'hidden', borderRadius: 8, marginBottom: 16 }}>
+                    <img
+                        src={coverSrc}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={e => { e.currentTarget.style.display = 'none'; }}
+                    />
                 </div>
+
+                {/* Logo and basic info */}
+                <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+                    <img
+                        src={logoSrc}
+                        style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 8, border: '1px solid #ddd' }}
+                        onError={e => { e.currentTarget.style.display = 'none'; }}
+                    />
+                    <div>
+                        <h1 style={{ margin: 0 }}>{business.name}</h1>
+                        {business.description && <p style={{ color: '#666', margin: '4px 0' }}>{business.description}</p>}
+                        <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+                            <span>⭐ {business.trust_score?.toFixed(0)}%</span>
+                            {business.location?.address_text && (
+                                <span>📍 {business.location.address_text}</span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Operating hours */}
+                {business.operating_hours?.length > 0 && (
+                    <div style={{ marginTop: 20, padding: 12, background: '#f9f9f9', borderRadius: 8 }}>
+                        <h3 style={{ margin: '0 0 8px 0' }}>🕒 Hours</h3>
+                        {business.operating_hours.map((h: any) => (
+                            <div key={h.day_of_week} style={{ display: 'flex', justifyContent: 'space-between', maxWidth: 300 }}>
+                                <span>{DAYS[h.day_of_week]}</span>
+                                <span>{h.is_closed ? 'Closed' : `${h.opens_at?.slice(0,5)} - ${h.closes_at?.slice(0,5)}`}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
+            {/* Products */}
             <h2 style={{ marginTop: 30 }}>Products</h2>
             <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
                 {products.map(product => {
@@ -106,6 +144,7 @@ const BusinessProfile: React.FC = () => {
                 })}
             </div>
 
+            {/* Cart */}
             {cart.length > 0 && (
                 <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '2px solid #2563eb', padding: 16, boxShadow: '0 -4px 12px rgba(0,0,0,0.1)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>

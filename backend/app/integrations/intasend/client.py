@@ -16,14 +16,20 @@ class IntaSendClient:
             "Content-Type": "application/json",
         }
 
+    def _format_phone(self, phone: str) -> str:
+        """Convert to 254XXXXXXXXX format (digits only)."""
+        # Remove any +, spaces, or leading 0
+        phone = phone.strip().replace('+', '').replace(' ', '')
+        if phone.startswith('0'):
+            phone = '254' + phone[1:]
+        if not phone.startswith('254'):
+            phone = '254' + phone
+        return phone
+
     async def send_stk_push(self, phone: str, amount: float, reference: str) -> dict:
         url = f"{self.base_url}/api/v1/payment/mpesa-stk-push/"
-        if phone.startswith("0"):
-            phone = "254" + phone[1:]
-        elif not phone.startswith("254"):
-            phone = "254" + phone
         payload = {
-            "phone_number": phone,
+            "phone_number": self._format_phone(phone),
             "amount": int(amount),
             "currency": "KES",
             "api_ref": reference,
