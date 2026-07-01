@@ -8,7 +8,8 @@
   "scripts": {
     "dev:business": "npm --workspace @hakika/business run dev",
     "dev:customer": "npm --workspace @hakika/customer run dev",
-    "dev:admin": "npm --workspace @hakika/admin run dev"
+    "dev:admin": "npm --workspace @hakika/admin run dev",
+    "dev:rider": "npm --workspace @hakika/rider run dev"
   },
   "overrides": {
     "react": "18.3.1",
