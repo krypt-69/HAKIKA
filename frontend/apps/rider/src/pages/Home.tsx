@@ -26,24 +26,23 @@ const Home: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const [gpsLat, setGpsLat] = useState('-1.286');
   const [gpsLon, setGpsLon] = useState('36.817');
   const [photoUrl, setPhotoUrl] = useState('');
   const [message, setMessage] = useState('');
 
-  const client = getClient();
+  const token = localStorage.getItem('token');
 
   const fetchOrders = async () => {
     setLoading(true);
     setError('');
     try {
-      const resp = await fetch('http://localhost:8000/api/v1/delivery/orders', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const resp = await fetch('http://localhost:8000/api/v1/delivery/my-orders', {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!resp.ok) throw new Error('Failed to load deliveries');
       const data = await resp.json();
-      setOrders(Array.isArray(data) ? data : [data].filter(Boolean));
+      setOrders(Array.isArray(data) ? data : []);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -55,15 +54,20 @@ const Home: React.FC = () => {
     fetchOrders();
     const interval = setInterval(fetchOrders, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [token]);
 
   const getRealGPS = () => {
-    navigator.geolocation?.getCurrentPosition(
+    if (!navigator.geolocation) {
+      setError('Geolocation not supported on this device');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
       pos => {
         setGpsLat(String(pos.coords.latitude));
         setGpsLon(String(pos.coords.longitude));
+        setError('');
       },
-      () => setError('GPS not available')
+      () => setError('Location access denied. Using manual coordinates.')
     );
   };
 
@@ -73,12 +77,11 @@ const Home: React.FC = () => {
     try {
       const resp = await fetch(`http://localhost:8000/api/v1/delivery/orders/${orderId}/arrive?gps_lat=${gpsLat}&gps_lon=${gpsLon}`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!resp.ok) throw new Error('Failed to mark arrival');
       setMessage('Arrival recorded!');
       fetchOrders();
-      setActiveOrder(null);
     } catch (err: any) {
       setError(err.message);
     }

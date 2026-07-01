@@ -84,3 +84,65 @@ async def get_order_for_rider(
     items = await order_repo.get_order_items(order.id)
     order_data['items'] = [{"product_name": i.product_name, "unit_price": float(i.unit_price), "quantity": i.quantity} for i in items]
     return order_data
+
+@router.get("/my-orders", response_model=list[dict])
+async def rider_orders(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Return all orders currently assigned to the logged‑in rider."""
+    # Find rider record linked to this user
+    rider_repo = RiderRepository(db)
+    riders = await rider_repo.list_by_business(None)  # we need get_by_user – let's add a quick method
+    # Actually, we can query by user_id directly
+    from sqlalchemy import select as sa_select
+    from app.models.rider import Rider as RiderModel
+    rider_result = await db.execute(sa_select(RiderModel).where(RiderModel.user_id == current_user.id))
+    rider = rider_result.scalar_one_or_none()
+    if not rider:
+        raise HTTPException(status_code=403, detail="Not a rider")
+
+    # Get all active assignments for this rider
+    from app.models.delivery_assignment import DeliveryAssignment as DAModel, AssignmentStatus
+    from app.models.order import Order as OrderModel
+    import uuid
+
+    assignments = await db.execute(
+        sa_select(DAModel).where(
+            DAModel.rider_id == rider.id,
+            DAModel.status == AssignmentStatus.assigned
+        )
+    )
+    order_ids = [a.order_id for a in assignments.scalars().all()]
+
+    if not order_ids:
+        return []
+
+    orders = await db.execute(sa_select(OrderModel).where(OrderModel.id.in_(order_ids)))
+    orders_list = orders.scalars().all()
+
+    # Build response
+    result = []
+    for order in orders_list:
+        items = await OrderRepository(db).get_order_items(order.id)
+        order_data = {
+            "id": str(order.id),
+            "order_number": order.order_number,
+            "status": order.status.value,
+            "subtotal": float(order.subtotal),
+            "delivery_fee": float(order.delivery_fee),
+            "total_amount": float(order.total_amount),
+            "customer_id": str(order.customer_id),
+            "business_id": str(order.business_id),
+            "items": [{"id": str(i.id), "product_name": i.product_name, "unit_price": float(i.unit_price), "quantity": i.quantity} for i in items],
+            "customer_phone": None,
+        }
+        # Phone visibility: show only if order.status >= arrived
+        if order.status.value in ('arrived', 'customer_confirmed_delivery', 'payment_pending', 'paid', 'completed'):
+            from app.repositories.customer_repository import CustomerRepository
+            cust_repo = CustomerRepository(db)
+            customer = await cust_repo.get_by_id(order.customer_id)
+            order_data["customer_phone"] = customer.phone_normalized if customer else None
+        result.append(order_data)
+
+    return result
