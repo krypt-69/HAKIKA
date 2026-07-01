@@ -103,7 +103,7 @@ const Home: React.FC = () => {
 
             <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
                 {filtered.map(biz => (
-                    <a key={biz.id} href={`/b/${biz.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <a key={biz.id} href={`/b/${biz.slug || biz.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                         <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16, cursor: 'pointer' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <h3 style={{ margin: 0 }}>{biz.name}</h3>
