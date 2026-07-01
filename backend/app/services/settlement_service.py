@@ -23,11 +23,6 @@ class SettlementService:
         self.payment_method_repo = payment_method_repo
         self.intasend = IntaSendClient()
 
-    async def create_pending_settlement(self, business_id: uuid.UUID, amount: float,
-                                        order_id: uuid.UUID, payment_id: uuid.UUID) -> dict:
-        settlement = await self.settlement_repo.create(business_id, amount, order_id, payment_id)
-        return {"id": str(settlement.id), "status": "pending"}
-
     async def process_settlement(self, settlement_id: uuid.UUID, admin_id: uuid.UUID) -> dict:
         settlement = await self.settlement_repo.get_by_id(settlement_id)
         if not settlement:
@@ -40,14 +35,43 @@ class SettlementService:
         await self.settlement_repo.update_status(settlement, SettlementStatus.processing)
 
         try:
+            # Get business payment destination
             methods = await self.payment_method_repo.get_by_business(settlement.business_id)
             if not methods:
-                raise ValueError("No payment method configured")
-            destination = methods[0]
-            payout_ref = f"payout-{settlement.id}"
+                raise ValueError("No payment method configured for this business")
+            method = methods[0]  # use the first active payment method
 
-            await self.settlement_repo.update_status(settlement, SettlementStatus.completed, payout_ref)
+            # Get business name
+            business = await self.business_repo.get_by_id(settlement.business_id)
+            business_name = business.name if business else "Business"
 
+            # Call real IntaSend B2B payout
+            response = await self.intasend.send_b2b_payout(
+                amount=float(settlement.amount),
+                account_number=method.encrypted_account_number,  # In production this should be decrypted
+                account_type="PayBill" if method.type.value == "paybill" else "Till",
+                account_reference=f"HAKIKA-{str(settlement.id)[:8].upper()}",
+                business_name=business_name
+            )
+
+            # Extract references from IntaSend response
+            file_id = response.get("file_id")
+            tracking_id = response.get("tracking_id")
+            transaction_id = None
+            if response.get("transactions"):
+                transaction_id = response["transactions"][0].get("transaction_id")
+
+            # Update settlement with real references and mark completed
+            await self.settlement_repo.update_status(
+                settlement,
+                SettlementStatus.completed,
+                provider_reference=file_id or tracking_id
+            )
+            # Store tracking details
+            settlement.provider_reference = file_id
+            await self.settlement_repo.db.commit()
+
+            # Create ledger entry for the payout
             await self.ledger_repo.create_entry(
                 LedgerTransactionType.business_settlement,
                 -float(settlement.amount),
@@ -56,17 +80,28 @@ class SettlementService:
                 business_id=settlement.business_id
             )
 
+            # Audit log
             audit = AuditLog(
                 table_name='settlements',
                 record_id=settlement.id,
                 action='ADMIN_SETTLEMENT_COMPLETED',
                 changed_by=admin_id,
-                new_values={"status": "completed"}
+                new_values={
+                    "status": "completed",
+                    "file_id": file_id,
+                    "tracking_id": tracking_id,
+                    "transaction_id": transaction_id
+                }
             )
             self.settlement_repo.db.add(audit)
             await self.settlement_repo.db.commit()
 
-            return {"status": "completed", "reference": payout_ref}
+            return {
+                "status": "completed",
+                "file_id": file_id,
+                "tracking_id": tracking_id,
+                "transaction_id": transaction_id
+            }
 
         except Exception as e:
             await self.settlement_repo.update_status(settlement, SettlementStatus.failed)

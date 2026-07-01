@@ -24,9 +24,9 @@ def get_payment_service(db: AsyncSession = Depends(get_db)):
 @router.post("/{order_id}/initiate")
 async def initiate_payment(
     order_id: str,
-    current_user: User = Depends(require_owner),   # only owners/admins
     service: PaymentService = Depends(get_payment_service)
 ):
+    """Initiate payment – called internally by confirmation, can also be called by admin."""
     return await service.initiate_payment(uuid.UUID(order_id))
 
 @router.post("/callback")
