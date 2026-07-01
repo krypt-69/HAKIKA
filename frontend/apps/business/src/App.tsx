@@ -10,8 +10,9 @@ import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
 import Orders from './pages/Orders'
 import CreateBusiness from './pages/CreateBusiness'
+import Riders from './pages/Riders'
+import Settlements from './pages/Settlements'
 
-// A wrapper that redirects to /onboarding if no business exists
 const RequireBusiness: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { businessId, isLoading } = useAuth();
   if (isLoading) return <div>Loading...</div>;
@@ -36,9 +37,9 @@ const App: React.FC = () => (
           <Route index element={<Navigate to="/products" />} />
           <Route path="products" element={<Products />} />
           <Route path="orders" element={<Orders />} />
+          <Route path="riders" element={<Riders />} />
+          <Route path="settlements" element={<Settlements />} />
           <Route path="businesses" element={<BusinessesList />} />
-          <Route path="riders" element={<div>Riders coming soon</div>} />
-          <Route path="settlements" element={<div>Settlements coming soon</div>} />
         </Route>
       </Routes>
     </BrowserRouter>
