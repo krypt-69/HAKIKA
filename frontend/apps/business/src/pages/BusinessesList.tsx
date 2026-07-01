@@ -7,6 +7,7 @@ interface BusinessProfile {
   description: string | null;
   category_id: number;
   trust_score: number;
+  slug: string;
   locations: { address_text: string | null; lat: number; lon: number }[];
   operating_hours: { day_of_week: number; opens_at: string | null; closes_at: string | null; is_closed: boolean }[];
   payment_methods: { type: string; last_four_digits: string | null }[];
@@ -18,38 +19,68 @@ const BusinessProfilePage: React.FC = () => {
   const { businessId, getClient } = useAuth();
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [success, setSuccess] = useState('');
+  const token = localStorage.getItem('token');
+  const [logoKey, setLogoKey] = useState(Date.now());
+  const [coverKey, setCoverKey] = useState(Date.now());
 
-  useEffect(() => {
+  const fetchProfile = async () => {
     if (!businessId) return;
     const client = getClient();
-    client.businesses.get(businessId)
-      .then((data: any) => {
-        setProfile(data);
-        setName(data.name);
-        setDescription(data.description || '');
-      })
-      .catch((err: any) => setError(err.message));
-  }, [businessId]);
+    try {
+      const data = await client.businesses.get(businessId);
+      setProfile(data);
+      setName(data.name);
+      setDescription(data.description || '');
+    } catch (err: any) { setError(err.message); }
+  };
+
+  useEffect(() => { fetchProfile(); }, [businessId]);
 
   const handleSave = async () => {
     if (!businessId) return;
-    setError('');
-    setSuccess('');
+    setError(''); setSuccess('');
     try {
-      const client = getClient();
-      await client.businesses.update(businessId, { name, description: description || null });
+      await getClient().businesses.update(businessId, { name, description: description || null });
       setSuccess('Profile updated!');
       setEditMode(false);
-      // refresh
-      const data: any = await client.businesses.get(businessId);
-      setProfile(data);
-    } catch (err: any) {
-      setError(err.message);
-    }
+      fetchProfile();
+    } catch (err: any) { setError(err.message); }
+  };
+
+  const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(''); setSuccess('');
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const resp = await fetch(`http://localhost:8000/api/v1/businesses/${businessId}/logo`, {
+        method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: form
+      });
+      if (!resp.ok) throw new Error('Upload failed');
+      setSuccess('Logo uploaded!');
+      setLogoKey(Date.now());
+    } catch (err: any) { setError(err.message); }
+  };
+
+  const handleUploadCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(''); setSuccess('');
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const resp = await fetch(`http://localhost:8000/api/v1/businesses/${businessId}/cover`, {
+        method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: form
+      });
+      if (!resp.ok) throw new Error('Upload failed');
+      setSuccess('Cover uploaded!');
+      setCoverKey(Date.now());
+    } catch (err: any) { setError(err.message); }
   };
 
   if (!businessId) return <p>No business found.</p>;
@@ -60,9 +91,30 @@ const BusinessProfilePage: React.FC = () => {
     <div>
       <h1>Business Profile</h1>
       {success && <p style={{ color: 'green' }}>{success}</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      <div style={{ display: 'flex', gap: 30, marginBottom: 20 }}>
+        <div>
+          <h3>Logo</h3>
+          <img src={`http://localhost:8000/api/v1/business/${profile.slug}/logo?t=${logoKey}`}
+               style={{ width: 120, height: 120, objectFit: 'cover', border: '1px solid #ccc' }} />
+          <br /><input type="file" accept="image/*" onChange={handleUploadLogo} />
+        </div>
+        <div>
+          <h3>Cover</h3>
+          <img src={`http://localhost:8000/api/v1/business/${profile.slug}/cover?t=${coverKey}`}
+               style={{ width: 300, height: 100, objectFit: 'cover', border: '1px solid #ccc' }} />
+          <br /><input type="file" accept="image/*" onChange={handleUploadCover} />
+        </div>
+      </div>
+
+      <div style={{ background: '#f0f9ff', padding: 12, borderRadius: 8, marginBottom: 20 }}>
+        <p style={{ margin: 0, fontWeight: 'bold' }}>Public URL:</p>
+        <p style={{ margin: '4px 0 0 0', fontFamily: 'monospace' }}>https://hakika.co.ke/b/{profile.slug}</p>
+      </div>
 
       {editMode ? (
-        <div style={{ maxWidth: 400, marginTop: 20 }}>
+        <div style={{ maxWidth: 400 }}>
           <div><label>Business Name</label>
             <input value={name} onChange={e => setName(e.target.value)} style={{ width: '100%', padding: 8, marginTop: 4 }} />
           </div>
@@ -82,7 +134,6 @@ const BusinessProfilePage: React.FC = () => {
             <p><strong>Category ID:</strong> {profile.category_id}</p>
             <p><strong>Trust Score:</strong> {profile.trust_score}%</p>
           </div>
-
           <h3 style={{ marginTop: 20 }}>Location</h3>
           {profile.locations.length > 0 ? (
             profile.locations.map((loc, i) => (
@@ -92,7 +143,6 @@ const BusinessProfilePage: React.FC = () => {
               </div>
             ))
           ) : <p>No location set</p>}
-
           <h3 style={{ marginTop: 20 }}>Operating Hours</h3>
           {profile.operating_hours.length > 0 ? (
             profile.operating_hours.map(h => (
@@ -102,7 +152,6 @@ const BusinessProfilePage: React.FC = () => {
               </div>
             ))
           ) : <p>No hours set</p>}
-
           <h3 style={{ marginTop: 20 }}>Payment Method</h3>
           {profile.payment_methods.length > 0 ? (
             profile.payment_methods.map((pm, i) => (
@@ -112,7 +161,6 @@ const BusinessProfilePage: React.FC = () => {
               </div>
             ))
           ) : <p>No payment method</p>}
-
           <button onClick={() => setEditMode(true)} style={{ marginTop: 20, padding: '8px 16px' }}>Edit Profile</button>
         </>
       )}
