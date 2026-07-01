@@ -5,6 +5,7 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.repositories.customer_repository import CustomerRepository
 from app.repositories.rider_repository import RiderRepository
+from app.repositories.business_repository import BusinessRepository
 from app.services.auth_service import AuthService
 from app.schemas.user import (
     UserCreateRequest,
@@ -15,7 +16,9 @@ from app.schemas.user import (
     CustomerSessionRequest,
     CustomerSessionResponse
 )
-from app.models.user import UserRole
+from app.models.user import UserRole, User
+from app.api.dependencies import get_current_user
+import uuid
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -70,3 +73,26 @@ async def customer_session(
     service: AuthService = Depends(get_auth_service)
 ):
     return await service.customer_session(request.phone)
+
+@router.get("/me")
+async def get_current_user_info(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    data = {"id": str(current_user.id), "email": current_user.email, "role": current_user.role.value}
+    if current_user.role == UserRole.owner:
+        business_repo = BusinessRepository(db)
+        businesses = await business_repo.get_by_owner(current_user.id)
+        if businesses:
+            data["business_id"] = str(businesses[0].id)
+    elif current_user.role == UserRole.rider:
+        rider_repo = RiderRepository(db)
+        # find rider record
+        from sqlalchemy import select as sa_select
+        from app.models.rider import Rider
+        rider_result = await db.execute(sa_select(Rider).where(Rider.user_id == current_user.id))
+        rider = rider_result.scalar_one_or_none()
+        if rider:
+            data["rider_id"] = str(rider.id)
+            data["business_id"] = str(rider.business_id)
+    return data

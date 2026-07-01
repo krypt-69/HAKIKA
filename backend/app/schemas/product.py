@@ -1,6 +1,11 @@
 from pydantic import BaseModel
 import uuid
 
+class ProductImageResponse(BaseModel):
+    id: uuid.UUID
+    position: int
+    url: str
+
 class ProductCreate(BaseModel):
     name: str
     description: str | None = None
@@ -25,5 +30,6 @@ class ProductResponse(BaseModel):
     discount_price: float | None
     image_url: str | None
     is_available: bool
+    images: list[ProductImageResponse] = []
     class Config:
         from_attributes = True

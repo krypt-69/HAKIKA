@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { createClient } from '@hakika/api-client/client';
+import { getValidToken } from '@hakika/auth/tokenRefresher';
 import type { User } from '@hakika/types';
 
 interface AuthState {
@@ -16,15 +17,6 @@ interface AuthState {
 }
 
 const AuthContext = createContext<AuthState | null>(null);
-
-function isTokenExpired(token: string): boolean {
-    try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        return (payload.exp * 1000) < Date.now();
-    } catch {
-        return true;
-    }
-}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
@@ -76,53 +68,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setBusinessName(null);
     }, []);
 
-    // On mount or token change, validate and refresh if needed
     useEffect(() => {
-        const initAuth = async () => {
-            if (!token) {
+        const init = async () => {
+            const savedToken = localStorage.getItem('token');
+            if (!savedToken) {
                 setIsLoading(false);
                 return;
             }
-
-            // If token is expired, try refresh
-            if (isTokenExpired(token)) {
-                const refreshToken = localStorage.getItem('refreshToken');
-                if (refreshToken) {
-                    try {
-                        const res = await createClient().auth.refresh(refreshToken);
-                        localStorage.setItem('token', res.access_token);
-                        localStorage.setItem('refreshToken', res.refresh_token);
-                        setToken(res.access_token);
-                        const payload = JSON.parse(atob(res.access_token.split('.')[1]));
-                        setUser({ id: payload.sub, email: payload.email || '', role: payload.role });
-                        await fetchBusinessId(res.access_token);
-                        setIsLoading(false);
-                        return;
-                    } catch {
-                        logout();
-                        setIsLoading(false);
-                        return;
-                    }
+            try {
+                const validToken = await getValidToken();
+                if (validToken) {
+                    setToken(validToken);
+                    const payload = JSON.parse(atob(validToken.split('.')[1]));
+                    setUser({ id: payload.sub, email: payload.email || '', role: payload.role });
+                    await fetchBusinessId(validToken);
                 } else {
                     logout();
-                    setIsLoading(false);
-                    return;
                 }
-            }
-
-            // Token is valid
-            try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                setUser({ id: payload.sub, email: payload.email || '', role: payload.role });
-                await fetchBusinessId(token);
             } catch {
                 logout();
             }
             setIsLoading(false);
         };
-
-        initAuth();
-    }, []); // only run on mount
+        init();
+    }, []);
 
     return (
         <AuthContext.Provider value={{

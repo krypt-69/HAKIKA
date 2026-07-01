@@ -5,6 +5,7 @@ import PhoneLogin from './pages/PhoneLogin'
 import Home from './pages/Home'
 import BusinessProfile from './pages/BusinessProfile'
 import OrderPage from './pages/OrderPage'
+import OrderTracking from './pages/OrderTracking'
 
 const ProtectedCustomerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useCustomerAuth();
@@ -20,6 +21,7 @@ const App: React.FC = () => (
         <Route path="/" element={<ProtectedCustomerRoute><Home /></ProtectedCustomerRoute>} />
         <Route path="/business/:id" element={<ProtectedCustomerRoute><BusinessProfile /></ProtectedCustomerRoute>} />
         <Route path="/order" element={<ProtectedCustomerRoute><OrderPage /></ProtectedCustomerRoute>} />
+        <Route path="/order/:id" element={<ProtectedCustomerRoute><OrderTracking /></ProtectedCustomerRoute>} />
       </Routes>
     </BrowserRouter>
   </CustomerAuthProvider>

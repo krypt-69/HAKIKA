@@ -1,32 +1,42 @@
+import { getValidToken } from '@hakika/auth/tokenRefresher';
+
 const BASE_URL = 'http://localhost:8000/api/v1';
 
 type ClientOptions = {
     token?: string | null;
 };
 
-export function createClient(opts: ClientOptions = {}) {
+async function request<T>(url: string, options?: RequestInit): Promise<T> {
+    const token = await getValidToken();
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        ...(options?.headers as Record<string, string> || {}),
     };
-    if (opts.token) {
-        headers['Authorization'] = `Bearer ${opts.token}`;
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
     }
 
-    async function request<T>(url: string, options?: RequestInit): Promise<T> {
-        const response = await fetch(`${BASE_URL}${url}`, {
-            ...options,
-            headers: { ...headers, ...(options?.headers || {}) },
-        });
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: response.statusText }));
-            throw new Error(error?.detail || error?.message || response.statusText);
+    let response = await fetch(`${BASE_URL}${url}`, { ...options, headers });
+
+    if (response.status === 401 && token) {
+        const newToken = await getValidToken();
+        if (newToken) {
+            headers['Authorization'] = `Bearer ${newToken}`;
+            response = await fetch(`${BASE_URL}${url}`, { ...options, headers });
         }
-        if (response.status === 204) return undefined as unknown as T;
-        const text = await response.text();
-        if (!text) return undefined as unknown as T;
-        return JSON.parse(text);
     }
 
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(error?.detail || error?.message || response.statusText);
+    }
+    if (response.status === 204) return undefined as unknown as T;
+    const text = await response.text();
+    if (!text) return undefined as unknown as T;
+    return JSON.parse(text);
+}
+
+export function createClient(opts: ClientOptions = {}) {
     return {
         auth: {
             login: (email: string, password: string) =>
@@ -42,19 +52,10 @@ export function createClient(opts: ClientOptions = {}) {
                     method: 'POST', body: JSON.stringify({ refresh_token: refreshToken }),
                 }),
         },
-        discovery: {
-            categories: () => request('/categories'),
-            nearbyBusinesses: (lat: number, lon: number, radius?: number, categoryId?: number) => {
-                const params = new URLSearchParams({ lat: String(lat), lon: String(lon) });
-                if (radius) params.set('radius', String(radius));
-                if (categoryId) params.set('category_id', String(categoryId));
-                return request(`/businesses/discover?${params.toString()}`);
-            },
-        },
         businesses: {
             list: () => request('/businesses'),
             get: (id: string) => request(`/businesses/${id}`),
-            profile: (id: string) => request(`/businesses/${id}/profile`),
+            profile: (slug: string) => request(`/business/${slug}`),
             create: (data: any) => request('/businesses', { method: 'POST', body: JSON.stringify(data) }),
             update: (id: string, data: any) => request(`/businesses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
             delete: (id: string) => request(`/businesses/${id}`, { method: 'DELETE' }),
@@ -88,6 +89,18 @@ export function createClient(opts: ClientOptions = {}) {
             listByBusiness: (businessId: string) => request(`/riders/${businessId}`),
             create: (businessId: string, data: any) =>
                 request(`/riders/${businessId}`, { method: 'POST', body: JSON.stringify(data) }),
+        },
+        discovery: {
+            categories: () => request('/categories'),
+            nearbyBusinesses: (lat: number, lon: number, radius?: number, categoryId?: number) => {
+                const params = new URLSearchParams({ lat: String(lat), lon: String(lon) });
+                if (radius) params.set('radius', String(radius));
+                if (categoryId) params.set('category_id', String(categoryId));
+                return request(`/businesses/discover?${params.toString()}`);
+            },
+        },
+        settlements: {
+            list: () => request('/settlements'),
         },
     };
 }

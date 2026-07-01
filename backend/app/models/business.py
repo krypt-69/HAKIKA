@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import String, Text, Numeric, ForeignKey, TIMESTAMP, Integer
+from sqlalchemy import String, Text, Numeric, ForeignKey, TIMESTAMP, Integer, LargeBinary
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
@@ -14,4 +14,9 @@ class Business(Base):
     logo_url: Mapped[str | None] = mapped_column(String, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     trust_score: Mapped[float] = mapped_column(Numeric(5,2), default=80)
+    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    logo_data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    cover_data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    logo_updated_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
+    cover_updated_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)

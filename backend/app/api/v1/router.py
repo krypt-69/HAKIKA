@@ -1,5 +1,8 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import health, auth, discovery, business, product, order, rider, delivery, confirmation, payment, settlement, admin
+from app.api.v1.endpoints import (
+    health, auth, discovery, business, product, order,
+    rider, delivery, confirmation, payment, settlement, admin, images
+)
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
@@ -14,3 +17,4 @@ api_router.include_router(confirmation.router, tags=["confirmation"])
 api_router.include_router(payment.router, tags=["payments"])
 api_router.include_router(settlement.router, tags=["settlements"])
 api_router.include_router(admin.router, tags=["admin"])
+api_router.include_router(images.router, tags=["images"])

@@ -14,7 +14,7 @@ router = APIRouter(tags=["products"])
 def get_product_service(db: AsyncSession = Depends(get_db)):
     product_repo = ProductRepository(db)
     business_repo = BusinessRepository(db)
-    return ProductService(product_repo, business_repo)
+    return ProductService(product_repo, business_repo, db)
 
 # Public endpoints (no auth)
 @router.get("/businesses/{business_id}/products", response_model=list[ProductResponse])

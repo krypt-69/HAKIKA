@@ -78,6 +78,9 @@ const OrderPage: React.FC = () => {
         <h1>Order Placed!</h1>
         <p>Your order number is <strong>{orderId}</strong></p>
         <p>The business will review your order shortly.</p>
+        <button onClick={() => navigate(`/order/${orderId}`)} style={{ marginTop: 20, padding: '10px 20px', marginRight: 10 }}>
+          Track Your Order
+        </button>
         <button onClick={() => navigate('/')} style={{ marginTop: 20, padding: '10px 20px' }}>
           Back to Discovery
         </button>
@@ -94,7 +97,6 @@ const OrderPage: React.FC = () => {
         <p>Your cart is empty. <a href="/">Find businesses</a></p>
       ) : (
         <>
-          {/* Cart summary */}
           <div style={{ marginBottom: 20 }}>
             {cart.map(item => (
               <div key={item.product.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #eee' }}>
@@ -108,7 +110,6 @@ const OrderPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Order form */}
           <form onSubmit={handleSubmit} style={{ maxWidth: 400 }}>
             <div style={{ marginBottom: 12 }}>
               <label>Phone Number</label>
