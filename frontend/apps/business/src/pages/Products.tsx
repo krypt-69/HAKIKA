@@ -1,12 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useAuth } from '@hakika/auth';
+import { useAuth } from '../AuthContext';
+import { api } from '../api';
 
-interface ProductImage {
-  id: string;
-  position: number;
-  url: string;
-}
-
+interface ProductImage { id: string; position: number; url: string; }
 interface Product {
   id: string;
   name: string;
@@ -18,27 +14,27 @@ interface Product {
 }
 
 const Products: React.FC = () => {
-  const { getClient, businessId } = useAuth();
-  const client = getClient();
+  const { businessId } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [form, setForm] = useState({ name: '', description: '', original_price: '', discount_price: '' });
+  const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const token = localStorage.getItem('token');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchProducts = async () => {
     if (!businessId) return;
-    const data: any = await client.products.listByBusiness(businessId);
-    setProducts(data || []);
+    try { setProducts(await api.products.listByBusiness(businessId)); } catch (e: any) { setError(e.message); }
   };
 
   useEffect(() => { fetchProducts(); }, [businessId]);
 
   const resetForm = () => {
     setForm({ name: '', description: '', original_price: '', discount_price: '' });
+    setNewImageFile(null);
     setEditingProduct(null);
     setShowForm(false);
     setError('');
@@ -55,15 +51,27 @@ const Products: React.FC = () => {
         original_price: Number(form.original_price),
         discount_price: form.discount_price ? Number(form.discount_price) : null,
       };
+      let productId: string;
       if (editingProduct) {
-        await client.products.update(editingProduct.id, payload);
+        await api.products.update(editingProduct.id, payload);
+        productId = editingProduct.id;
         setSuccess('Product updated!');
       } else {
-        await client.products.create(businessId!, payload);
+        const data: any = await api.products.create(businessId!, payload);
+        productId = data.id;
         setSuccess('Product created!');
       }
+      if (newImageFile) {
+        const fd = new FormData(); fd.append('file', newImageFile);
+        await fetch(`http://localhost:8000/api/v1/products/${productId}/images`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: fd
+        });
+        setSuccess(s => s + ' Image uploaded.');
+      }
       resetForm();
-      await fetchProducts();
+      fetchProducts();
     } catch (err: any) { setError(err.message); }
   };
 
@@ -75,47 +83,30 @@ const Products: React.FC = () => {
       original_price: String(product.original_price),
       discount_price: product.discount_price ? String(product.discount_price) : '',
     });
+    setNewImageFile(null);
     setShowForm(true);
   };
 
   const handleDelete = async (productId: string) => {
-    setError('');
-    try {
-      await client.products.delete(productId);
-      setSuccess('Product deleted');
-      await fetchProducts();
-    } catch (err: any) { setError(err.message); }
+    try { await api.products.delete(productId); fetchProducts(); } catch (e: any) { setError(e.message); }
   };
 
   const handleUploadImage = async (productId: string, file: File) => {
-    setError(''); setSuccess('');
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const resp = await fetch(`http://localhost:8000/api/v1/products/${productId}/images`, {
-        method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData
-      });
-      if (!resp.ok) throw new Error('Upload failed');
-      setSuccess('Image uploaded');
-      await fetchProducts();
-    } catch (err: any) { setError(err.message); }
+    const fd = new FormData(); fd.append('file', file);
+    await fetch(`http://localhost:8000/api/v1/products/${productId}/images`, {
+      method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd
+    });
+    fetchProducts();
   };
 
   const handleDeleteImage = async (productId: string, imageId: string) => {
-    setError(''); setSuccess('');
-    try {
-      const resp = await fetch(`http://localhost:8000/api/v1/products/${productId}/images/${imageId}`, {
-        method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!resp.ok) throw new Error('Delete failed');
-      setSuccess('Image deleted');
-      await fetchProducts();
-    } catch (err: any) { setError(err.message); }
+    await fetch(`http://localhost:8000/api/v1/products/${productId}/images/${imageId}`, {
+      method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
+    });
+    fetchProducts();
   };
 
   const finalPrice = (p: Product) => p.discount_price ?? p.original_price;
-
-  if (!businessId) return <p>No business set up. <a href="/onboarding">Create one</a>.</p>;
 
   return (
     <div>
@@ -133,6 +124,11 @@ const Products: React.FC = () => {
           <div><label>Description:</label><input value={form.description} onChange={e => setForm({...form, description: e.target.value})} style={{ width: '100%', padding: 8, marginTop: 4 }} /></div>
           <div><label>Original Price:</label><input type="number" step="0.01" value={form.original_price} onChange={e => setForm({...form, original_price: e.target.value})} required style={{ width: '100%', padding: 8, marginTop: 4 }} /></div>
           <div><label>Discount Price:</label><input type="number" step="0.01" value={form.discount_price} onChange={e => setForm({...form, discount_price: e.target.value})} style={{ width: '100%', padding: 8, marginTop: 4 }} /></div>
+          <div style={{ marginTop: 12 }}>
+            <label>Product Image (optional):</label>
+            <input type="file" accept="image/*" onChange={e => setNewImageFile(e.target.files?.[0] || null)} style={{ marginTop: 4 }} />
+            {newImageFile && <p style={{ fontSize: 12, color: '#666' }}>{newImageFile.name} selected</p>}
+          </div>
           <button type="submit" style={{ marginTop: 10, padding: 10 }}>{editingProduct ? 'Update' : 'Create'}</button>
         </form>
       )}
@@ -172,8 +168,7 @@ const Products: React.FC = () => {
                       <button onClick={() => fileRef.current?.click()}
                         style={{ width: 30, height: 30, border: '1px dashed #ccc', background: 'none', cursor: 'pointer' }}>
                         +
-                        <input type="file" accept="image/*" style={{ display: 'none' }}
-                          ref={fileRef}
+                        <input type="file" accept="image/*" style={{ display: 'none' }} ref={fileRef}
                           onChange={e => { if (e.target.files?.[0]) { handleUploadImage(p.id, e.target.files[0]); e.target.value = ''; } }} />
                       </button>
                     )}

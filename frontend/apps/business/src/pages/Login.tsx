@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '@hakika/auth';
+import { useAuth } from '../AuthContext';
 import { Navigate, Link } from 'react-router-dom';
 
 const Login: React.FC = () => {
@@ -15,38 +15,19 @@ const Login: React.FC = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    try {
-      await login(email, password);
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
+    try { await login(email, password); } catch (err: any) { setError(err.message); } finally { setLoading(false); }
   };
 
   return (
     <div style={{ maxWidth: 400, margin: '100px auto', padding: 20 }}>
       <h1>Hakika Business Login</h1>
       <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label>Email</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-            style={{ width: '100%', padding: 10, fontSize: 16, marginTop: 4 }} />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <label>Password</label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
-            style={{ width: '100%', padding: 10, fontSize: 16, marginTop: 4 }} />
-        </div>
+        <div><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required style={{ width: '100%', padding: 10 }} /></div>
+        <div><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required style={{ width: '100%', padding: 10, marginTop: 10 }} /></div>
         {error && <p style={{ color: 'red' }}>{error}</p>}
-        <button type="submit" disabled={loading}
-          style={{ width: '100%', padding: 12, fontSize: 16, background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8 }}>
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
+        <button type="submit" disabled={loading} style={{ width: '100%', padding: 12, marginTop: 10 }}>{loading ? 'Logging in...' : 'Login'}</button>
       </form>
-      <p style={{ marginTop: 16, textAlign: 'center' }}>
-        Don't have an account? <Link to="/register">Register here</Link>
-      </p>
+      <p style={{ textAlign: 'center', marginTop: 12 }}>Don't have an account? <Link to="/register">Register</Link></p>
     </div>
   );
 };

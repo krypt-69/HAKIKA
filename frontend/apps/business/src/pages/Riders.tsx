@@ -1,51 +1,31 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '@hakika/auth';
-
-interface Rider {
-  id: string;
-  name: string;
-  phone: string;
-  status: string;
-}
+import { useAuth } from '../AuthContext';
+import { api } from '../api';
 
 const Riders: React.FC = () => {
-  const { businessId, getClient } = useAuth();
-  const [riders, setRiders] = useState<Rider[]>([]);
+  const { businessId } = useAuth();
+  const [riders, setRiders] = useState<any[]>([]);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const token = localStorage.getItem('token');
 
-  const fetchRiders = async () => {
+  const fetchRiders = () => {
     if (!businessId) return;
-    try {
-      const resp = await fetch(`http://localhost:8000/api/v1/riders/${businessId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!resp.ok) throw new Error('Failed to load riders');
-      const data = await resp.json();
-      setRiders(data || []);
-    } catch (err: any) { setError(err.message); }
+    api.riders.listByBusiness(businessId).then(setRiders).catch((e: any) => setError(e.message));
   };
 
   useEffect(() => { fetchRiders(); }, [businessId]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(''); setSuccess('');
+    setError('');
     try {
-      const resp = await fetch(`http://localhost:8000/api/v1/riders/${businessId}`, {
+      await fetch(`http://localhost:8000/api/v1/riders/${businessId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify({ name, phone, email: `${name.toLowerCase().replace(/\s/g, '.')}@rider.hakika` })
       });
-      if (!resp.ok) throw new Error('Failed to create rider');
-      setSuccess('Rider created!');
-      setName('');
-      setPhone('');
-      setShowForm(false);
+      setName(''); setPhone('');
       fetchRiders();
     } catch (err: any) { setError(err.message); }
   };
@@ -54,40 +34,17 @@ const Riders: React.FC = () => {
     <div>
       <h1>Riders</h1>
       {error && <p style={{ color: 'red' }}>{error}</p>}
-      {success && <p style={{ color: 'green' }}>{success}</p>}
-
-      <button onClick={() => { setShowForm(!showForm); setName(''); setPhone(''); setError(''); setSuccess(''); }}>
-        {showForm ? 'Cancel' : '+ Add Rider'}
-      </button>
-
-      {showForm && (
-        <form onSubmit={handleCreate} style={{ maxWidth: 400, margin: '20px 0' }}>
-          <div><label>Name</label><input value={name} onChange={e => setName(e.target.value)} required style={{ width: '100%', padding: 8, marginTop: 4 }} /></div>
-          <div><label>Phone</label><input value={phone} onChange={e => setPhone(e.target.value)} required style={{ width: '100%', padding: 8, marginTop: 4 }} /></div>
-          <button type="submit" style={{ marginTop: 12, padding: '8px 16px' }}>Create Rider</button>
-        </form>
-      )}
-
-      <hr style={{ margin: '20px 0' }} />
-
-      {riders.length === 0 ? (
-        <p>No riders yet. Add your first rider above.</p>
-      ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid #ddd' }}>
-              <th>Name</th><th>Phone</th><th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {riders.map(r => (
-              <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td>{r.name}</td><td>{r.phone}</td><td>{r.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <form onSubmit={handleCreate} style={{ marginBottom: 20 }}>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="Name" required style={{ padding: 8, marginRight: 8 }} />
+        <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone" required style={{ padding: 8, marginRight: 8 }} />
+        <button type="submit" style={{ padding: 8 }}>Add Rider</button>
+      </form>
+      {riders.length === 0 && <p>No riders yet.</p>}
+      {riders.map(r => (
+        <div key={r.id} style={{ border: '1px solid #ddd', padding: 8, marginBottom: 4 }}>
+          {r.name} – {r.phone} ({r.status})
+        </div>
+      ))}
     </div>
   );
 };

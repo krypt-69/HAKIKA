@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '@hakika/auth';
+import { useAuth } from '../AuthContext';
+import { api } from '../api';
 
 interface BusinessProfile {
   id: string;
@@ -16,22 +17,23 @@ interface BusinessProfile {
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const BusinessProfilePage: React.FC = () => {
-  const { businessId, getClient } = useAuth();
+  const { businessId } = useAuth();
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const token = localStorage.getItem('token');
   const [logoKey, setLogoKey] = useState(Date.now());
   const [coverKey, setCoverKey] = useState(Date.now());
 
+  const token = localStorage.getItem('token');
+
   const fetchProfile = async () => {
     if (!businessId) return;
-    const client = getClient();
+    setError('');
     try {
-      const data = await client.businesses.get(businessId);
+      const data = await api.businesses.get(businessId);
       setProfile(data);
       setName(data.name);
       setDescription(data.description || '');
@@ -44,48 +46,37 @@ const BusinessProfilePage: React.FC = () => {
     if (!businessId) return;
     setError(''); setSuccess('');
     try {
-      await getClient().businesses.update(businessId, { name, description: description || null });
+      await api.businesses.update(businessId, { name, description: description || null });
       setSuccess('Profile updated!');
       setEditMode(false);
       fetchProfile();
     } catch (err: any) { setError(err.message); }
   };
 
-  const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const uploadImage = async (type: 'logo' | 'cover', file: File) => {
     setError(''); setSuccess('');
     const form = new FormData();
     form.append('file', file);
     try {
-      const resp = await fetch(`http://localhost:8000/api/v1/businesses/${businessId}/logo`, {
-        method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: form
+      const resp = await fetch(`http://localhost:8000/api/v1/businesses/${businessId}/${type}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: form
       });
-      if (!resp.ok) throw new Error('Upload failed');
-      setSuccess('Logo uploaded!');
-      setLogoKey(Date.now());
-    } catch (err: any) { setError(err.message); }
-  };
-
-  const handleUploadCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setError(''); setSuccess('');
-    const form = new FormData();
-    form.append('file', file);
-    try {
-      const resp = await fetch(`http://localhost:8000/api/v1/businesses/${businessId}/cover`, {
-        method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: form
-      });
-      if (!resp.ok) throw new Error('Upload failed');
-      setSuccess('Cover uploaded!');
-      setCoverKey(Date.now());
+      if (!resp.ok) throw new Error(`Failed to upload ${type}`);
+      setSuccess(`${type} updated!`);
+      if (type === 'logo') setLogoKey(Date.now());
+      else setCoverKey(Date.now());
     } catch (err: any) { setError(err.message); }
   };
 
   if (!businessId) return <p>No business found.</p>;
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
-  if (!profile) return <p>Loading...</p>;
+  if (!profile) return <p>Loading profile...</p>;
+
+  const slug = profile.slug || 'unknown';
+  const logoSrc = slug !== 'unknown' ? `http://localhost:8000/api/v1/business/${slug}/logo?t=${logoKey}` : '';
+  const coverSrc = slug !== 'unknown' ? `http://localhost:8000/api/v1/business/${slug}/cover?t=${coverKey}` : '';
 
   return (
     <div>
@@ -96,21 +87,25 @@ const BusinessProfilePage: React.FC = () => {
       <div style={{ display: 'flex', gap: 30, marginBottom: 20 }}>
         <div>
           <h3>Logo</h3>
-          <img src={`http://localhost:8000/api/v1/business/${profile.slug}/logo?t=${logoKey}`}
-               style={{ width: 120, height: 120, objectFit: 'cover', border: '1px solid #ccc' }} />
-          <br /><input type="file" accept="image/*" onChange={handleUploadLogo} />
+          {logoSrc && (
+            <img src={logoSrc} style={{ width: 120, height: 120, objectFit: 'cover', border: '1px solid #ccc', borderRadius: 8 }}
+                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          )}
+          <br /><input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage('logo', f); }} />
         </div>
         <div>
           <h3>Cover</h3>
-          <img src={`http://localhost:8000/api/v1/business/${profile.slug}/cover?t=${coverKey}`}
-               style={{ width: 300, height: 100, objectFit: 'cover', border: '1px solid #ccc' }} />
-          <br /><input type="file" accept="image/*" onChange={handleUploadCover} />
+          {coverSrc && (
+            <img src={coverSrc} style={{ width: 300, height: 100, objectFit: 'cover', border: '1px solid #ccc', borderRadius: 8 }}
+                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          )}
+          <br /><input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage('cover', f); }} />
         </div>
       </div>
 
       <div style={{ background: '#f0f9ff', padding: 12, borderRadius: 8, marginBottom: 20 }}>
         <p style={{ margin: 0, fontWeight: 'bold' }}>Public URL:</p>
-        <p style={{ margin: '4px 0 0 0', fontFamily: 'monospace' }}>https://hakika.co.ke/b/{profile.slug}</p>
+        <p style={{ margin: '4px 0 0 0', fontFamily: 'monospace' }}>https://hakika.co.ke/b/{slug}</p>
       </div>
 
       {editMode ? (
