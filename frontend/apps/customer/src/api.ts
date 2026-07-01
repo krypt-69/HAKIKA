@@ -1,0 +1,34 @@
+const BASE_URL = 'http://localhost:8000/api/v1';
+
+async function request<T>(url: string, options?: RequestInit): Promise<T> {
+    const response = await fetch(`${BASE_URL}${url}`, {
+        ...options,
+        headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) },
+    });
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(error?.detail || error?.message || response.statusText);
+    }
+    if (response.status === 204) return undefined as unknown as T;
+    const text = await response.text();
+    if (!text) return undefined as unknown as T;
+    return JSON.parse(text);
+}
+
+export const api = {
+    categories: () => request<any[]>('/categories'),
+    discover: (lat: number, lon: number, radius?: number, categoryId?: number) => {
+        const params = new URLSearchParams({ lat: String(lat), lon: String(lon) });
+        if (radius) params.set('radius', String(radius));
+        if (categoryId) params.set('category_id', String(categoryId));
+        return request<any[]>(`/businesses/discover?${params.toString()}`);
+    },
+    businessBySlug: (slug: string) => request<any>(`/b/${slug}`),
+    businessById: (id: string) => request<any>(`/b/${id}`),   // <-- ADDED
+    createOrder: (data: any) => request<any>('/orders', { method: 'POST', body: JSON.stringify(data) }),
+    getOrder: (id: string) => request<any>(`/orders/${id}`),
+    confirmDelivery: (id: string, phone: string) =>
+        request<any>(`/orders/${id}/confirm`, { method: 'POST', body: JSON.stringify({ phone }) }),
+    reportProblem: (id: string, phone: string, reason: string) =>
+        request<any>(`/orders/${id}/report-problem`, { method: 'POST', body: JSON.stringify({ phone, reason }) }),
+};
