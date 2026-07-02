@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@hakika/auth';
 
+const API_BASE = "http://localhost:8000/api/v1";
+
 interface OrderItem {
   id: string;
   product_name: string;
@@ -24,7 +26,7 @@ interface Order {
 const QUEUE_KEY = 'hakika_offline_actions';
 
 const Home: React.FC = () => {
-  const { getClient, user, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,7 +41,7 @@ const Home: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const resp = await fetch('http://localhost:8000/api/v1/delivery/my-orders', {
+      const resp = await fetch(`${API_BASE}/delivery/my-orders`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!resp.ok) throw new Error('Failed to load deliveries');
@@ -56,9 +58,8 @@ const Home: React.FC = () => {
     fetchOrders();
     const interval = setInterval(fetchOrders, 15000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, []);
 
-  // Process offline queue whenever we come online
   useEffect(() => {
     const processQueue = async () => {
       const stored = localStorage.getItem(QUEUE_KEY);
@@ -105,7 +106,7 @@ const Home: React.FC = () => {
   const handleArrive = async (orderId: string) => {
     setError('');
     setMessage('');
-    const url = `http://localhost:8000/api/v1/delivery/orders/${orderId}/arrive?gps_lat=${gpsLat}&gps_lon=${gpsLon}`;
+    const url = `${API_BASE}/delivery/orders/${orderId}/arrive?gps_lat=${gpsLat}&gps_lon=${gpsLon}`;
     const options = { method: 'PUT', headers: { 'Authorization': `Bearer ${token}` } };
     try {
       if (!navigator.onLine) {
@@ -128,11 +129,39 @@ const Home: React.FC = () => {
     fileInputRef.current?.click();
   };
 
-  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>, orderId: string) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setMessage('Photo captured (upload placeholder).');
-      // In production, upload to R2 and send URL to delivery attempt endpoint
+    if (!file) return;
+    setError('');
+    setMessage('Uploading evidence...');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadResp = await fetch(`${API_BASE}/delivery/orders/${orderId}/evidence`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+      if (!uploadResp.ok) throw new Error('Upload failed');
+      const uploadResult = await uploadResp.json();
+
+      // Call attempt endpoint with query parameters
+      const params = new URLSearchParams({
+        status: 'successful',
+        gps_lat: gpsLat,
+        gps_lon: gpsLon,
+        photo_url: uploadResult.url,
+      });
+      const attemptResp = await fetch(`${API_BASE}/delivery/orders/${orderId}/attempt?${params}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+            console.error("Attempt error:", await attemptResp.text());
+      if (!attemptResp.ok) throw new Error('Attempt update failed');
+      setMessage('Evidence uploaded!');
+      fetchOrders();
+    } catch (err: any) {
+      setError(err.message);
     }
   };
 
@@ -148,17 +177,13 @@ const Home: React.FC = () => {
           <button onClick={logout} style={{ marginLeft: 12, padding: '6px 12px' }}>Logout</button>
         </div>
       </div>
-
       {error && <p style={{ color: 'red' }}>{error}</p>}
       {message && <p style={{ color: 'green' }}>{message}</p>}
-
       <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <button onClick={getRealGPS} style={{ padding: '8px 16px' }}>📍 Get GPS</button>
         <span>Lat: {gpsLat} Lon: {gpsLon}</span>
       </div>
-
       {loading && <p>Loading...</p>}
-
       <h2 style={{ marginTop: 20 }}>Active ({activeOrders.length})</h2>
       {activeOrders.length === 0 && !loading && <p style={{ color: '#999' }}>No active deliveries</p>}
       {activeOrders.map(order => (
@@ -175,9 +200,6 @@ const Home: React.FC = () => {
           <p style={{ fontWeight: 'bold' }}>KES {order.total_amount}</p>
           {order.customer_phone && <p style={{ color: '#666' }}>📞 {order.customer_phone}</p>}
           <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {/* Navigate button — opens Google Maps with business coordinates.
-                We need business lat/lon. For now, we'll pass the order's delivery coordinates,
-                but ideally we fetch business location. We'll reuse delivery coordinates as destination. */}
             <button onClick={() => openNavigation(-1.286, 36.817)} style={{ padding: '8px 12px', background: '#f59e0b', border: 'none', borderRadius: 6, color: '#fff' }}>
               🧭 Navigate
             </button>
@@ -193,13 +215,13 @@ const Home: React.FC = () => {
                 <button onClick={handleTakePhoto} style={{ padding: '8px 12px', background: '#8b5cf6', border: 'none', borderRadius: 6, color: '#fff' }}>
                   📷 Take Photo
                 </button>
-                <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoCapture} style={{ display: 'none' }} />
+                <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
+                  onChange={(e) => handlePhotoCapture(e, order.id)} style={{ display: 'none' }} />
               </>
             )}
           </div>
         </div>
       ))}
-
       {pastOrders.length > 0 && (
         <>
           <h2 style={{ marginTop: 30 }}>Past ({pastOrders.length})</h2>

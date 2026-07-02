@@ -3,6 +3,14 @@ from sqlalchemy import select
 from app.models.business import Business
 from datetime import datetime
 import uuid
+import re
+
+def generate_slug(name: str) -> str:
+    slug = name.lower()
+    slug = re.sub(r'[^a-z0-9\s-]', '', slug)
+    slug = re.sub(r'\s+', '-', slug).strip('-')
+    slug = re.sub(r'-+', '-', slug)
+    return slug[:100]
 
 class BusinessRepository:
     def __init__(self, db: AsyncSession):
@@ -10,6 +18,20 @@ class BusinessRepository:
 
     async def create(self, owner_id: uuid.UUID, name: str, category_id: int,
                      description: str | None = None, slug: str = None) -> Business:
+        # Auto-generate slug if not provided
+        if not slug:
+            base_slug = generate_slug(name)
+            slug = base_slug
+            counter = 2
+            while True:
+                result = await self.db.execute(
+                    select(Business).where(Business.slug == slug)
+                )
+                if not result.scalar_one_or_none():
+                    break
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
         business = Business(
             owner_id=owner_id,
             name=name,

@@ -2,21 +2,78 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { api } from '../api';
 
+interface Order {
+  id: string;
+  order_number: string;
+  status: string;
+  total_amount: number;
+  items: { id: string; product_name: string; unit_price: number; quantity: number }[];
+}
+
+interface Rider {
+  id: string;
+  name: string;
+  phone: string;
+  status: string;
+}
+
 const Orders: React.FC = () => {
   const { businessId } = useAuth();
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [riders, setRiders] = useState<Rider[]>([]);
   const [error, setError] = useState('');
+  const [assigningOrder, setAssigningOrder] = useState<string | null>(null);
+  const [selectedRider, setSelectedRider] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const fetchOrders = () => {
+  const token = localStorage.getItem('token');
+
+  const fetchOrders = async () => {
     if (!businessId) return;
-    api.orders.listBusiness().then(setOrders).catch((e: any) => setError(e.message));
+    try {
+      const data = await api.orders.listBusiness();
+      setOrders(data || []);
+    } catch (e: any) { setError(e.message); }
   };
 
-  useEffect(() => { fetchOrders(); }, [businessId]);
+  const fetchRiders = async () => {
+    if (!businessId) return;
+    try {
+      const resp = await fetch(`http://localhost:8000/api/v1/riders/${businessId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!resp.ok) throw new Error('Failed to load riders');
+      const data = await resp.json();
+      setRiders(data || []);
+    } catch (e: any) { /* ignore */ }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+    fetchRiders();
+  }, [businessId]);
 
   const handleAccept = async (orderId: string) => {
     try {
       await api.orders.accept(orderId);
+      setSuccess('Order accepted');
+      fetchOrders();
+    } catch (e: any) { setError(e.message); }
+  };
+
+  const handleAssign = async (orderId: string) => {
+    if (!selectedRider) return;
+    setError('');
+    setSuccess('');
+    try {
+      const resp = await fetch(`http://localhost:8000/api/v1/delivery/orders/${orderId}/assign?rider_id=${selectedRider}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!resp.ok) throw new Error('Assignment failed');
+      setSuccess('Rider assigned');
+      setAssigningOrder(null);
+      setSelectedRider('');
       fetchOrders();
     } catch (e: any) { setError(e.message); }
   };
@@ -25,13 +82,42 @@ const Orders: React.FC = () => {
     <div>
       <h1>Orders</h1>
       {error && <p style={{ color: 'red' }}>{error}</p>}
+      {success && <p style={{ color: 'green' }}>{success}</p>}
       {orders.length === 0 && <p>No orders yet.</p>}
       {orders.map(order => (
         <div key={order.id} style={{ border: '1px solid #ddd', padding: 12, marginBottom: 8 }}>
           <p><strong>{order.order_number}</strong> – {order.status} (KES {order.total_amount})</p>
           <p>{order.items?.map((i: any) => `${i.product_name} x${i.quantity}`).join(', ')}</p>
+
           {order.status === 'waiting_acceptance' && (
-            <button onClick={() => handleAccept(order.id)}>Accept</button>
+            <button onClick={() => handleAccept(order.id)} style={{ padding: '6px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4 }}>
+              Accept
+            </button>
+          )}
+
+          {(order.status === 'accepted' || order.status === 'preparing' || order.status === 'ready_for_delivery') && (
+            <div style={{ marginTop: 8 }}>
+              {assigningOrder === order.id ? (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <select value={selectedRider} onChange={e => setSelectedRider(e.target.value)} style={{ padding: 6 }}>
+                    <option value="">Select rider</option>
+                    {riders.map(r => (
+                      <option key={r.id} value={r.id}>{r.name} ({r.phone})</option>
+                    ))}
+                  </select>
+                  <button onClick={() => handleAssign(order.id)} style={{ padding: '6px 12px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4 }}>
+                    Assign
+                  </button>
+                  <button onClick={() => { setAssigningOrder(null); setSelectedRider(''); }} style={{ padding: '6px 12px', background: '#ccc', border: 'none', borderRadius: 4 }}>
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setAssigningOrder(order.id)} style={{ padding: '6px 12px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 4 }}>
+                  Assign Rider
+                </button>
+              )}
+            </div>
           )}
         </div>
       ))}

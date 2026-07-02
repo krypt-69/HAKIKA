@@ -1,0 +1,218 @@
+from fastapi.responses import Response
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.database.session import get_db
+from app.api.dependencies import get_current_user
+from app.models.user import User
+from app.repositories.delivery_repository import DeliveryRepository
+from app.repositories.order_repository import OrderRepository
+from app.repositories.rider_repository import RiderRepository
+from app.repositories.business_repository import BusinessRepository
+from app.repositories.customer_repository import CustomerRepository
+from app.services.delivery_service import DeliveryService
+from app.models.order import OrderStatus
+from app.models.delivery_attempt import DeliveryAttemptStatus
+import uuid
+
+router = APIRouter(prefix="/delivery", tags=["delivery"])
+
+def get_delivery_service(db: AsyncSession = Depends(get_db)):
+    delivery_repo = DeliveryRepository(db)
+    order_repo = OrderRepository(db)
+    rider_repo = RiderRepository(db)
+    business_repo = BusinessRepository(db)
+    return DeliveryService(delivery_repo, order_repo, rider_repo, business_repo)
+
+@router.put("/orders/{order_id}/assign")
+async def assign_rider(
+    order_id: str,
+    rider_id: str,
+    current_user: User = Depends(get_current_user),
+    service: DeliveryService = Depends(get_delivery_service)
+):
+    await service.assign_rider(current_user, uuid.UUID(order_id), uuid.UUID(rider_id))
+    return {"status": "assigned"}
+
+@router.put("/orders/{order_id}/arrive")
+async def mark_arrived(
+    order_id: str,
+    gps_lat: float,
+    gps_lon: float,
+    photo_url: str | None = None,
+    current_user: User = Depends(get_current_user),
+    service: DeliveryService = Depends(get_delivery_service)
+):
+    await service.mark_arrived(current_user, uuid.UUID(order_id), gps_lat, gps_lon, photo_url)
+    return {"status": "arrived"}
+
+@router.put("/orders/{order_id}/attempt")
+async def record_attempt(
+    order_id: str,
+    status: DeliveryAttemptStatus,
+    gps_lat: float,
+    gps_lon: float,
+    photo_url: str | None = None,
+    current_user: User = Depends(get_current_user),
+    service: DeliveryService = Depends(get_delivery_service)
+):
+    await service.record_failed_attempt(current_user, uuid.UUID(order_id), status, gps_lat, gps_lon)
+    return {"status": "recorded"}
+
+@router.get("/orders/{order_id}")
+async def get_order_for_rider(
+    order_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # Use DeliveryService to validate rider assignment
+    delivery_repo = DeliveryRepository(db)
+    order_repo = OrderRepository(db)
+    rider_repo = RiderRepository(db)
+    business_repo = BusinessRepository(db)
+    service = DeliveryService(delivery_repo, order_repo, rider_repo, business_repo)
+    order_data = await service.get_order_for_rider(current_user, uuid.UUID(order_id))
+
+    # Add customer phone only if arrived
+    order = await order_repo.get_by_id(uuid.UUID(order_id))
+    if order.status in (OrderStatus.arrived, OrderStatus.customer_confirmed_delivery, OrderStatus.payment_pending, OrderStatus.paid, OrderStatus.completed):
+        customer_repo = CustomerRepository(db)
+        customer = await customer_repo.get_by_id(order.customer_id)
+        order_data['customer_phone'] = customer.phone_normalized if customer else None
+    else:
+        order_data['customer_phone'] = None
+
+    # Add items
+    items = await order_repo.get_order_items(order.id)
+    order_data['items'] = [{"product_name": i.product_name, "unit_price": float(i.unit_price), "quantity": i.quantity} for i in items]
+    return order_data
+
+@router.get("/my-orders", response_model=list[dict])
+async def rider_orders(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Return all orders currently assigned to the logged‑in rider."""
+    # Find rider record linked to this user
+    rider_repo = RiderRepository(db)
+    riders = await rider_repo.list_by_business(None)  # we need get_by_user – let's add a quick method
+    # Actually, we can query by user_id directly
+    from sqlalchemy import select as sa_select
+    from app.models.rider import Rider as RiderModel
+    rider_result = await db.execute(sa_select(RiderModel).where(RiderModel.user_id == current_user.id))
+    rider = rider_result.scalar_one_or_none()
+    if not rider:
+        raise HTTPException(status_code=403, detail="Not a rider")
+
+    # Get all active assignments for this rider
+    from app.models.delivery_assignment import DeliveryAssignment as DAModel, AssignmentStatus
+    from app.models.order import Order as OrderModel
+    import uuid
+
+    assignments = await db.execute(
+        sa_select(DAModel).where(
+            DAModel.rider_id == rider.id,
+            DAModel.status == AssignmentStatus.assigned
+        )
+    )
+    order_ids = [a.order_id for a in assignments.scalars().all()]
+
+    if not order_ids:
+        return []
+
+    orders = await db.execute(sa_select(OrderModel).where(OrderModel.id.in_(order_ids)))
+    orders_list = orders.scalars().all()
+
+    # Build response
+    result = []
+    for order in orders_list:
+        items = await OrderRepository(db).get_order_items(order.id)
+        order_data = {
+            "id": str(order.id),
+            "order_number": order.order_number,
+            "status": order.status.value,
+            "subtotal": float(order.subtotal),
+            "delivery_fee": float(order.delivery_fee),
+            "total_amount": float(order.total_amount),
+            "customer_id": str(order.customer_id),
+            "business_id": str(order.business_id),
+            "items": [{"id": str(i.id), "product_name": i.product_name, "unit_price": float(i.unit_price), "quantity": i.quantity} for i in items],
+            "customer_phone": None,
+        }
+        # Phone visibility: show only if order.status >= arrived
+        if order.status.value in ('arrived', 'customer_confirmed_delivery', 'payment_pending', 'paid', 'completed'):
+            from app.repositories.customer_repository import CustomerRepository
+            cust_repo = CustomerRepository(db)
+            customer = await cust_repo.get_by_id(order.customer_id)
+            order_data["customer_phone"] = customer.phone_normalized if customer else None
+        result.append(order_data)
+
+    return result
+
+from app.models.delivery_evidence import DeliveryEvidence
+from app.utils.images import validate_and_process
+from fastapi import UploadFile, File
+
+@router.post("/orders/{order_id}/evidence")
+async def upload_evidence(
+    order_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a delivery evidence photo."""
+    # Find the delivery attempt for this order
+    from sqlalchemy import select as sa_select
+    from app.models.delivery_attempt import DeliveryAttempt
+    from app.models.delivery_assignment import DeliveryAssignment, AssignmentStatus
+
+    # Verify the rider is assigned to this order
+    assignment = await db.execute(
+        sa_select(DeliveryAssignment).where(
+            DeliveryAssignment.order_id == uuid.UUID(order_id),
+            DeliveryAssignment.status == AssignmentStatus.assigned,
+        )
+    )
+    assignment = assignment.scalar_one_or_none()
+    if not assignment:
+        raise HTTPException(status_code=403, detail="No active assignment for this order")
+
+    # Verify the rider is the current user
+    from app.models.rider import Rider
+    rider = await db.execute(sa_select(Rider).where(Rider.user_id == current_user.id))
+    rider = rider.scalar_one_or_none()
+    if not rider or rider.id != assignment.rider_id:
+        raise HTTPException(status_code=403, detail="Not your delivery")
+
+    # Process the image
+    image_data = validate_and_process(file, max_dim=1200, max_bytes=200_000)
+
+    # Find the latest delivery attempt for this order
+    attempt = await db.execute(
+        sa_select(DeliveryAttempt)
+        .where(DeliveryAttempt.order_id == uuid.UUID(order_id))
+        .order_by(DeliveryAttempt.attempt_time.desc())
+        .limit(1)
+    )
+    attempt = attempt.scalar_one_or_none()
+    if not attempt:
+        # Create a new attempt if none exists (should not happen)
+        raise HTTPException(status_code=400, detail="No delivery attempt found")
+
+    # Store the evidence
+    evidence = DeliveryEvidence(
+        delivery_attempt_id=attempt.id,
+        image_data=image_data,
+    )
+    db.add(evidence)
+    await db.commit()
+    await db.refresh(evidence)
+
+    return {"evidence_id": str(evidence.id), "url": f"/api/v1/delivery/evidence/{evidence.id}"}
+
+@router.get("/evidence/{evidence_id}", response_class=Response)
+async def get_evidence(evidence_id: str, db: AsyncSession = Depends(get_db)):
+    """Retrieve a delivery evidence photo."""
+    evidence = await db.get(DeliveryEvidence, uuid.UUID(evidence_id))
+    if not evidence:
+        raise HTTPException(status_code=404)
+    return Response(content=evidence.image_data, media_type="image/webp")

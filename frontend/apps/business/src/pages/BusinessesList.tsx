@@ -11,7 +11,7 @@ interface BusinessProfile {
   slug: string;
   locations: { address_text: string | null; lat: number; lon: number }[];
   operating_hours: { day_of_week: number; opens_at: string | null; closes_at: string | null; is_closed: boolean }[];
-  payment_methods: { type: string; last_four_digits: string | null }[];
+  payment_methods: { type: string; last_four_digits: string | null; is_active: boolean }[];
 }
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -74,9 +74,8 @@ const BusinessProfilePage: React.FC = () => {
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
   if (!profile) return <p>Loading profile...</p>;
 
-  const slug = profile.slug || 'unknown';
-  const logoSrc = slug !== 'unknown' ? `http://localhost:8000/api/v1/business/${slug}/logo?t=${logoKey}` : '';
-  const coverSrc = slug !== 'unknown' ? `http://localhost:8000/api/v1/business/${slug}/cover?t=${coverKey}` : '';
+  const logoSrc = `http://localhost:8000/api/v1/businesses/${businessId}/logo?t=${logoKey}`;
+  const coverSrc = `http://localhost:8000/api/v1/businesses/${businessId}/cover?t=${coverKey}`;
 
   return (
     <div>
@@ -87,25 +86,21 @@ const BusinessProfilePage: React.FC = () => {
       <div style={{ display: 'flex', gap: 30, marginBottom: 20 }}>
         <div>
           <h3>Logo</h3>
-          {logoSrc && (
-            <img src={logoSrc} style={{ width: 120, height: 120, objectFit: 'cover', border: '1px solid #ccc', borderRadius: 8 }}
-                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-          )}
+          <img src={logoSrc} style={{ width: 120, height: 120, objectFit: 'cover', border: '1px solid #ccc', borderRadius: 8 }}
+               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           <br /><input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage('logo', f); }} />
         </div>
         <div>
           <h3>Cover</h3>
-          {coverSrc && (
-            <img src={coverSrc} style={{ width: 300, height: 100, objectFit: 'cover', border: '1px solid #ccc', borderRadius: 8 }}
-                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-          )}
+          <img src={coverSrc} style={{ width: 300, height: 100, objectFit: 'cover', border: '1px solid #ccc', borderRadius: 8 }}
+               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           <br /><input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage('cover', f); }} />
         </div>
       </div>
 
       <div style={{ background: '#f0f9ff', padding: 12, borderRadius: 8, marginBottom: 20 }}>
         <p style={{ margin: 0, fontWeight: 'bold' }}>Public URL:</p>
-        <p style={{ margin: '4px 0 0 0', fontFamily: 'monospace' }}>https://hakika.co.ke/b/{slug}</p>
+        <p style={{ margin: '4px 0 0 0', fontFamily: 'monospace' }}>https://hakika.co.ke/b/{profile.slug || '...'}</p>
       </div>
 
       {editMode ? (
@@ -151,11 +146,12 @@ const BusinessProfilePage: React.FC = () => {
           {profile.payment_methods.length > 0 ? (
             profile.payment_methods.map((pm, i) => (
               <div key={i}>
-                <p><strong>Type:</strong> {pm.type}</p>
-                <p><strong>Last 4 digits:</strong> {pm.last_four_digits || 'N/A'}</p>
+                <p><strong>Type:</strong> {pm.type === 'paybill' ? 'PayBill' : 'Till Number'}</p>
+                <p><strong>Account Number:</strong> ****{pm.last_four_digits || 'N/A'}</p>
+                <p><strong>Status:</strong> {pm.is_active ? 'Active' : 'Inactive'}</p>
               </div>
             ))
-          ) : <p>No payment method</p>}
+          ) : <p>No payment method set</p>}
           <button onClick={() => setEditMode(true)} style={{ marginTop: 20, padding: '8px 16px' }}>Edit Profile</button>
         </>
       )}
