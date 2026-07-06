@@ -17,6 +17,7 @@ from app.models.delivery_assignment import DeliveryAssignment, AssignmentStatus
 from app.models.rider import Rider
 from app.models.delivery_attempt import DeliveryAttempt
 from app.models.delivery_evidence import DeliveryEvidence
+from app.models.location import Location
 from app.utils.images import validate_and_process
 from fastapi import UploadFile, File
 import uuid
@@ -255,6 +256,16 @@ async def rider_orders(
         business_name = business.name if business else None
         business_logo = f"/api/v1/businesses/{order.business_id}/logo" if business else None
 
+        # Fetch primary location for pickup
+        location_result = await db.execute(
+            sa_select(Location).where(
+                Location.business_id == order.business_id,
+                Location.is_primary == True
+            )
+        )
+        primary_location = location_result.scalar_one_or_none()
+        pickup_location = serialize_point(primary_location.coordinates) if primary_location else None
+
         order_data = {
             "id": str(order.id),
             "order_number": order.order_number,
@@ -270,7 +281,7 @@ async def rider_orders(
             "business_name": business_name,
             "business_logo": business_logo,
             "delivery_location": serialize_point(order.delivery_coordinates),
-            "pickup_location": None,  # FIXME: add proper location loading
+            "pickup_location": pickup_location,
         }
         if order.status.value in ('arrived', 'customer_confirmed_delivery', 'payment_pending', 'paid', 'completed'):
             order_data["customer_phone"] = customer.phone_normalized if customer else None
