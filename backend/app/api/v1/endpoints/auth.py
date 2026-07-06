@@ -18,6 +18,9 @@ from app.schemas.user import (
 )
 from app.models.user import UserRole, User
 from app.api.dependencies import get_current_user
+from app.core.security import create_access_token, create_refresh_token, hash_token
+from datetime import datetime, timedelta
+from datetime import timedelta
 import uuid
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -96,3 +99,34 @@ async def get_current_user_info(
             data["rider_id"] = str(rider.id)
             data["business_id"] = str(rider.business_id)
     return data
+
+from app.schemas.auth import ActivationCheckRequest, ActivationCheckResponse
+
+@router.post("/activate/check", response_model=ActivationCheckResponse)
+async def check_activation(
+    request: ActivationCheckRequest,
+    service: AuthService = Depends(get_auth_service)
+):
+    result = await service.check_activation(request.identifier)
+    if not result:
+        raise HTTPException(status_code=404, detail="No pending rider found")
+    return result
+
+from app.schemas.auth import ActivationRequest
+
+@router.post("/activate", response_model=TokenResponse)
+async def activate_account(
+    request: ActivationRequest,
+    service: AuthService = Depends(get_auth_service)
+):
+    try:
+        user = await service.activate(request.identifier, request.password)
+        # Generate tokens for immediate login
+        access = create_access_token(str(user.id), user.role.value)
+        refresh = create_refresh_token(str(user.id))
+        token_hash = hash_token(refresh)
+        expires = datetime.utcnow() + timedelta(days=30)
+        await service.refresh_repo.create(user.id, token_hash, expires)
+        return TokenResponse(access_token=access, refresh_token=refresh)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

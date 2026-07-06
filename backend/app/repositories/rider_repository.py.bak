@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
+from sqlalchemy import select
 from app.models.rider import Rider, RiderStatus
 import uuid
 
@@ -22,18 +22,11 @@ class RiderRepository:
 
     async def get_by_id(self, rider_id: uuid.UUID) -> Rider | None:
         result = await self.db.execute(select(Rider).where(Rider.id == rider_id))
-        return result.scalars().first()
+        return result.first()
 
     async def get_by_email(self, email: str) -> Rider | None:
         result = await self.db.execute(select(Rider).where(Rider.email == email))
-        return result.scalars().first()
-
-    async def get_by_email_or_phone(self, email: str, phone: str) -> Rider | None:
-        stmt = select(Rider).where(
-            or_(Rider.email == email, Rider.phone == phone)
-        ).limit(1)
-        result = await self.db.execute(stmt)
-        return result.scalars().first()
+        return result.first()
 
     async def list_by_business(self, business_id: uuid.UUID) -> list[Rider]:
         result = await self.db.execute(select(Rider).where(Rider.business_id == business_id))
@@ -61,3 +54,10 @@ class RiderRepository:
         rider.status = status
         await self.db.commit()
         return rider
+
+    async def link_user(self, rider: Rider, user_id: uuid.UUID):
+        rider.user_id = user_id
+        await self.db.commit()
+        return rider
+
+    

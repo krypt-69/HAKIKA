@@ -83,3 +83,69 @@ class AuthService:
         customer = await self.customer_repo.get_or_create(phone, normalized)
         token = await store_customer_session(str(customer.id), normalized)
         return CustomerSessionResponse(session_token=token, customer_id=customer.id)
+
+    async def check_activation(self, identifier: str):
+        # Normalize phone
+        if identifier.startswith("0"):
+            normalized = "+254" + identifier[1:]
+        elif identifier.startswith("254"):
+            normalized = "+" + identifier
+        else:
+            normalized = identifier
+
+        rider = await self.rider_repo.get_by_email_or_phone(normalized, identifier)
+        if not rider:
+            return None
+        # Check if rider already has a user account with password
+        if rider.user_id:
+            user = await self.user_repo.get_by_id(rider.user_id)
+            if user and user.password_hash:
+                return None  # already activated
+        # Get business name
+        from app.repositories.business_repository import BusinessRepository
+        business_repo = BusinessRepository(self.rider_repo.db)
+        business = await business_repo.get_by_id(rider.business_id)
+        business_name = business.name if business else "Unknown"
+
+        return {
+            "rider_id": rider.id,
+            "name": rider.name,
+            "business_name": business_name,
+            "email": rider.email,
+            "can_activate": True
+        }
+    async def activate(self, identifier: str, password: str):
+        # Normalize phone
+        if identifier.startswith("0"):
+            normalized = "+254" + identifier[1:]
+        elif identifier.startswith("254"):
+            normalized = "+" + identifier
+        else:
+            normalized = identifier
+
+        rider = await self.rider_repo.get_by_email_or_phone(normalized, identifier)
+        if not rider:
+            raise ValueError("No pending rider found")
+        if rider.user_id:
+            user = await self.user_repo.get_by_id(rider.user_id)
+            if user and user.password_hash:
+                raise ValueError("Account already activated")
+            # User exists but no password, update it
+            if user:
+                hashed = hash_password(password)
+                await self.user_repo.update_password(user.id, hashed)
+                # Update rider status
+                await self.rider_repo.update_status(rider.id, 'active')
+                return user
+        # No user account yet, create one
+        user = await self.user_repo.create(
+            email=rider.email,
+            password_hash=hash_password(password),
+            phone=rider.phone,
+            role='rider'
+        )
+        # Link rider to user
+        await self.rider_repo.link_user(rider, user.id)
+        # Update rider status
+        await self.rider_repo.update_status(rider.id, 'active')
+        return user
