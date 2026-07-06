@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 import uuid
-from decimal import Decimal
 from datetime import datetime
 
 class OrderItemCreate(BaseModel):
@@ -20,6 +19,7 @@ class OrderItemResponse(BaseModel):
     unit_price: float
     quantity: int
     product_id: uuid.UUID | None
+    thumbnail_url: str | None = None
 
 class OrderResponse(BaseModel):
     id: uuid.UUID

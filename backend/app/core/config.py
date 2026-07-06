@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # Auth
     jwt_secret_key: str = "change-me"
     jwt_refresh_secret_key: str = "change-me"
-    access_token_expire_minutes: int = 15
+    access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 30
     customer_session_expire_hours: int = 24
 

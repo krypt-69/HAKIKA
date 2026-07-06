@@ -11,6 +11,7 @@ from app.repositories.rider_repository import RiderRepository
 from app.repositories.business_repository import BusinessRepository
 from app.repositories.customer_repository import CustomerRepository
 from app.models.order import OrderStatus
+from app.models.order import Order
 from app.models.delivery_attempt import DeliveryAttemptStatus
 from app.models.delivery_assignment import DeliveryAssignment, AssignmentStatus
 from app.models.rider import Rider
@@ -19,11 +20,19 @@ from app.models.delivery_evidence import DeliveryEvidence
 from app.utils.images import validate_and_process
 from fastapi import UploadFile, File
 import uuid
+from geoalchemy2.shape import to_shape
 
 router = APIRouter(prefix="/delivery", tags=["delivery"])
 
 def get_delivery_repo(db: AsyncSession = Depends(get_db)):
     return DeliveryRepository(db)
+
+def serialize_point(point):
+    """Convert a PostGIS Geography point to a dict with lat/lon."""
+    if point is None:
+        return None
+    p = to_shape(point)
+    return {"lat": p.y, "lon": p.x}
 
 @router.put("/orders/{order_id}/assign")
 async def assign_rider(
@@ -203,8 +212,7 @@ async def rider_orders(
     if not order_ids:
         return []
 
-    from app.models.order import Order as OrderModel
-    orders = await db.execute(sa_select(OrderModel).where(OrderModel.id.in_(order_ids)))
+    orders = await db.execute(sa_select(Order).where(Order.id.in_(order_ids)))
     orders_list = orders.scalars().all()
 
     order_repo = OrderRepository(db)
@@ -212,6 +220,41 @@ async def rider_orders(
     result = []
     for order in orders_list:
         items = await order_repo.get_order_items(order.id)
+        # Gather product IDs for thumbnails
+        product_ids = [i.product_id for i in items if i.product_id]
+        thumb_map = {}
+        if product_ids:
+            from app.models.product_image import ProductImage
+            img_result = await db.execute(
+                sa_select(ProductImage).where(
+                    ProductImage.product_id.in_(product_ids),
+                    ProductImage.position == 1
+                )
+            )
+            for img in img_result.scalars().all():
+                thumb_map[img.product_id] = f"/api/v1/product/{img.id}"
+
+        item_data = []
+        for i in items:
+            item_data.append({
+                "id": str(i.id),
+                "product_name": i.product_name,
+                "unit_price": float(i.unit_price),
+                "quantity": i.quantity,
+                "thumbnail_url": thumb_map.get(i.product_id)
+            })
+
+        # Customer name
+        customer = await customer_repo.get_by_id(order.customer_id)
+        customer_name = customer.phone_normalized if customer else None
+
+        # Business info
+        from app.repositories.business_repository import BusinessRepository
+        business_repo = BusinessRepository(db)
+        business = await business_repo.get_by_id(order.business_id)
+        business_name = business.name if business else None
+        business_logo = f"/api/v1/businesses/{order.business_id}/logo" if business else None
+
         order_data = {
             "id": str(order.id),
             "order_number": order.order_number,
@@ -221,11 +264,15 @@ async def rider_orders(
             "total_amount": float(order.total_amount),
             "customer_id": str(order.customer_id),
             "business_id": str(order.business_id),
-            "items": [{"id": str(i.id), "product_name": i.product_name, "unit_price": float(i.unit_price), "quantity": i.quantity} for i in items],
+            "items": item_data,
             "customer_phone": None,
+            "customer_name": customer_name,
+            "business_name": business_name,
+            "business_logo": business_logo,
+            "delivery_location": serialize_point(order.delivery_coordinates),
+            "pickup_location": None,  # FIXME: add proper location loading
         }
         if order.status.value in ('arrived', 'customer_confirmed_delivery', 'payment_pending', 'paid', 'completed'):
-            customer = await customer_repo.get_by_id(order.customer_id)
             order_data["customer_phone"] = customer.phone_normalized if customer else None
         result.append(order_data)
     return result
