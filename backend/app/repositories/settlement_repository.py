@@ -44,9 +44,15 @@ class SettlementRepository:
         settlement.status = status
         if provider_reference:
             settlement.provider_reference = provider_reference
-        if status == SettlementStatus.processing:
+        if status in (SettlementStatus.processing, SettlementStatus.failed):
             settlement.retry_count = (settlement.retry_count or 0) + 1
             settlement.last_retry_at = datetime.utcnow()
         await self.db.commit()
         await self.db.refresh(settlement)
         return settlement
+
+    async def get_by_payment_id(self, payment_id: uuid.UUID) -> Settlement | None:
+        result = await self.db.execute(
+            select(Settlement).where(Settlement.payment_id == payment_id)
+        )
+        return result.scalar_one_or_none()

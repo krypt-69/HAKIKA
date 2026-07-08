@@ -2,10 +2,14 @@ from app.repositories.payment_repository import PaymentRepository
 from app.repositories.order_repository import OrderRepository
 from app.repositories.customer_repository import CustomerRepository
 from app.repositories.ledger_repository import LedgerRepository
+from app.repositories.settlement_repository import SettlementRepository
+from app.repositories.payment_method_repository import PaymentMethodRepository
+from app.repositories.business_repository import BusinessRepository
 from app.models.payment import PaymentStatus
 from app.models.payment_attempt import PaymentAttemptStatus
 from app.models.order import OrderStatus
 from app.models.ledger_entry import LedgerTransactionType
+from app.models.settlement import SettlementStatus
 from app.core.config import settings
 from fastapi import HTTPException, status
 import uuid
@@ -105,11 +109,13 @@ class PaymentService:
             return {"status": "already_verified"}
 
         if state == 'COMPLETE':
+            # Update payment status
             await self.payment_repo.update_status(payment, PaymentStatus.verified)
 
             order = await self.order_repo.get_by_id(payment.order_id)
             fee = round(float(payment.amount) * settings.hakika_fee_percentage / 100, 2)
 
+            # Create ledger entries
             await self.ledger_repo.create_entry(
                 LedgerTransactionType.payment_in, float(payment.amount),
                 order_id=payment.order_id, payment_id=payment.id,
@@ -121,19 +127,70 @@ class PaymentService:
                 business_id=order.business_id
             )
 
+            # Update order status
             await self.order_repo.update_status(order, OrderStatus.paid)
 
-            from app.repositories.settlement_repository import SettlementRepository
+            # Settlement: idempotency check
             settlement_repo = SettlementRepository(self.payment_repo.db)
-            net_amount = float(payment.amount) - fee
-            await settlement_repo.create(
-                business_id=order.business_id,
-                amount=net_amount,
-                order_id=order.id,
-                payment_id=payment.id
-            )
-            logger.info(f"Payment {payment.id} verified, settlement created")
-            return {"status": "verified"}
+            existing_settlement = await settlement_repo.get_by_payment_id(payment.id)
+            if existing_settlement:
+                settlement = existing_settlement
+                logger.info(f"Settlement already exists for payment {payment.id}, skipping creation.")
+            else:
+                net_amount = float(payment.amount) - fee
+                settlement = await settlement_repo.create(
+                    business_id=order.business_id,
+                    amount=net_amount,
+                    order_id=order.id,
+                    payment_id=payment.id
+                )
+                logger.info(f"Settlement created for payment {payment.id}, status: {settlement.status}")
+
+            # Fetch business payment method
+            payment_method_repo = PaymentMethodRepository(self.payment_repo.db)
+            methods = await payment_method_repo.get_by_business(order.business_id)
+            active_method = None
+            for m in methods:
+                if m.is_active:
+                    active_method = m
+                    break
+            if not active_method:
+                await settlement_repo.update_status(settlement, SettlementStatus.failed)
+                logger.error(f"No active payment method for business {order.business_id}")
+                return {"status": "verified", "settlement": "failed_no_payment_method"}
+
+            # Prepare B2B payload
+            account_type = "PayBill" if active_method.type.value == "paybill" else "TillNumber"
+            account_number = active_method.encrypted_account_number
+            account_reference = order.order_number[:20]
+            business_name = order.business_name
+
+            if not business_name:
+                business_repo = BusinessRepository(self.payment_repo.db)
+                business = await business_repo.get_by_id(order.business_id)
+                business_name = business.name if business else "Business"
+
+            # Transition settlement to processing
+            await settlement_repo.update_status(settlement, SettlementStatus.processing)
+
+            # Call B2B API
+            try:
+                b2b_response = await self.intasend.send_b2b_payout(
+                    amount=settlement.amount,
+                    account_number=account_number,
+                    account_type=account_type,
+                    account_reference=account_reference,
+                    business_name=business_name
+                )
+                provider_ref = b2b_response.get('file_id') or b2b_response.get('transaction_id')
+                await settlement_repo.update_status(settlement, SettlementStatus.completed,
+                                                    provider_reference=provider_ref)
+                logger.info(f"B2B payout successful for settlement {settlement.id}, provider_ref: {provider_ref}")
+                return {"status": "verified", "settlement": "completed"}
+            except Exception as e:
+                logger.error(f"B2B payout failed for settlement {settlement.id}: {e}")
+                await settlement_repo.update_status(settlement, SettlementStatus.failed)
+                return {"status": "verified", "settlement": "failed_b2b_error", "error": str(e)}
         else:
             return {"status": "pending", "state": state}
 
