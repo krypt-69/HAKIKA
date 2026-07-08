@@ -38,5 +38,7 @@ export const api = {
     mockCallback: (checkoutId: string) =>
         request<any>(`/payments/mock/callback/${checkoutId}`, { method: 'POST' }),
     getMyOrders: (phone: string) =>
-        request<any[]>(`/orders/customer/my?phone=${encodeURIComponent(phone)}`),
+        request<any>(`/orders/customer/my?phone=${encodeURIComponent(phone)}`),
+    getReceipt: (orderId: string) =>
+        request<any>(`/orders/${orderId}/receipt`),
 };

@@ -18,6 +18,14 @@ const STATUS_LABELS: Record<string, string> = {
     dispute_review: 'Under review',
 };
 
+const REJECT_REASONS = [
+    'Wrong items',
+    'Damaged items',
+    'Rider never arrived',
+    'Missing products',
+    'Other'
+];
+
 const ACTIVE_STEPS = [
     'waiting_acceptance', 'accepted', 'preparing', 'ready_for_delivery',
     'out_for_delivery', 'arrived', 'customer_confirmed_delivery',
@@ -35,6 +43,9 @@ const OrderTracking: React.FC = () => {
     const [checkoutId, setCheckoutId] = useState<string | null>(null);
     const [simulating, setSimulating] = useState(false);
     const [paymentPolling, setPaymentPolling] = useState<NodeJS.Timeout | null>(null);
+    const [showRejectModal, setShowRejectModal] = useState(false);
+    const [rejectReason, setRejectReason] = useState('');
+    const [rejecting, setRejecting] = useState(false);
 
     const fetchOrder = () => {
         if (!id) return;
@@ -87,7 +98,6 @@ const OrderTracking: React.FC = () => {
     }, [id]);
 
     const handleConfirm = async () => {
-        // Retrieve stored phone from session
         const storedPhone = sessionStorage.getItem(`hakika_order_phone_${id}`);
         if (!storedPhone) {
             setError('Phone number not found. Please contact support.');
@@ -147,9 +157,34 @@ const OrderTracking: React.FC = () => {
         }
     };
 
+    const handleReject = async () => {
+        if (!rejectReason) {
+            setError('Please select a reason');
+            return;
+        }
+        const storedPhone = sessionStorage.getItem(`hakika_order_phone_${id}`);
+        if (!storedPhone) {
+            setError('Phone number not found');
+            return;
+        }
+        setRejecting(true);
+        setError('');
+        try {
+            await api.reportProblem(id!, storedPhone, rejectReason);
+            fetchOrder();
+            setShowRejectModal(false);
+            setRejectReason('');
+        } catch (e: any) {
+            setError(e.message);
+        } finally {
+            setRejecting(false);
+        }
+    };
+
     const isPaymentPending = order?.status === 'payment_pending';
     const isPaid = order?.status === 'paid';
     const isArrived = order?.status === 'arrived';
+    const orderCreated = order?.created_at ? new Date(order.created_at) : null;
 
     if (!order) return <div style={{ padding: 20 }}>Loading...</div>;
 
@@ -157,22 +192,30 @@ const OrderTracking: React.FC = () => {
         <div style={{ padding: 20 }}>
             <button onClick={() => navigate('/')}>← Back</button>
             <h1>Order {order.order_number}</h1>
-            <p style={{ color: '#666' }}>Placed: {new Date(order.created_at).toLocaleString()}</p>
+            <p style={{ color: '#666' }}>Placed: {orderCreated?.toLocaleString()}</p>
 
             <div style={{ margin: '30px 0' }}>
                 {ACTIVE_STEPS.map((step, idx) => {
                     const passed = ACTIVE_STEPS.indexOf(order.status) >= idx && order.status !== 'cancelled';
+                    const isCurrent = step === order.status;
+                    const stepTime = orderCreated ? new Date(orderCreated.getTime() + idx * 60000) : null;
                     return (
                         <div key={step} style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
                             <div style={{
                                 width: 24, height: 24, borderRadius: '50%',
-                                background: passed ? '#16a34a' : '#ddd', color: passed ? '#fff' : '#999',
+                                background: passed ? '#16a34a' : '#ddd',
+                                color: passed ? '#fff' : '#999',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 fontSize: 12, fontWeight: 'bold', marginRight: 12
                             }}>{passed ? '✓' : idx + 1}</div>
-                            <span style={{ color: step === order.status ? '#000' : '#999', fontWeight: step === order.status ? 'bold' : 'normal' }}>
+                            <span style={{ color: isCurrent ? '#000' : '#999', fontWeight: isCurrent ? 'bold' : 'normal' }}>
                                 {STATUS_LABELS[step] || step}
                             </span>
+                            {stepTime && (
+                                <span style={{ marginLeft: 12, fontSize: '0.8em', color: '#999' }}>
+                                    {stepTime.toLocaleTimeString()}
+                                </span>
+                            )}
                         </div>
                     );
                 })}
@@ -190,13 +233,20 @@ const OrderTracking: React.FC = () => {
             {error && <p style={{ color: 'red', marginTop: 12 }}>{error}</p>}
 
             {isArrived && !isPaid && !isPaymentPending && (
-                <div style={{ marginTop: 20 }}>
+                <div style={{ marginTop: 20, display: 'flex', gap: 10 }}>
                     <button
                         onClick={handleConfirm}
                         disabled={confirming}
-                        style={{ width: '100%', padding: 14, background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8 }}
+                        style={{ flex: 1, padding: 14, background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8 }}
                     >
                         {confirming ? 'Confirming...' : 'Confirm Delivery & Pay'}
+                    </button>
+                    <button
+                        onClick={() => setShowRejectModal(true)}
+                        disabled={rejecting}
+                        style={{ padding: '14px 20px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 8 }}
+                    >
+                        Reject Delivery
                     </button>
                 </div>
             )}
@@ -230,11 +280,62 @@ const OrderTracking: React.FC = () => {
             )}
 
             {isPaid && (
-                <p style={{ color: '#16a34a', marginTop: 20 }}>✅ Payment received!</p>
+                <div style={{ marginTop: 20 }}>
+                    <p style={{ color: '#16a34a' }}>✅ Payment received!</p>
+                    <button
+                        onClick={() => navigate(`/receipt/${id}`)}
+                        style={{ padding: '10px 20px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, marginTop: 8 }}
+                    >
+                        View Receipt
+                    </button>
+                </div>
             )}
 
             {order.status === 'payment_pending' && paymentStatus?.status === 'verified' && (
                 <p style={{ color: '#16a34a', marginTop: 20 }}>✅ Payment confirmed!</p>
+            )}
+
+            {order.status === 'dispute_review' && (
+                <p style={{ color: '#f59e0b', marginTop: 20 }}>⚠️ Order is under review. We'll contact you shortly.</p>
+            )}
+
+            {/* Reject Modal */}
+            {showRejectModal && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    zIndex: 1000
+                }}>
+                    <div style={{ background: '#fff', padding: 24, borderRadius: 8, maxWidth: 400, width: '90%' }}>
+                        <h3>Why are you rejecting this delivery?</h3>
+                        <select
+                            value={rejectReason}
+                            onChange={e => setRejectReason(e.target.value)}
+                            style={{ width: '100%', padding: 10, marginTop: 12, fontSize: 16 }}
+                        >
+                            <option value="">Select a reason...</option>
+                            {REJECT_REASONS.map(r => (
+                                <option key={r} value={r}>{r}</option>
+                            ))}
+                        </select>
+                        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                            <button
+                                onClick={handleReject}
+                                disabled={rejecting}
+                                style={{ flex: 1, padding: 12, background: '#dc2626', color: '#fff', border: 'none', borderRadius: 6 }}
+                            >
+                                {rejecting ? 'Submitting...' : 'Confirm Rejection'}
+                            </button>
+                            <button
+                                onClick={() => { setShowRejectModal(false); setRejectReason(''); setError(''); }}
+                                style={{ padding: '12px 20px', background: '#ddd', border: 'none', borderRadius: 6 }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                        {error && <p style={{ color: 'red', marginTop: 12 }}>{error}</p>}
+                    </div>
+                </div>
             )}
         </div>
     );
