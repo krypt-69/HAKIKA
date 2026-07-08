@@ -191,3 +191,75 @@ class OrderService:
             ) for oi in order_items],
             created_at=order.created_at
         )
+    async def get_receipt(self, order_id: uuid.UUID) -> dict:
+        order = await self.order_repo.get_by_id(order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        # Fetch items
+        items = await self.order_repo.get_order_items(order_id)
+        # Fetch payment
+        from app.repositories.payment_repository import PaymentRepository
+        payment_repo = PaymentRepository(self.db)
+        payment = await payment_repo.get_by_order(order_id)
+        # Build receipt data
+        receipt_data = {
+            "order_id": str(order.id),
+            "order_number": order.order_number,
+            "business_name": order.business.name if order.business else "",
+            "customer_phone": order.customer.phone_normalized if order.customer else "",
+            "items": [
+                {
+                    "product_name": i.product_name,
+                    "quantity": i.quantity,
+                    "unit_price": float(i.unit_price),
+                    "total": float(i.unit_price * i.quantity)
+                } for i in items
+            ],
+            "total_amount": float(order.total_amount),
+            "payment_reference": payment.provider_reference if payment else "",
+            "payment_time": order.created_at.isoformat() if order.created_at else "",
+        }
+        # Generate hash (SHA-256) of the receipt data string
+        import json
+        import hashlib
+        data_str = json.dumps(receipt_data, sort_keys=True)
+        receipt_hash = hashlib.sha256(data_str.encode()).hexdigest()
+        receipt_data["receipt_hash"] = receipt_hash
+        return receipt_data
+    async def get_receipt(self, order_id: uuid.UUID) -> dict:
+        order = await self.order_repo.get_by_id(order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        items = await self.order_repo.get_order_items(order_id)
+        from app.repositories.payment_repository import PaymentRepository
+        from app.repositories.business_repository import BusinessRepository
+        from app.repositories.customer_repository import CustomerRepository
+        payment_repo = PaymentRepository(self.db)
+        business_repo = BusinessRepository(self.db)
+        customer_repo = CustomerRepository(self.db)
+        payment = await payment_repo.get_by_order(order_id)
+        business = await business_repo.get_by_id(order.business_id)
+        customer = await customer_repo.get_by_id(order.customer_id)
+        receipt_data = {
+            "order_id": str(order.id),
+            "order_number": order.order_number,
+            "business_name": business.name if business else "",
+            "customer_phone": customer.phone_normalized if customer else "",
+            "items": [
+                {
+                    "product_name": i.product_name,
+                    "quantity": i.quantity,
+                    "unit_price": float(i.unit_price),
+                    "total": float(i.unit_price * i.quantity)
+                } for i in items
+            ],
+            "total_amount": float(order.total_amount),
+            "payment_reference": payment.provider_reference if payment else "",
+            "payment_time": order.created_at.isoformat() if order.created_at else "",
+        }
+        import json
+        import hashlib
+        data_str = json.dumps(receipt_data, sort_keys=True)
+        receipt_hash = hashlib.sha256(data_str.encode()).hexdigest()
+        receipt_data["receipt_hash"] = receipt_hash
+        return receipt_data

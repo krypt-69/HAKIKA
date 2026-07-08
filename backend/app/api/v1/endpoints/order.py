@@ -64,3 +64,9 @@ async def list_my_business_orders(
     service: OrderService = Depends(get_order_service)
 ):
     return await service.list_orders_for_business(current_user)
+@router.get("/{order_id}/receipt")
+async def get_receipt(
+    order_id: str,
+    service: OrderService = Depends(get_order_service)
+):
+    return await service.get_receipt(uuid.UUID(order_id))
