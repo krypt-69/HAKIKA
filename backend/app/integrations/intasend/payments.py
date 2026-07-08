@@ -17,3 +17,9 @@ class IntaSendPayments:
 
     async def verify_payment(self, checkout_id: str) -> dict:
         return await self.client.check_transaction_status(checkout_id)
+
+    async def send_b2b_payout(self, amount: float, account_number: str, account_type: str,
+                              account_reference: str, business_name: str) -> dict:
+        """Wrapper for IntaSendClient.send_b2b_payout."""
+        return await self.client.send_b2b_payout(amount, account_number, account_type,
+                                                  account_reference, business_name)

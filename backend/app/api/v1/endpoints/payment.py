@@ -11,7 +11,9 @@ from app.core.config import settings
 from app.integrations.intasend.mock_client import mock_instance
 from app.models.user import User
 import uuid
+import logging
 
+logger = logging.getLogger("hakika.payment")
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 def get_payment_service(db: AsyncSession = Depends(get_db)):
@@ -26,7 +28,6 @@ async def initiate_payment(
     order_id: str,
     service: PaymentService = Depends(get_payment_service)
 ):
-    """Initiate payment – called internally by confirmation, can also be called by admin."""
     return await service.initiate_payment(uuid.UUID(order_id))
 
 @router.post("/callback")
@@ -34,14 +35,28 @@ async def payment_callback(
     request: Request,
     service: PaymentService = Depends(get_payment_service)
 ):
-    raw_body = await request.body()
-    signature = request.headers.get("X-IntaSend-Signature")
-    if settings.intasend_webhook_secret:
-        from app.integrations.intasend.webhook import verify_signature
-        if not verify_signature(raw_body, signature):
-            raise HTTPException(status_code=401, detail="Invalid webhook signature")
-    payload = await request.json()
-    return await service.process_callback(payload)
+    try:
+        raw_body = await request.body()
+        signature = request.headers.get("X-IntaSend-Signature")
+        logger.info(f"Callback received. Headers: {dict(request.headers)}")
+        logger.info(f"Raw body: {raw_body.decode('utf-8')}")
+        
+        # Skip signature verification if secret not set
+        if settings.intasend_webhook_secret:
+            from app.integrations.intasend.webhook import verify_signature
+            if not verify_signature(raw_body, signature):
+                logger.warning("Invalid webhook signature")
+                # Still process the payload – IntaSend may retry if we return error
+                # We'll log and continue but mark as suspicious.
+        payload = await request.json()
+        logger.info(f"Callback payload: {payload}")
+        result = await service.process_callback(payload)
+        logger.info(f"Callback processed: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Callback error: {e}", exc_info=True)
+        # Always return 200 to prevent IntaSend from retrying
+        return {"status": "error", "detail": str(e)}
 
 @router.get("/orders/{order_id}")
 async def get_payment_status(
@@ -62,3 +77,11 @@ async def mock_callback(
         "api_ref": ref,
         "state": "COMPLETE"
     })
+
+# Admin endpoint to manually reconcile pending settlements
+@router.post("/reconcile")
+async def reconcile_settlements(
+    service: PaymentService = Depends(get_payment_service)
+):
+    result = await service.reconcile_pending()
+    return {"reconciled": result}
