@@ -10,6 +10,7 @@ import CreateBusiness from './pages/CreateBusiness'
 import Riders from './pages/Riders'
 import Settlements from './pages/Settlements'
 import BusinessProfilePage from './pages/BusinessesList'
+import Profile from './pages/Profile'
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -38,7 +39,7 @@ const DashboardLayout: React.FC = () => {
           <Link to="/orders">Orders</Link>
           <Link to="/riders">Riders</Link>
           <Link to="/settlements">Settlements</Link>
-          <Link to="/businesses">Profile</Link>
+          <Link to="/profile">Profile</Link>
         </nav>
         <div style={{ position: 'absolute', bottom: 20, width: 200 }}>
           <p>{user?.email}</p>
@@ -65,7 +66,7 @@ const App: React.FC = () => (
           <Route path="orders" element={<Orders />} />
           <Route path="riders" element={<Riders />} />
           <Route path="settlements" element={<Settlements />} />
-          <Route path="businesses" element={<BusinessProfilePage />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
       </Routes>
     </BrowserRouter>
