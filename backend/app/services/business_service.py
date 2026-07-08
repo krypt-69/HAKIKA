@@ -96,18 +96,17 @@ class BusinessService:
                 await self.location_repo.create(business_id, data.location.lat, data.location.lon,
                                                 data.location.address_text, data.location.is_primary)
         if data.operating_hours is not None:
-            # Delete old hours and recreate
+            # Delete old hours and recreate (using the existing session, no nested begin)
             from sqlalchemy import delete
-            async with self.hours_repo.db.begin():
-                await self.hours_repo.db.execute(
-                    delete(OperatingHours).where(OperatingHours.business_id == business_id)
-                )
-                for h in data.operating_hours:
-                    self.hours_repo.db.add(OperatingHours(
-                        business_id=business_id, day_of_week=h.day_of_week,
-                        opens_at=h.opens_at, closes_at=h.closes_at, is_closed=h.is_closed
-                    ))
-                await self.hours_repo.db.commit()
+            await self.hours_repo.db.execute(
+                delete(OperatingHours).where(OperatingHours.business_id == business_id)
+            )
+            for h in data.operating_hours:
+                self.hours_repo.db.add(OperatingHours(
+                    business_id=business_id, day_of_week=h.day_of_week,
+                    opens_at=h.opens_at, closes_at=h.closes_at, is_closed=h.is_closed
+                ))
+            await self.hours_repo.db.commit()
         if data.payment_method is not None:
             old_methods = await self.payment_repo.get_by_business(business_id)
             for pm in old_methods:

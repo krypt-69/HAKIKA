@@ -40,6 +40,7 @@ const DashboardLayout: React.FC = () => {
           <Link to="/riders">Riders</Link>
           <Link to="/settlements">Settlements</Link>
           <Link to="/profile">Profile</Link>
+          <Link to="/businesses">Businesses List (Admin)</Link>
         </nav>
         <div style={{ position: 'absolute', bottom: 20, width: 200 }}>
           <p>{user?.email}</p>
@@ -67,6 +68,7 @@ const App: React.FC = () => (
           <Route path="riders" element={<Riders />} />
           <Route path="settlements" element={<Settlements />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="businesses" element={<BusinessProfilePage />} />
         </Route>
       </Routes>
     </BrowserRouter>
