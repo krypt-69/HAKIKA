@@ -18,6 +18,25 @@ interface BusinessCard {
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+// Helper: check if business is open now
+const isOpenNow = (hours: any[]): boolean => {
+    if (!hours || hours.length === 0) return true;
+    const now = new Date();
+    const currentDay = now.getDay();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const dayMap = [6, 0, 1, 2, 3, 4, 5];
+    const backendDay = dayMap[currentDay];
+    for (const h of hours) {
+        if (h.day_of_week === backendDay) {
+            if (h.is_closed) return false;
+            const opens = h.opens_at ? parseInt(h.opens_at.slice(0,2))*60 + parseInt(h.opens_at.slice(3,5)) : 0;
+            const closes = h.closes_at ? parseInt(h.closes_at.slice(0,2))*60 + parseInt(h.closes_at.slice(3,5)) : 24*60;
+            return currentTime >= opens && currentTime <= closes;
+        }
+    }
+    return true;
+};
+
 const Home: React.FC = () => {
     const [businesses, setBusinesses] = useState<BusinessCard[]>([]);
     const [categories, setCategories] = useState<any[]>([]);
@@ -30,8 +49,16 @@ const Home: React.FC = () => {
     const [searchText, setSearchText] = useState('');
     const [gpsEnabled, setGpsEnabled] = useState(false);
 
+    // Fetch categories and initial businesses on mount
     useEffect(() => {
         api.categories().then(setCategories).catch(() => {});
+        // Initial search with default coordinates
+        const lat = parseFloat(manualLat);
+        const lon = parseFloat(manualLon);
+        if (!isNaN(lat) && !isNaN(lon)) {
+            setLocation({ lat, lon });
+            fetchBusinesses(lat, lon, selectedCategory);
+        }
     }, []);
 
     const fetchBusinesses = async (lat: number, lon: number, catId?: number) => {
@@ -39,7 +66,20 @@ const Home: React.FC = () => {
         setError('');
         try {
             const data = await api.discover(lat, lon, 5000, catId);
-            setBusinesses(data || []);
+            // Sort locally: open now > trust score > distance
+            const sorted = data.sort((a, b) => {
+                const aOpen = isOpenNow(a.operating_hours);
+                const bOpen = isOpenNow(b.operating_hours);
+                if (aOpen && !bOpen) return -1;
+                if (!aOpen && bOpen) return 1;
+                if (a.trust_score > b.trust_score) return -1;
+                if (a.trust_score < b.trust_score) return 1;
+                if (gpsEnabled && a.distance_meters !== undefined && b.distance_meters !== undefined) {
+                    return a.distance_meters - b.distance_meters;
+                }
+                return 0;
+            });
+            setBusinesses(sorted);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -48,14 +88,18 @@ const Home: React.FC = () => {
     };
 
     const handleUseGPS = () => {
-        navigator.geolocation?.getCurrentPosition(
+        if (!navigator.geolocation) {
+            setError('Geolocation not supported by your browser.');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
             pos => {
                 const loc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
                 setLocation(loc);
                 setGpsEnabled(true);
                 fetchBusinesses(loc.lat, loc.lon, selectedCategory);
             },
-            () => setError('Location access denied.')
+            () => setError('Location access denied. Using default location.')
         );
     };
 
@@ -69,9 +113,20 @@ const Home: React.FC = () => {
         fetchBusinesses(lat, lon, selectedCategory);
     };
 
+    const handleCategoryChange = (categoryId: string) => {
+        const id = categoryId ? Number(categoryId) : undefined;
+        setSelectedCategory(id);
+        if (location) {
+            fetchBusinesses(location.lat, location.lon, id);
+        }
+    };
+
+    // Enhanced search
     const filtered = businesses.filter(b =>
         b.name.toLowerCase().includes(searchText.toLowerCase()) ||
-        (b.description || '').toLowerCase().includes(searchText.toLowerCase())
+        (b.description || '').toLowerCase().includes(searchText.toLowerCase()) ||
+        (b.address_text || '').toLowerCase().includes(searchText.toLowerCase()) ||
+        (b.category_name || '').toLowerCase().includes(searchText.toLowerCase())
     );
 
     return (
@@ -82,7 +137,7 @@ const Home: React.FC = () => {
                 <input
                     value={searchText}
                     onChange={e => setSearchText(e.target.value)}
-                    placeholder="Search businesses..."
+                    placeholder="Search businesses, locations, categories..."
                     style={{ width: '100%', padding: 12, fontSize: 16 }}
                 />
             </div>
@@ -107,7 +162,6 @@ const Home: React.FC = () => {
                 {filtered.map(biz => (
                     <a key={biz.id} href={`/b/${biz.slug ? biz.slug : biz.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                         <div style={{ border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden', cursor: 'pointer' }}>
-                            {/* Cover image */}
                             <img
                                 src={`http://localhost:8000${biz.cover_url}`}
                                 style={{ width: '100%', height: 120, objectFit: 'cover' }}
@@ -141,6 +195,9 @@ const Home: React.FC = () => {
                                             </span>
                                         ))}
                                     </div>
+                                )}
+                                {isOpenNow(biz.operating_hours) && (
+                                    <span style={{ color: '#16a34a', fontSize: '0.8em', fontWeight: 'bold' }}>Open now</span>
                                 )}
                             </div>
                         </div>

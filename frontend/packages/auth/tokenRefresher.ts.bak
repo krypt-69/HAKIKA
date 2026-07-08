@@ -46,16 +46,3 @@ export async function getValidToken(): Promise<string | null> {
 
   return refreshPromise;
 }
-
-export async function authenticatedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const token = await getValidToken();
-  if (!token) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    throw new Error('No valid token available');
-  }
-  const headers = new Headers(init?.headers || {});
-  headers.set('Authorization', `Bearer ${token}`);
-  const newInit = { ...init, headers };
-  return fetch(input, newInit);
-}

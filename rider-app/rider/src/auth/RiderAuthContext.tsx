@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 
-const BASE_URL = 'http://10.0.2.2:8000/api/v1'; // Android emulator localhost
+const BASE_URL = 'http://localhost:8000/api/v1'; // Android emulator localhost
 
 interface RiderUser {
   id: string;

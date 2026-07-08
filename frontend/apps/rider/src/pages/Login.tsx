@@ -44,6 +44,9 @@ const Login: React.FC = () => {
           {loading ? 'Logging in...' : 'Login'}
         </button>
       </form>
+      <p style={{ marginTop: 16 }}>
+        <a href="/activate" style={{ color: "#2563eb" }}>First time here? Activate your account</a>
+      </p>
     </div>
   );
 };

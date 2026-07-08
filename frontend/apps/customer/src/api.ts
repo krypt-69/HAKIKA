@@ -24,11 +24,19 @@ export const api = {
         return request<any[]>(`/businesses/discover?${params.toString()}`);
     },
     businessBySlug: (slug: string) => request<any>(`/b/${slug}`),
-    businessById: (id: string) => request<any>(`/b/${id}`),   // <-- ADDED
+    businessById: (id: string) => request<any>(`/b/${id}`),
     createOrder: (data: any) => request<any>('/orders', { method: 'POST', body: JSON.stringify(data) }),
     getOrder: (id: string) => request<any>(`/orders/${id}`),
     confirmDelivery: (id: string, phone: string) =>
         request<any>(`/orders/${id}/confirm`, { method: 'POST', body: JSON.stringify({ phone }) }),
     reportProblem: (id: string, phone: string, reason: string) =>
         request<any>(`/orders/${id}/report-problem`, { method: 'POST', body: JSON.stringify({ phone, reason }) }),
+    initiatePayment: (orderId: string) =>
+        request<any>(`/payments/${orderId}/initiate`, { method: 'POST' }),
+    getPaymentStatus: (orderId: string) =>
+        request<any>(`/payments/orders/${orderId}`),
+    mockCallback: (checkoutId: string) =>
+        request<any>(`/payments/mock/callback/${checkoutId}`, { method: 'POST' }),
+    getMyOrders: (phone: string) =>
+        request<any[]>(`/orders/customer/my?phone=${encodeURIComponent(phone)}`),
 };

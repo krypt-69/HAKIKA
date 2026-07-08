@@ -30,21 +30,126 @@ const OrderTracking: React.FC = () => {
     const [order, setOrder] = useState<any>(null);
     const [error, setError] = useState('');
     const [confirming, setConfirming] = useState(false);
+    const [paymentStatus, setPaymentStatus] = useState<any>(null);
+    const [retrying, setRetrying] = useState(false);
+    const [checkoutId, setCheckoutId] = useState<string | null>(null);
+    const [simulating, setSimulating] = useState(false);
+    const [paymentPolling, setPaymentPolling] = useState<NodeJS.Timeout | null>(null);
 
     const fetchOrder = () => {
         if (!id) return;
-        api.getOrder(id).then(setOrder).catch(e => setError(e.message));
+        api.getOrder(id)
+            .then(data => {
+                setOrder(data);
+                if (data.status === 'payment_pending') {
+                    startPaymentPolling();
+                } else {
+                    stopPaymentPolling();
+                }
+            })
+            .catch(e => setError(e.message));
     };
 
-    useEffect(() => { fetchOrder(); const interval = setInterval(fetchOrder, 10000); return () => clearInterval(interval); }, [id]);
+    const fetchPaymentStatus = async () => {
+        if (!id) return;
+        try {
+            const status = await api.getPaymentStatus(id);
+            setPaymentStatus(status);
+            if (status.status === 'verified') {
+                fetchOrder();
+                stopPaymentPolling();
+                setCheckoutId(null);
+            }
+        } catch (e) {
+            // ignore
+        }
+    };
+
+    const startPaymentPolling = () => {
+        if (paymentPolling) return;
+        setPaymentPolling(setInterval(fetchPaymentStatus, 5000));
+    };
+
+    const stopPaymentPolling = () => {
+        if (paymentPolling) {
+            clearInterval(paymentPolling);
+            setPaymentPolling(null);
+        }
+    };
+
+    useEffect(() => {
+        fetchOrder();
+        const interval = setInterval(fetchOrder, 10000);
+        return () => {
+            clearInterval(interval);
+            stopPaymentPolling();
+        };
+    }, [id]);
 
     const handleConfirm = async () => {
+        // Retrieve stored phone from session
+        const storedPhone = sessionStorage.getItem(`hakika_order_phone_${id}`);
+        if (!storedPhone) {
+            setError('Phone number not found. Please contact support.');
+            return;
+        }
         setConfirming(true);
+        setError('');
         try {
-            await api.confirmDelivery(id!, prompt('Enter phone number:') || '');
+            const result = await api.confirmDelivery(id!, storedPhone);
+            const paymentResult = result.payment || {};
+            setPaymentStatus(paymentResult);
+            if (paymentResult.checkout_id) {
+                setCheckoutId(paymentResult.checkout_id);
+                if (paymentResult.checkout_id.startsWith('mock-')) {
+                    setTimeout(() => {
+                        if (paymentResult.checkout_id) {
+                            simulatePayment(paymentResult.checkout_id);
+                        }
+                    }, 10000);
+                }
+            }
             fetchOrder();
-        } catch (e: any) { setError(e.message); } finally { setConfirming(false); }
+        } catch (e: any) {
+            setError(e.message);
+        } finally {
+            setConfirming(false);
+        }
     };
+
+    const handleRetryPayment = async () => {
+        setRetrying(true);
+        setError('');
+        try {
+            const result = await api.initiatePayment(id!);
+            setPaymentStatus(result);
+            if (result.checkout_id) {
+                setCheckoutId(result.checkout_id);
+            }
+            setRetrying(false);
+            fetchOrder();
+        } catch (e: any) {
+            setError(e.message);
+            setRetrying(false);
+        }
+    };
+
+    const simulatePayment = async (cid: string) => {
+        if (simulating) return;
+        setSimulating(true);
+        try {
+            await api.mockCallback(cid);
+            fetchOrder();
+        } catch (e: any) {
+            setError(e.message);
+        } finally {
+            setSimulating(false);
+        }
+    };
+
+    const isPaymentPending = order?.status === 'payment_pending';
+    const isPaid = order?.status === 'paid';
+    const isArrived = order?.status === 'arrived';
 
     if (!order) return <div style={{ padding: 20 }}>Loading...</div>;
 
@@ -82,13 +187,55 @@ const OrderTracking: React.FC = () => {
             ))}
             <div style={{ fontWeight: 'bold', textAlign: 'right' }}>Total: KES {order.total_amount}</div>
 
-            {order.status === 'arrived' && (
-                <button onClick={handleConfirm} disabled={confirming} style={{ width: '100%', marginTop: 20, padding: 14, background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8 }}>
-                    {confirming ? 'Confirming...' : 'Confirm Delivery & Pay'}
-                </button>
+            {error && <p style={{ color: 'red', marginTop: 12 }}>{error}</p>}
+
+            {isArrived && !isPaid && !isPaymentPending && (
+                <div style={{ marginTop: 20 }}>
+                    <button
+                        onClick={handleConfirm}
+                        disabled={confirming}
+                        style={{ width: '100%', padding: 14, background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8 }}
+                    >
+                        {confirming ? 'Confirming...' : 'Confirm Delivery & Pay'}
+                    </button>
+                </div>
             )}
-            {order.status === 'payment_pending' && <p style={{ color: '#f59e0b' }}>📱 M-Pesa prompt sent. Check your phone.</p>}
-            {order.status === 'paid' && <p style={{ color: '#16a34a' }}>✅ Payment received!</p>}
+
+            {isPaymentPending && (
+                <div style={{ marginTop: 20, padding: 16, background: '#fef9e7', borderRadius: 8, border: '1px solid #f59e0b' }}>
+                    <p style={{ color: '#f59e0b', margin: 0 }}>📱 M-Pesa prompt sent to your phone.</p>
+                    <p style={{ fontSize: '0.9em', color: '#666' }}>Check your phone and enter PIN to complete payment.</p>
+                    {paymentStatus?.status === 'initiation_failed' && (
+                        <p style={{ color: 'red' }}>Payment initiation failed. Please try again.</p>
+                    )}
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+                        <button
+                            onClick={handleRetryPayment}
+                            disabled={retrying}
+                            style={{ padding: '10px 20px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6 }}
+                        >
+                            {retrying ? 'Retrying...' : 'Resend STK Push'}
+                        </button>
+                        {checkoutId && checkoutId.startsWith('mock-') && (
+                            <button
+                                onClick={() => simulatePayment(checkoutId)}
+                                disabled={simulating}
+                                style={{ padding: '10px 20px', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: 6 }}
+                            >
+                                {simulating ? 'Simulating...' : '🔧 Simulate Payment (Mock)'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {isPaid && (
+                <p style={{ color: '#16a34a', marginTop: 20 }}>✅ Payment received!</p>
+            )}
+
+            {order.status === 'payment_pending' && paymentStatus?.status === 'verified' && (
+                <p style={{ color: '#16a34a', marginTop: 20 }}>✅ Payment confirmed!</p>
+            )}
         </div>
     );
 };

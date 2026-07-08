@@ -35,6 +35,21 @@ const OrderPage: React.FC = () => {
         return sum + price * item.quantity;
     }, 0);
 
+    const handleUseLocation = () => {
+        if (!navigator.geolocation) {
+            setError('Geolocation not supported by your browser.');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                setDeliveryLat(String(pos.coords.latitude));
+                setDeliveryLon(String(pos.coords.longitude));
+                setError('');
+            },
+            () => setError('Location access denied. Please enter coordinates manually.')
+        );
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!phone) return setError('Phone number is required');
@@ -49,7 +64,10 @@ const OrderPage: React.FC = () => {
                 delivery_lon: parseFloat(deliveryLon),
             });
             setOrderId(data.id);
+            // Store phone in session for later confirmation
+            sessionStorage.setItem(`hakika_order_phone_${data.id}`, phone);
             setSuccess(true);
+            sessionStorage.setItem('hakika_customer_phone', phone);
             sessionStorage.removeItem('hakika_cart');
         } catch (err: any) {
             setError(err.message);
@@ -89,14 +107,17 @@ const OrderPage: React.FC = () => {
                         style={{ width: '100%', padding: 8, marginTop: 4 }} />
                 </div>
                 <div style={{ marginBottom: 12 }}>
-                    <label>Delivery Latitude</label>
-                    <input value={deliveryLat} onChange={e => setDeliveryLat(e.target.value)}
-                        style={{ width: '100%', padding: 8, marginTop: 4 }} />
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                    <label>Delivery Longitude</label>
-                    <input value={deliveryLon} onChange={e => setDeliveryLon(e.target.value)}
-                        style={{ width: '100%', padding: 8, marginTop: 4 }} />
+                    <label>Delivery Location</label>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <button type="button" onClick={handleUseLocation} style={{ padding: '6px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4 }}>
+                            📍 Use My Location
+                        </button>
+                        <span style={{ fontSize: '0.9em', color: '#666' }}>or enter coordinates:</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                        <input value={deliveryLat} onChange={e => setDeliveryLat(e.target.value)} placeholder="Latitude" style={{ width: '50%', padding: 8 }} />
+                        <input value={deliveryLon} onChange={e => setDeliveryLon(e.target.value)} placeholder="Longitude" style={{ width: '50%', padding: 8 }} />
+                    </div>
                 </div>
                 {error && <p style={{ color: 'red' }}>{error}</p>}
                 <button type="submit" disabled={loading}
