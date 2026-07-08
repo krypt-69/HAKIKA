@@ -24,9 +24,16 @@ def get_order_service(db: AsyncSession = Depends(get_db)):
 async def create_order(data: OrderCreateRequest, service: OrderService = Depends(get_order_service)):
     return await service.create_order(data)
 
-@router.get("/{order_id}", response_model=OrderResponse)
-async def get_order(order_id: str, service: OrderService = Depends(get_order_service)):
-    return await service.get_order(uuid.UUID(order_id))
+@router.get("/{order_id}")
+async def get_order(order_id: str, db: AsyncSession = Depends(get_db), service: OrderService = Depends(get_order_service)):
+    order = await service.get_order(uuid.UUID(order_id))
+    # Fetch business name
+    business_repo = BusinessRepository(db)
+    business = await business_repo.get_by_id(order.business_id)
+    # Convert to dict and add business_name
+    order_dict = order.dict()
+    order_dict['business_name'] = business.name if business else None
+    return order_dict
 
 @router.put("/{order_id}/accept", response_model=OrderResponse)
 async def accept_order(
@@ -64,9 +71,3 @@ async def list_my_business_orders(
     service: OrderService = Depends(get_order_service)
 ):
     return await service.list_orders_for_business(current_user)
-@router.get("/{order_id}/receipt")
-async def get_receipt(
-    order_id: str,
-    service: OrderService = Depends(get_order_service)
-):
-    return await service.get_receipt(uuid.UUID(order_id))

@@ -38,24 +38,14 @@ async def payment_callback(
     try:
         raw_body = await request.body()
         signature = request.headers.get("X-IntaSend-Signature")
-        logger.info(f"Callback received. Headers: {dict(request.headers)}")
-        logger.info(f"Raw body: {raw_body.decode('utf-8')}")
-        
-        # Skip signature verification if secret not set
         if settings.intasend_webhook_secret:
             from app.integrations.intasend.webhook import verify_signature
             if not verify_signature(raw_body, signature):
                 logger.warning("Invalid webhook signature")
-                # Still process the payload – IntaSend may retry if we return error
-                # We'll log and continue but mark as suspicious.
         payload = await request.json()
-        logger.info(f"Callback payload: {payload}")
-        result = await service.process_callback(payload)
-        logger.info(f"Callback processed: {result}")
-        return result
+        return await service.process_callback(payload)
     except Exception as e:
         logger.error(f"Callback error: {e}", exc_info=True)
-        # Always return 200 to prevent IntaSend from retrying
         return {"status": "error", "detail": str(e)}
 
 @router.get("/orders/{order_id}")
@@ -63,7 +53,14 @@ async def get_payment_status(
     order_id: str,
     service: PaymentService = Depends(get_payment_service)
 ):
-    return await service.get_payment_status(uuid.UUID(order_id))
+    payment = await service.payment_repo.get_by_order(uuid.UUID(order_id))
+    if not payment:
+        return {"status": "not_initiated"}
+    return {
+        "status": payment.status.value,
+        "amount": float(payment.amount),
+        "provider_reference": payment.provider_reference
+    }
 
 @router.post("/mock/callback/{checkout_id}")
 async def mock_callback(
