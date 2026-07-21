@@ -1,3 +1,4 @@
+import { Config } from "@hakika/config";
 import React from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import Home from './pages/Home'
@@ -22,10 +23,10 @@ const App: React.FC = () => (
                 <Link to="/" style={{ fontWeight: 'bold', fontSize: '1.2em' }}>Hakika</Link>
                 <Link to="/my-orders">My Orders</Link>
                 <Link to="/notifications">Notifications</Link>
-                <a href="http://localhost:3001" target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb' }}>
+                <a href={Config.BUSINESS_BASE} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb' }}>
                     🏢 Business Dashboard
                 </a>
-                <a href="http://localhost:3003" target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb' }}>
+                <a href={Config.RIDER_BASE} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb' }}>
                     📱 Rider App
                 </a>
             </nav>

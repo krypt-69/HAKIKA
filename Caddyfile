@@ -1,4 +1,25 @@
 :8080 {
+    # Redirect bare paths to slash-terminated versions
+    @customer {
+        path /customer
+    }
+    redir @customer /customer/ permanent
+
+    @business {
+        path /business
+    }
+    redir @business /business/ permanent
+
+    @rider {
+        path /rider
+    }
+    redir @rider /rider/ permanent
+
+    @admin {
+        path /admin
+    }
+    redir @admin /admin/ permanent
+
     # Root redirect to customer app
     handle / {
         redir /customer/ permanent

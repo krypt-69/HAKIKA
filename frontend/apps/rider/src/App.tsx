@@ -8,7 +8,7 @@ import { ProtectedRoute } from '@hakika/auth'
 
 const App: React.FC = () => (
   <AuthProvider>
-    <BrowserRouter>
+    <BrowserRouter basename="/rider">
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/activate" element={<Activate />} />
