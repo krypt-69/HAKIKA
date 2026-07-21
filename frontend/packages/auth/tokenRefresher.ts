@@ -1,3 +1,5 @@
+import { Config } from '@hakika/config';
+
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
@@ -24,7 +26,7 @@ export async function getValidToken(): Promise<string | null> {
   isRefreshing = true;
   refreshPromise = (async () => {
     try {
-      const resp = await fetch('http://localhost:8000/api/v1/auth/refresh', {
+      const resp = await fetch(`${Config.API_BASE}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),

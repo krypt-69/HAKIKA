@@ -1,0 +1,36 @@
+:8080 {
+    # Root redirect to customer app
+    handle / {
+        redir /customer/ permanent
+    }
+
+    # Customer App
+    handle /customer/* {
+        reverse_proxy localhost:3002
+    }
+
+    # Business App
+    handle /business/* {
+        reverse_proxy localhost:3001
+    }
+
+    # Rider App
+    handle /rider/* {
+        reverse_proxy localhost:3003
+    }
+
+    # Admin App
+    handle /admin/* {
+        reverse_proxy localhost:3004
+    }
+
+    # Backend API
+    handle /api/v1/* {
+        reverse_proxy localhost:8000
+    }
+
+    # Uploads
+    handle /uploads/* {
+        reverse_proxy localhost:8000
+    }
+}

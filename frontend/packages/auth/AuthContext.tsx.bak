@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Config } from '@hakika/config';
+
+const API_BASE = 'http://localhost:8000/api/v1';
 
 async function apiLogin(email: string, password: string) {
-    const resp = await fetch(`${Config.API_BASE}/auth/login`, {
+    const resp = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
