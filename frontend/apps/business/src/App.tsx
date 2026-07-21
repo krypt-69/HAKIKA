@@ -56,7 +56,7 @@ const DashboardLayout: React.FC = () => {
 
 const App: React.FC = () => (
   <AuthProvider>
-    <BrowserRouter>
+    <BrowserRouter basename="/business">
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
