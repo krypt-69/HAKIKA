@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from "react-router-dom";
 import { useParams } from 'react-router-dom';
 import { api } from '../api';
 import { Config } from '@hakika/config';
@@ -15,6 +16,7 @@ interface Product {
 const BusinessProfile: React.FC = () => {
     const { slug } = useParams<{ slug: string }>();
     const [business, setBusiness] = useState<any>(null);
+  const navigate = useNavigate();
     const [products, setProducts] = useState<Product[]>([]);
     const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
     const [error, setError] = useState('');
@@ -61,7 +63,7 @@ const BusinessProfile: React.FC = () => {
 
     const handleCheckout = () => {
         sessionStorage.setItem('hakika_cart', JSON.stringify({ businessId: business?.id, items: cart }));
-        window.location.href = `/order?business=${business?.id}`;
+        navigate(`/order?business=${business?.id}`);
     };
 
     const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];

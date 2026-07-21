@@ -53,7 +53,7 @@ const Profile: React.FC = () => {
                 }
                 const hours = data.operating_hours || [];
                 const fullHours = DAYS.map((_, idx) => {
-                    const existing = hours.find(h => h.day_of_week === idx);
+                    const existing = hours.find((h: any) => h.day_of_week === idx);
                     return existing || { day_of_week: idx, opens_at: null, closes_at: null, is_closed: true };
                 });
                 setOperatingHours(fullHours);

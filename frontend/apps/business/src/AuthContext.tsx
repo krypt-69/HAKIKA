@@ -1,10 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { authenticatedFetch } from '@hakika/auth';
-
-const API_BASE = 'http://localhost:8000/api/v1';
+import { Config } from '@hakika/config';
 
 async function apiLogin(email: string, password: string) {
-    const resp = await fetch(`${API_BASE}/auth/login`, {
+    const resp = await fetch(`${Config.API_BASE}/api/v1/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -14,13 +13,13 @@ async function apiLogin(email: string, password: string) {
 }
 
 async function apiMe() {
-    const resp = await authenticatedFetch(`${API_BASE}/auth/me`);
+    const resp = await authenticatedFetch(`${Config.API_BASE}/api/v1/auth/me`);
     if (!resp.ok) throw new Error('Failed to fetch user');
     return resp.json();
 }
 
 async function apiGetBusiness(id: string) {
-    const resp = await authenticatedFetch(`${API_BASE}/businesses/${id}`);
+    const resp = await authenticatedFetch(`${Config.API_BASE}/api/v1/businesses/${id}`);
     if (!resp.ok) throw new Error('Failed to fetch business');
     return resp.json();
 }

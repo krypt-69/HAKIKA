@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from "react-router-dom";
 import { api } from '../api';
 import { Config } from '@hakika/config';
 
@@ -158,7 +159,7 @@ const Home: React.FC = () => {
 
             <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
                 {filtered.map(biz => (
-                    <a key={biz.id} href={`/b/${biz.slug ? biz.slug : biz.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <Link key={biz.id} to={`/b/${biz.slug ? biz.slug : biz.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                         <div style={{ border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden', cursor: 'pointer' }}>
                             <img
                                 src={`${Config.API_BASE}${biz.cover_url}`}
@@ -199,7 +200,7 @@ const Home: React.FC = () => {
                                 )}
                             </div>
                         </div>
-                    </a>
+                    </Link>
                 ))}
                 {!loading && filtered.length === 0 && <p>No businesses found.</p>}
             </div>

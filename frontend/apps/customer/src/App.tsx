@@ -9,7 +9,7 @@ import Notifications from './pages/Notifications'
 import Receipt from './pages/Receipt'
 
 const App: React.FC = () => (
-    <BrowserRouter>
+    <BrowserRouter basename="/customer">
         <div>
             <nav style={{ 
                 padding: '10px 20px', 

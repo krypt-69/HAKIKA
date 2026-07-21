@@ -3,7 +3,7 @@ import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@hakika/auth';
 
 const DashboardLayout: React.FC = () => {
-  const { user, logout, businessName } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
