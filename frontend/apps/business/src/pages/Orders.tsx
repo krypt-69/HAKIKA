@@ -1,3 +1,4 @@
+import { Config } from "@hakika/config";
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { authenticatedFetch } from '@hakika/auth';
@@ -46,7 +47,7 @@ const Orders: React.FC = () => {
   const fetchRiders = async () => {
     if (!businessId) return;
     try {
-      const resp = await authenticatedFetch(`http://localhost:8000/api/v1/riders/${businessId}`);
+      const resp = await authenticatedFetch(`${Config.API_BASE}/riders/${businessId}`);
       if (!resp.ok) throw new Error('Failed to load riders');
       const data = await resp.json();
       setRiders(data || []);
@@ -71,7 +72,7 @@ const Orders: React.FC = () => {
     setError('');
     setSuccess('');
     try {
-      const resp = await authenticatedFetch(`http://localhost:8000/api/v1/delivery/orders/${orderId}/assign?rider_id=${selectedRider}`, {
+      const resp = await authenticatedFetch(`${Config.API_BASE}/delivery/orders/${orderId}/assign?rider_id=${selectedRider}`, {
         method: 'PUT',
       });
       if (!resp.ok) throw new Error('Assignment failed');
@@ -95,7 +96,7 @@ const Orders: React.FC = () => {
             {order.items.map(item => (
               <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {item.thumbnail_url && (
-                  <img src={`http://localhost:8000${item.thumbnail_url}`} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
+                  <img src={`${item.thumbnail_url}`} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
                 )}
                 <span>{item.product_name} × {item.quantity} (@ KES {item.unit_price})</span>
               </div>

@@ -1,4 +1,6 @@
-const BASE_URL = 'http://localhost:8000/api/v1';
+import { Config } from '@hakika/config';
+
+const API_URL = `${Config.API_BASE}/api/v1`;
 
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
@@ -18,7 +20,7 @@ async function getValidToken(): Promise<string | null> {
   isRefreshing = true;
   refreshPromise = (async () => {
     try {
-      const resp = await fetch(`${BASE_URL}/auth/refresh`, {
+      const resp = await fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),
@@ -48,12 +50,12 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  let response = await fetch(`${BASE_URL}${url}`, { ...options, headers });
+  let response = await fetch(`${API_URL}${url}`, { ...options, headers });
   if (response.status === 401 && token) {
     const newToken = await getValidToken();
     if (newToken) {
       headers['Authorization'] = `Bearer ${newToken}`;
-      response = await fetch(`${BASE_URL}${url}`, { ...options, headers });
+      response = await fetch(`${API_URL}${url}`, { ...options, headers });
     }
   }
   if (!response.ok) {

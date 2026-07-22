@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const API_BASE = 'http://localhost:8000/api/v1';
+import { Config } from '@hakika/config';
 
 const Activate: React.FC = () => {
   const navigate = useNavigate();
@@ -21,7 +20,7 @@ const Activate: React.FC = () => {
     setError('');
     setLoading(true);
     try {
-      const resp = await fetch(`${API_BASE}/auth/activate/check`, {
+      const resp = await fetch(`${Config.API_BASE}/api/v1/auth/activate/check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier }),
@@ -56,7 +55,7 @@ const Activate: React.FC = () => {
     setError('');
     setLoading(true);
     try {
-      const resp = await fetch(`${API_BASE}/auth/activate`, {
+      const resp = await fetch(`${Config.API_BASE}/api/v1/auth/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, password }),
@@ -68,7 +67,6 @@ const Activate: React.FC = () => {
       const data = await resp.json();
       localStorage.setItem('token', data.access_token);
       localStorage.setItem('refreshToken', data.refresh_token);
-      // Force navigation to home; the ProtectedRoute will pick up the token
       navigate('/');
     } catch (err: any) {
       setError(err.message);

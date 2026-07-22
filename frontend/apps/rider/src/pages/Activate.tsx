@@ -20,7 +20,7 @@ const Activate: React.FC = () => {
     setError('');
     setLoading(true);
     try {
-      const resp = await fetch(`${Config.API_BASE}/api/v1/auth/activate/check`, {
+      const resp = await fetch(`${Config.API_BASE}/auth/activate/check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier }),
@@ -55,7 +55,7 @@ const Activate: React.FC = () => {
     setError('');
     setLoading(true);
     try {
-      const resp = await fetch(`${Config.API_BASE}/api/v1/auth/activate`, {
+      const resp = await fetch(`${Config.API_BASE}/auth/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, password }),

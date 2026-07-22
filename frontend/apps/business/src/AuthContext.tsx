@@ -3,7 +3,7 @@ import { authenticatedFetch } from '@hakika/auth';
 import { Config } from '@hakika/config';
 
 async function apiLogin(email: string, password: string) {
-    const resp = await fetch(`${Config.API_BASE}/api/v1/auth/login`, {
+    const resp = await fetch(`${Config.API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -13,13 +13,13 @@ async function apiLogin(email: string, password: string) {
 }
 
 async function apiMe() {
-    const resp = await authenticatedFetch(`${Config.API_BASE}/api/v1/auth/me`);
+    const resp = await authenticatedFetch(`${Config.API_BASE}/auth/me`);
     if (!resp.ok) throw new Error('Failed to fetch user');
     return resp.json();
 }
 
 async function apiGetBusiness(id: string) {
-    const resp = await authenticatedFetch(`${Config.API_BASE}/api/v1/businesses/${id}`);
+    const resp = await authenticatedFetch(`${Config.API_BASE}/businesses/${id}`);
     if (!resp.ok) throw new Error('Failed to fetch business');
     return resp.json();
 }

@@ -1,4 +1,3 @@
-import { Config } from "@hakika/config";
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../AuthContext';
 import { api } from '../api';
@@ -150,8 +149,8 @@ const Profile: React.FC = () => {
     if (error) return <div style={{ color: 'red' }}>{error}</div>;
     if (!business) return <div>Business not found.</div>;
 
-    const logoSrc = `${Config.API_BASE}/businesses/${business.id}/logo?t=${Date.now()}`;
-    const coverSrc = `${Config.API_BASE}/businesses/${business.id}/cover?t=${Date.now()}`;
+    const logoSrc = `http://localhost:8000/api/v1/businesses/${business.id}/logo?t=${Date.now()}`;
+    const coverSrc = `http://localhost:8000/api/v1/businesses/${business.id}/cover?t=${Date.now()}`;
 
     return (
         <div style={{ maxWidth: 800, margin: '0 auto' }}>

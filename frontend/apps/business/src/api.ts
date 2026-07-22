@@ -1,6 +1,6 @@
 import { Config } from '@hakika/config';
 
-const API_URL = `${Config.API_BASE}/api/v1`;
+const API_URL = Config.API_BASE;
 
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;

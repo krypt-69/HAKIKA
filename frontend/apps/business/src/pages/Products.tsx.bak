@@ -148,7 +148,7 @@ const Products: React.FC = () => {
               <tr key={p.id} style={{ borderBottom: '1px solid #ddd' }}>
                 <td>
                   {p.images.length > 0 ? (
-                    <img src={p.images[0].url} style={{ width: 40, height: 40, objectFit: "cover" }} />
+                    <img src={`$p.images[0].url`} style={{ width: 40, height: 40, objectFit: 'cover' }} />
                   ) : <span style={{ fontSize: 12, color: '#999' }}>No img</span>}
                 </td>
                 <td>{p.name}</td>

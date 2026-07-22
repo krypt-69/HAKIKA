@@ -45,7 +45,7 @@ const Home: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const resp = await authenticatedFetch(`${Config.API_BASE}/api/v1/delivery/my-orders`);
+      const resp = await authenticatedFetch(`${Config.API_BASE}/delivery/my-orders`);
       if (!resp.ok) throw new Error('Failed to load deliveries');
       const data = await resp.json();
       setOrders(Array.isArray(data) ? data : []);
@@ -138,7 +138,7 @@ const Home: React.FC = () => {
   const handleArrive = async (orderId: string) => {
     setError('');
     setMessage('');
-    const url = `${Config.API_BASE}/api/v1/delivery/orders/${orderId}/arrive?gps_lat=${gpsLat}&gps_lon=${gpsLon}`;
+    const url = `${Config.API_BASE}/delivery/orders/${orderId}/arrive?gps_lat=${gpsLat}&gps_lon=${gpsLon}`;
     const options = { method: 'PUT' };
     try {
       if (!navigator.onLine) {
@@ -169,7 +169,7 @@ const Home: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const uploadResp = await authenticatedFetch(`${Config.API_BASE}/api/v1/delivery/orders/${orderId}/evidence`, {
+      const uploadResp = await authenticatedFetch(`${Config.API_BASE}/delivery/orders/${orderId}/evidence`, {
         method: 'POST',
         body: formData,
       });
@@ -181,7 +181,7 @@ const Home: React.FC = () => {
         gps_lon: gpsLon,
         photo_url: uploadResult.url,
       });
-      const attemptResp = await authenticatedFetch(`${Config.API_BASE}/api/v1/delivery/orders/${orderId}/attempt?${params}`, {
+      const attemptResp = await authenticatedFetch(`${Config.API_BASE}/delivery/orders/${orderId}/attempt?${params}`, {
         method: 'PUT',
       });
       if (!attemptResp.ok) throw new Error('Failed to commit operational drop-off status updates.');

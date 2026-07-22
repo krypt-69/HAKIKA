@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext';
+import { authenticatedFetch } from '@hakika/auth';
 import { api } from '../api';
 
 interface OrderItem {
@@ -34,8 +35,6 @@ const Orders: React.FC = () => {
   const [selectedRider, setSelectedRider] = useState('');
   const [success, setSuccess] = useState('');
 
-  const token = localStorage.getItem('token');
-
   const fetchOrders = async () => {
     if (!businessId) return;
     try {
@@ -47,9 +46,7 @@ const Orders: React.FC = () => {
   const fetchRiders = async () => {
     if (!businessId) return;
     try {
-      const resp = await fetch(`http://localhost:8000/api/v1/riders/${businessId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const resp = await authenticatedFetch(`http://localhost:8000/api/v1/riders/${businessId}`);
       if (!resp.ok) throw new Error('Failed to load riders');
       const data = await resp.json();
       setRiders(data || []);
@@ -74,9 +71,8 @@ const Orders: React.FC = () => {
     setError('');
     setSuccess('');
     try {
-      const resp = await fetch(`http://localhost:8000/api/v1/delivery/orders/${orderId}/assign?rider_id=${selectedRider}`, {
+      const resp = await authenticatedFetch(`http://localhost:8000/api/v1/delivery/orders/${orderId}/assign?rider_id=${selectedRider}`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!resp.ok) throw new Error('Assignment failed');
       setSuccess('Rider assigned');

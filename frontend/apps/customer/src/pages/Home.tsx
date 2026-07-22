@@ -162,14 +162,14 @@ const Home: React.FC = () => {
                     <Link key={biz.id} to={`/b/${biz.slug ? biz.slug : biz.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                         <div style={{ border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden', cursor: 'pointer' }}>
                             <img
-                                src={`${Config.API_BASE}${biz.cover_url}`}
+                                src={biz.cover_url}
                                 style={{ width: '100%', height: 120, objectFit: 'cover' }}
                                 onError={e => { e.currentTarget.style.display = 'none'; }}
                             />
                             <div style={{ padding: 12 }}>
                                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
                                     <img
-                                        src={`${Config.API_BASE}/api/v1/businesses/${biz.id}/logo`}
+                                        src={`${Config.API_BASE}/businesses/${biz.id}/logo`}
                                         style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 4, border: '1px solid #ddd' }}
                                         onError={e => { e.currentTarget.style.display = 'none'; }}
                                     />

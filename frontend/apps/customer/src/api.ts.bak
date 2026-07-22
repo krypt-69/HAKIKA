@@ -1,7 +1,9 @@
 import { Config } from '@hakika/config';
 
+const API_URL = `${Config.API_BASE}/api/v1`;
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-    const response = await fetch(`${Config.API_BASE}${url}`, {
+    const response = await fetch(`${API_URL}${url}`, {
         ...options,
         headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) },
     });

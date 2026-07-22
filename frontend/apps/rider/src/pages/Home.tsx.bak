@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth, authenticatedFetch } from '@hakika/auth';
-
-const API_BASE = "http://localhost:8000/api/v1";
+import { Config } from '@hakika/config';
 
 interface OrderItem {
   id: string;
@@ -46,7 +45,7 @@ const Home: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const resp = await authenticatedFetch(`${API_BASE}/delivery/my-orders`);
+      const resp = await authenticatedFetch(`${Config.API_BASE}/api/v1/delivery/my-orders`);
       if (!resp.ok) throw new Error('Failed to load deliveries');
       const data = await resp.json();
       setOrders(Array.isArray(data) ? data : []);
@@ -95,7 +94,6 @@ const Home: React.FC = () => {
     );
   };
 
-  // Helper to strip out text annotations like "(Mama Jane Supermarket)" from coordinate strings
   const cleanCoordinate = (val: any): string => {
     if (val === null || val === undefined) return '';
     const match = String(val).match(/[-0-9.]+/);
@@ -103,31 +101,23 @@ const Home: React.FC = () => {
   };
 
   const openNavigation = (order: Order) => {
-    setError(null); // ✅ Clear previous errors before attempting navigation
-
+    setError("");
     const pickup = order.pickup_location;
     const delivery = order.delivery_location;
-    
     if (!pickup || !delivery) {
       setError('Missing location properties. Cannot generate route map.');
       return;
     }
-
     const pLat = cleanCoordinate(pickup.lat);
     const pLon = cleanCoordinate(pickup.lon);
     const dLat = cleanCoordinate(delivery.lat);
     const dLon = cleanCoordinate(delivery.lon);
-
     if (!pLat || !pLon || !dLat || !dLon) {
       setError('Invalid numeric coordinates. Clean map points could not be parsed.');
       return;
     }
-
     const mode = travelMode === 'two_wheeled' ? 'bicycling' : 'driving';
-    
-    // Official Google Maps Directions API gateway format
     const url = `https://www.google.com/maps/dir/?api=1&origin=${pLat},${pLon}&destination=${dLat},${dLon}&travelmode=${mode}`;
-    
     window.open(url, '_blank');
   };
 
@@ -148,7 +138,7 @@ const Home: React.FC = () => {
   const handleArrive = async (orderId: string) => {
     setError('');
     setMessage('');
-    const url = `${API_BASE}/delivery/orders/${orderId}/arrive?gps_lat=${gpsLat}&gps_lon=${gpsLon}`;
+    const url = `${Config.API_BASE}/api/v1/delivery/orders/${orderId}/arrive?gps_lat=${gpsLat}&gps_lon=${gpsLon}`;
     const options = { method: 'PUT' };
     try {
       if (!navigator.onLine) {
@@ -179,22 +169,19 @@ const Home: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
-      const uploadResp = await authenticatedFetch(`${API_BASE}/delivery/orders/${orderId}/evidence`, {
+      const uploadResp = await authenticatedFetch(`${Config.API_BASE}/api/v1/delivery/orders/${orderId}/evidence`, {
         method: 'POST',
         body: formData,
       });
       if (!uploadResp.ok) throw new Error('File upload pipeline rejected image content.');
       const uploadResult = await uploadResp.json();
-
       const params = new URLSearchParams({
         status: 'successful',
         gps_lat: gpsLat,
         gps_lon: gpsLon,
         photo_url: uploadResult.url,
       });
-      
-      const attemptResp = await authenticatedFetch(`${API_BASE}/delivery/orders/${orderId}/attempt?${params}`, {
+      const attemptResp = await authenticatedFetch(`${Config.API_BASE}/api/v1/delivery/orders/${orderId}/attempt?${params}`, {
         method: 'PUT',
       });
       if (!attemptResp.ok) throw new Error('Failed to commit operational drop-off status updates.');
@@ -210,7 +197,6 @@ const Home: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: 16, fontFamily: 'system-ui, sans-serif', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
-      {/* Header Context */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid #e5e7eb' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#111827' }}>Hakika Rider</h1>
@@ -221,11 +207,9 @@ const Home: React.FC = () => {
         </button>
       </div>
 
-      {/* Dynamic Notification Banners */}
       {error && <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: 12, borderRadius: 8, marginBottom: 12, fontSize: 14, fontWeight: 500 }}>⚠️ {error}</div>}
       {message && <div style={{ backgroundColor: '#ecfdf5', color: '#047857', padding: 12, borderRadius: 8, marginBottom: 12, fontSize: 14, fontWeight: 500 }}>✅ {message}</div>}
 
-      {/* Telemetry Control Panel */}
       <div style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={getRealGPS} style={{ padding: '8px 12px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>
@@ -243,7 +227,6 @@ const Home: React.FC = () => {
 
       {loading && <p style={{ textAlign: 'center', color: '#6b7280', fontSize: 14 }}>Refreshing active manifests...</p>}
 
-      {/* Operational Active Manifest */}
       <h2 style={{ fontSize: 18, fontWeight: 700, color: '#374151', marginBottom: 12 }}>Active Drop-offs ({activeOrders.length})</h2>
       {activeOrders.length === 0 && !loading && (
         <div style={{ textAlign: 'center', padding: '32px 16px', backgroundColor: '#fff', borderRadius: 12, border: '1px dashed #d1d5db', color: '#9ca3af', fontSize: 14 }}>
@@ -266,7 +249,7 @@ const Home: React.FC = () => {
           {order.business_name && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderTop: '1px solid #f3f4f6' }}>
               {order.business_logo && (
-                <img src={`http://localhost:8000${order.business_logo}`} alt="Logo" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6 }} />
+                <img src={`${Config.API_BASE}${order.business_logo}`} alt="Logo" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6 }} />
               )}
               <div>
                 <span style={{ fontSize: 11, color: '#9ca3af', display: 'block' }}>Pickup Point</span>
@@ -279,7 +262,7 @@ const Home: React.FC = () => {
             {order.items.map(item => (
               <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0' }}>
                 {item.thumbnail_url && (
-                  <img src={`http://localhost:8000${item.thumbnail_url}`} alt="Item" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />
+                  <img src={`${Config.API_BASE}${item.thumbnail_url}`} alt="Item" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />
                 )}
                 <span style={{ fontSize: 14, color: '#4b5563', fontWeight: 500 }}>{item.product_name} <strong style={{ color: '#111827' }}>×{item.quantity}</strong></span>
               </div>
@@ -301,7 +284,6 @@ const Home: React.FC = () => {
             <p style={{ margin: '0 0 16px 0', fontSize: 13, color: '#4b5563' }}>📞 <strong>Contact:</strong> {order.customer_phone}</p>
           )}
 
-          {/* Workflow Actions Section */}
           <div style={{ display: 'flex', gap: 8, flexDirection: 'column', marginTop: 12 }}>
             <button onClick={() => openNavigation(order)} style={{ width: '100%', padding: '12px', backgroundColor: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               🧭 Launch Interactive Google Map Route
@@ -326,7 +308,6 @@ const Home: React.FC = () => {
         </div>
       ))}
 
-      {/* Archive Logs Section */}
       {pastOrders.length > 0 && (
         <div style={{ marginTop: 24 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: '#6b7280', marginBottom: 12 }}>Archived Manifest History ({pastOrders.length})</h2>

@@ -1,4 +1,3 @@
-import { Config } from "@hakika/config";
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { api } from '../api';
@@ -21,7 +20,7 @@ const Riders: React.FC = () => {
     e.preventDefault();
     setError('');
     try {
-      await fetch(`${Config.API_BASE}/riders/${businessId}`, {
+      await fetch(`http://localhost:8000/api/v1/riders/${businessId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify({ name, phone, email: `${name.toLowerCase().replace(/\s/g, '.')}@rider.hakika` })

@@ -72,8 +72,8 @@ const BusinessProfile: React.FC = () => {
     if (error) return <div style={{ padding: 20, color: 'red' }}>{error}</div>;
     if (!business) return <div style={{ padding: 20 }}>Business not found</div>;
 
-    const logoSrc = `${Config.API_BASE}/api/v1/businesses/${business.id}/logo`;
-    const coverSrc = `${Config.API_BASE}/api/v1/businesses/${business.id}/cover`;
+    const logoSrc = `${Config.API_BASE}/businesses/${business.id}/logo`;
+    const coverSrc = `${Config.API_BASE}/businesses/${business.id}/cover`;
 
     return (
         <div style={{ padding: 20 }}>
@@ -128,7 +128,7 @@ const BusinessProfile: React.FC = () => {
                         <div key={product.id} style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12 }}>
                             {product.images?.[0] && (
                                 <img
-                                    src={`${Config.API_BASE}${product.images[0].url}`}
+                                    src={product.images[0].url}
                                     style={{ width: '100%', height: 150, objectFit: 'cover', borderRadius: 4 }}
                                 />
                             )}
