@@ -1,0 +1,11 @@
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+export const APP_NAME = 'Hakika';
+
+export const Config = {
+    API_BASE: import.meta.env.VITE_API_BASE || 'http://localhost:8000',
+    ROUTER_BASENAME: import.meta.env.VITE_ROUTER_BASENAME || '',
+    CUSTOMER_BASE: import.meta.env.VITE_CUSTOMER_BASE || '/customer',
+    BUSINESS_BASE: import.meta.env.VITE_BUSINESS_BASE || '/business',
+    RIDER_BASE: import.meta.env.VITE_RIDER_BASE || '/rider',
+    ADMIN_BASE: import.meta.env.VITE_ADMIN_BASE || '/admin',
+};

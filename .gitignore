@@ -1,0 +1,94 @@
+# ============================================
+# ENVIRONMENT FILES
+# ============================================
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# ============================================
+# DEPENDENCIES
+# ============================================
+node_modules/
+frontend/**/node_modules/
+backend/**/__pycache__/
+backend/**/*.pyc
+*.pyc
+__pycache__/
+
+# ============================================
+# BUILD OUTPUTS
+# ============================================
+dist/
+build/
+*.dist
+frontend/**/dist/
+frontend/**/build/
+frontend/**/.vite/
+
+# ============================================
+# BACKEND PYTHON CACHE
+# ============================================
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/alembic/**/__pycache__/
+backend/alembic/**/*.pyc
+backend/app/**/__pycache__/
+backend/app/**/*.pyc
+
+# ============================================
+# DATABASE BACKUPS
+# ============================================
+*.sql
+*.sql.gz
+backups/
+backend/backups/
+*.backup
+
+# ============================================
+# IDE / OS
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ============================================
+# LOGS
+# ============================================
+*.log
+logs/
+
+# ============================================
+# TEMPORARY FILES
+# ============================================
+*.tmp
+*.temp
+*.bak
+*.backup
+dump.rdb
+
+# ============================================
+# FRONTEND SPECIFIC
+# ============================================
+frontend/**/node_modules/
+frontend/**/dist/
+frontend/**/.vite/
+frontend/**/*.env
+frontend/**/*.env.*
+!frontend/**/*.env.example
+frontend/package-lock.json
+
+# ============================================
+# MISC
+# ============================================
+.venv/
+venv/
+ENV/
+env/
+.terraform/
+*.tfstate
+*.tfstate.*

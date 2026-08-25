@@ -1,0 +1,192 @@
+frontend/node_modules/caniuse-lite/data/features/notifications.js
+frontend/node_modules/caniuse-lite/data/features/serviceworkers.js
+frontend/node_modules/caniuse-lite/data/features/push-api.js
+frontend/node_modules/safe-push-apply
+frontend/apps/customer/src/pages/Notifications.tsx
+backend/venv/lib/python3.13/site-packages/watchfiles/_rust_notify.cpython-313-x86_64-linux-gnu.so
+backend/venv/lib/python3.13/site-packages/watchfiles/_rust_notify.pyi
+backend/venv/lib/python3.13/site-packages/watchfiles-1.2.0.dist-info/sboms/watchfiles_rust_notify.cyclonedx.json
+backend/app/models/__pycache__/notification.cpython-313.pyc
+backend/app/models/notification.py
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../api';
+
+const Notifications: React.FC = () => {
+    const navigate = useNavigate();
+    const [orders, setOrders] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [phone, setPhone] = useState('');
+
+    const fetchOrders = async (phoneNumber: string) => {
+        setLoading(true);
+        setError('');
+        try {
+            const data = await api.getMyOrders(phoneNumber);
+            setOrders(data);
+        } catch (e: any) {
+            setError(e.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!phone.trim()) {
+            setError('Please enter your phone number');
+            return;
+        }
+        sessionStorage.setItem('hakika_customer_phone', phone);
+        fetchOrders(phone);
+    };
+
+    useEffect(() => {
+        const storedPhone = sessionStorage.getItem('hakika_customer_phone');
+        if (storedPhone) {
+            setPhone(storedPhone);
+            fetchOrders(storedPhone);
+        } else {
+            setLoading(false);
+        }
+    }, []);
+
+    return (
+        <div style={{ padding: 20 }}>
+            <button onClick={() => navigate('/')}>← Back</button>
+            <h1>Notifications</h1>
+            {!sessionStorage.getItem('hakika_customer_phone') && (
+                <form onSubmit={handleSubmit} style={{ marginBottom: 20 }}>
+                    <p>Enter your phone number to see your orders:</p>
+                    <input
+                        type="tel"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        placeholder="0712345678"
+                        style={{ padding: 10, fontSize: 16, width: '100%', maxWidth: 300 }}
+                    />
+                    <button type="submit" style={{ padding: '10px 20px', marginLeft: 10, background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4 }}>
+                        View Orders
+                    </button>
+                    {error && <p style={{ color: 'red', marginTop: 8 }}>{error}</p>}
+                </form>
+            )}
+            {loading && <p>Loading...</p>}
+            {orders.length === 0 && !loading && <p>No orders found.</p>}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {orders.map(order => (
+                    <div
+                        key={order.id}
+                        onClick={() => navigate(`/order/${order.id}`)}
+                        style={{
+                            padding: 16,
+                            border: '1px solid #ddd',
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                            background: order.status === 'arrived' ? '#fef9e7' : '#fff'
+                        }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <strong>Order {order.order_number}</strong>
+                            <span>{STATUS_LABELS[order.status] || order.status}</span>
+                        </div>
+                        <p style={{ margin: '4px 0', fontSize: '0.9em' }}>{order.business_name}</p>
+                        <p style={{ margin: '4px 0', fontSize: '0.8em', color: '#666' }}>
+                            {new Date(order.created_at).toLocaleString()}
+                        </p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+// Helper labels (reuse from OrderTracking)
+const STATUS_LABELS: Record<string, string> = {
+    waiting_acceptance: 'Waiting for business to accept',
+    accepted: 'Accepted',
+    preparing: 'Preparing your order',
+    ready_for_delivery: 'Ready for delivery',
+    out_for_delivery: 'Rider is on the way',
+    arrived: 'Rider has arrived',
+    customer_confirmed_delivery: 'Delivery confirmed',
+    payment_pending: 'Payment pending',
+    paid: 'Paid',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+    delivery_failed: 'Delivery failed',
+    dispute_review: 'Under review',
+};
+
+export default Notifications;
+backend/app/models/__init__.py:from app.models.notification import Notification
+backend/app/models/notification.py:    __tablename__ = "notifications"
+backend/app/models/notification.py:    type: Mapped[NotificationTypeEnum] = mapped_column(ENUM(NotificationTypeEnum, name='notification_type', create_type=False), nullable=False)
+import uuid
+from sqlalchemy import String, Text, TIMESTAMP
+from sqlalchemy.dialects.postgresql import UUID, ENUM
+from sqlalchemy.orm import Mapped, mapped_column
+from app.models.base import Base
+from datetime import datetime
+import enum
+
+class NotificationTypeEnum(str, enum.Enum):
+    pwa_push = "pwa_push"
+    sms = "sms"
+    whatsapp = "whatsapp"
+
+class RecipientTypeEnum(str, enum.Enum):
+    customer = "customer"
+    business = "business"
+    rider = "rider"
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    recipient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    recipient_type: Mapped[RecipientTypeEnum] = mapped_column(ENUM(RecipientTypeEnum, name='recipient_type', create_type=False), nullable=False)
+    type: Mapped[NotificationTypeEnum] = mapped_column(ENUM(NotificationTypeEnum, name='notification_type', create_type=False), nullable=False)
+    title: Mapped[str | None] = mapped_column(String, nullable=True)
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="sent")
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP, default=datetime.utcnow)
+File not found
+File not found
+backend/alembic/versions/001_initial_schema.py:        CREATE TABLE notifications (
+backend/alembic/versions/001_initial_schema.py:    op.execute("DROP TABLE IF EXISTS notifications;")
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+    """)
+
+    op.execute("""
+        CREATE TABLE notifications (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            recipient_id UUID NOT NULL,
+            recipient_type recipient_type NOT NULL,
+            type notification_type NOT NULL,
+            title VARCHAR,
+--
+    """)
+
+def downgrade():
+    op.execute("DROP TABLE IF EXISTS customer_contact_logs;")
+    op.execute("DROP TABLE IF EXISTS audit_logs;")
+    op.execute("DROP TABLE IF EXISTS notifications;")
+    op.execute("DROP TABLE IF EXISTS trust_events;")
+    op.execute("DROP TABLE IF EXISTS settlements;")
+    op.execute("DROP TABLE IF EXISTS ledger_entries;")
+    op.execute("DROP TABLE IF EXISTS payments;")
+    op.execute("DROP TABLE IF EXISTS payment_methods;")
+                <Link to="/" style={{ fontWeight: 'bold', fontSize: '1.2em' }}>Hakika</Link>
+                <Link to="/my-orders">My Orders</Link>
+                <Link to="/notifications">Notifications</Link>
+                <a href={Config.BUSINESS_BASE} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb' }}>
+                    🏢 Business Dashboard
+--
+                <Route path="/order/:id" element={<OrderTracking />} />
+                <Route path="/my-orders" element={<MyOrders />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/receipt/:id" element={<Receipt />} />
+            </Routes>
+No notification references

@@ -1,0 +1,163 @@
+import { Config } from "@hakika/config";
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../AuthContext';
+import { api } from '../api';
+
+interface BusinessProfile {
+  id: string;
+  name: string;
+  description: string | null;
+  category_id: number;
+  trust_score: number;
+  slug: string;
+  locations: { address_text: string | null; lat: number; lon: number }[];
+  operating_hours: { day_of_week: number; opens_at: string | null; closes_at: string | null; is_closed: boolean }[];
+  payment_methods: { type: string; last_four_digits: string | null; is_active: boolean }[];
+}
+
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+const BusinessProfilePage: React.FC = () => {
+  const { businessId } = useAuth();
+  const [profile, setProfile] = useState<BusinessProfile | null>(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [editMode, setEditMode] = useState(false);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [logoKey, setLogoKey] = useState(Date.now());
+  const [coverKey, setCoverKey] = useState(Date.now());
+
+  const token = localStorage.getItem('hakika_business_token');
+
+  const fetchProfile = async () => {
+    if (!businessId) return;
+    setError('');
+    try {
+      const data = await api.businesses.get(businessId);
+      setProfile(data);
+      setName(data.name);
+      setDescription(data.description || '');
+    } catch (err: any) { setError(err.message); }
+  };
+
+  useEffect(() => { fetchProfile(); }, [businessId]);
+
+  const handleSave = async () => {
+    if (!businessId) return;
+    setError(''); setSuccess('');
+    try {
+      await api.businesses.update(businessId, { name, description: description || null });
+      setSuccess('Profile updated!');
+      setEditMode(false);
+      fetchProfile();
+    } catch (err: any) { setError(err.message); }
+  };
+
+  const uploadImage = async (type: 'logo' | 'cover', file: File) => {
+    setError(''); setSuccess('');
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const resp = await fetch(`${Config.API_BASE}/businesses/${businessId}/${type}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: form
+      });
+      if (!resp.ok) throw new Error(`Failed to upload ${type}`);
+      setSuccess(`${type} updated!`);
+      if (type === 'logo') setLogoKey(Date.now());
+      else setCoverKey(Date.now());
+    } catch (err: any) { setError(err.message); }
+  };
+
+  if (!businessId) return <p>No business found.</p>;
+  if (error) return <p style={{ color: 'red' }}>{error}</p>;
+  if (!profile) return <p>Loading profile...</p>;
+
+  const logoSrc = `${Config.API_BASE}/businesses/${businessId}/logo?t=${logoKey}`;
+  const coverSrc = `${Config.API_BASE}/businesses/${businessId}/cover?t=${coverKey}`;
+
+  return (
+    <div>
+      <h1>Business Profile</h1>
+      {success && <p style={{ color: 'green' }}>{success}</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      <div style={{ display: 'flex', gap: 30, marginBottom: 20 }}>
+        <div>
+          <h3>Logo</h3>
+          <img src={logoSrc} style={{ width: 120, height: 120, objectFit: 'cover', border: '1px solid #ccc', borderRadius: 8 }}
+               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          <br /><input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage('logo', f); }} />
+        </div>
+        <div>
+          <h3>Cover</h3>
+          <img src={coverSrc} style={{ width: 300, height: 100, objectFit: 'cover', border: '1px solid #ccc', borderRadius: 8 }}
+               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          <br /><input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage('cover', f); }} />
+        </div>
+      </div>
+
+      <div style={{ background: '#f0f9ff', padding: 12, borderRadius: 8, marginBottom: 20 }}>
+        <p style={{ margin: 0, fontWeight: 'bold' }}>Public URL:</p>
+        <p style={{ margin: '4px 0 0 0', fontFamily: 'monospace' }}>https://hakika.co.ke/b/{profile.slug || '...'}</p>
+      </div>
+
+      {editMode ? (
+        <div style={{ maxWidth: 400 }}>
+          <div><label>Business Name</label>
+            <input value={name} onChange={e => setName(e.target.value)} style={{ width: '100%', padding: 8, marginTop: 4 }} />
+          </div>
+          <div><label>Description</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} style={{ width: '100%', padding: 8, marginTop: 4 }} />
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <button onClick={handleSave} style={{ padding: '8px 16px', marginRight: 8 }}>Save</button>
+            <button onClick={() => setEditMode(false)} style={{ padding: '8px 16px' }}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div style={{ marginTop: 20 }}>
+            <p><strong>Name:</strong> {profile.name}</p>
+            <p><strong>Description:</strong> {profile.description || 'No description'}</p>
+            <p><strong>Category ID:</strong> {profile.category_id}</p>
+            <p><strong>Trust Score:</strong> {profile.trust_score}%</p>
+          </div>
+          <h3 style={{ marginTop: 20 }}>Location</h3>
+          {profile.locations.length > 0 ? (
+            profile.locations.map((loc, i) => (
+              <div key={i}>
+                <p>{loc.address_text || 'No address'}</p>
+                <p>Lat: {loc.lat}, Lon: {loc.lon}</p>
+              </div>
+            ))
+          ) : <p>No location set</p>}
+          <h3 style={{ marginTop: 20 }}>Operating Hours</h3>
+          {profile.operating_hours.length > 0 ? (
+            profile.operating_hours.map(h => (
+              <div key={h.day_of_week} style={{ display: 'flex', gap: 20 }}>
+                <span>{DAYS[h.day_of_week]}</span>
+                <span>{h.is_closed ? 'Closed' : `${h.opens_at?.slice(0,5)} - ${h.closes_at?.slice(0,5)}`}</span>
+              </div>
+            ))
+          ) : <p>No hours set</p>}
+          <h3 style={{ marginTop: 20 }}>Payment Method</h3>
+          {profile.payment_methods.length > 0 ? (
+            profile.payment_methods.map((pm, i) => (
+              <div key={i}>
+                <p><strong>Type:</strong> {pm.type === 'paybill' ? 'PayBill' : 'Till Number'}</p>
+                <p><strong>Account Number:</strong> ****{pm.last_four_digits || 'N/A'}</p>
+                <p><strong>Status:</strong> {pm.is_active ? 'Active' : 'Inactive'}</p>
+              </div>
+            ))
+          ) : <p>No payment method set</p>}
+          <button onClick={() => setEditMode(true)} style={{ marginTop: 20, padding: '8px 16px' }}>Edit Profile</button>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default BusinessProfilePage;
