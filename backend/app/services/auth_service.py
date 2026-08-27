@@ -25,18 +25,28 @@ class AuthService:
         self.customer_repo = customer_repo
         self.rider_repo = rider_repo
 
-    async def register(self, email: str, password: str, phone: str | None, role: str):
+    async def register(self, email: str, password: str, phone: str | None, role: str, username: str | None = None):
         existing = await self.user_repo.get_by_email(email)
         if existing:
             raise ValueError("Email already registered")
+
+        if role == 'rider' and self.rider_repo:
+            # Check username uniqueness before creating user
+            existing_username = await self.rider_repo.get_by_username(username or email.split('@')[0])
+            if existing_username:
+                raise ValueError("Username already taken")
+
         hashed = hash_password(password)
         user = await self.user_repo.create(email, hashed, phone, role)
 
-        # If rider, try to link to a pending rider record with the same email
         if role == 'rider' and self.rider_repo:
-            rider = await self.rider_repo.get_by_email(email)
-            if rider and rider.status.value == 'pending':
-                await self.rider_repo.link_user(rider, user.id)
+            rider = await self.rider_repo.create_from_registration(
+                username=username or email.split('@')[0],
+                name=None,
+                email=email,
+                phone=phone,
+            )
+            await self.rider_repo.link_user(rider, user.id)
 
         return user
 
@@ -105,11 +115,16 @@ class AuthService:
             user = await self.user_repo.get_by_id(rider.user_id)
             if user and user.password_hash:
                 return None  # already activated
-        # Get business name
+        # Get first business name from business_riders
         from app.repositories.business_repository import BusinessRepository
+        from app.repositories.business_rider_repository import BusinessRiderRepository
         business_repo = BusinessRepository(self.rider_repo.db)
-        business = await business_repo.get_by_id(rider.business_id)
-        business_name = business.name if business else "Unknown"
+        br_repo = BusinessRiderRepository(self.rider_repo.db)
+        assocs = await br_repo.list_businesses_by_rider(rider.id)
+        business_name = "Unknown"
+        if assocs:
+            first_biz = await business_repo.get_by_id(assocs[0].business_id)
+            business_name = first_biz.name if first_biz else "Unknown"
 
         return {
             "rider_id": rider.id,

@@ -117,12 +117,23 @@ export const api = {
     accept: (id: string) => request(`/orders/${id}/accept`, { method: 'PUT' }),
   },
   riders: {
-    listByBusiness: (businessId: string) => request<any[]>(`/riders/${businessId}`),
+    listByBusiness: (businessId: string) => request<any[]>(`/businesses/${businessId}/riders`),
+    // Deprecated: use invite instead
     create: (businessId: string, data: { name: string; phone: string; email?: string }) =>
       request<any>(`/riders/${businessId}`, {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+    search: (businessId: string, query: string) =>
+      request<any[]>(`/businesses/${businessId}/riders/search?q=${encodeURIComponent(query)}`),
+    getProfile: (riderId: string) =>
+      request<any>(`/riders/${riderId}/profile`),
+    add: (businessId: string, riderId: string) =>
+      request<any>(`/businesses/${businessId}/riders/${riderId}`, { method: 'POST' }),
+    invite: (businessId: string, riderId: string) =>
+      request<any>(`/businesses/${businessId}/riders/${riderId}/invite`, { method: 'POST' }),
+    remove: (businessId: string, riderId: string) =>
+      request<any>(`/businesses/${businessId}/riders/${riderId}`, { method: 'DELETE' }),
   },
   settlements: {
     list: () => request<any[]>('/settlements'),

@@ -32,10 +32,14 @@ class DeliveryService:
             raise HTTPException(status_code=409, detail="Business is currently unavailable.")
         if not business or business.owner_id != user.id:
             raise HTTPException(status_code=403, detail="Forbidden")
-        # Rider must belong to same business
+        # Rider must be associated with this business via business_riders
         rider = await self.rider_repo.get_by_id(rider_id)
-        if not rider or rider.business_id != order.business_id:
-            raise HTTPException(status_code=403, detail="Rider does not belong to this business")
+        if not rider:
+            raise HTTPException(status_code=404, detail="Rider not found")
+        from app.repositories.business_rider_repository import BusinessRiderRepository
+        br_repo = BusinessRiderRepository(self.delivery_repo.db)
+        if not await br_repo.exists(order.business_id, rider.id):
+            raise HTTPException(status_code=403, detail="Rider is not associated with this business")
         if business.collect_payment_before_delivery:
             # Only allow assignment after payment is verified
             allowed_statuses = [OrderStatus.paid]

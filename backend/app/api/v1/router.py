@@ -19,3 +19,6 @@ api_router.include_router(settlement.router, tags=["settlements"])
 api_router.include_router(admin.router, tags=["admin"])
 api_router.include_router(images.router, tags=["images"])
 api_router.include_router(credit.router, tags=["credit"])
+
+from app.api.v1.endpoints.business_riders import router as business_riders_router
+api_router.include_router(business_riders_router, tags=["business_riders"])

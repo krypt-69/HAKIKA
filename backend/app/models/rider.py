@@ -14,9 +14,9 @@ class Rider(Base):
     __tablename__ = "riders"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
-    business_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("businesses.id"))
+    business_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("businesses.id"), nullable=True)
+    username: Mapped[str | None] = mapped_column(String(50), unique=True, nullable=True)
     name: Mapped[str | None] = mapped_column(String, nullable=True)
     email: Mapped[str | None] = mapped_column(String, nullable=True)
     phone: Mapped[str | None] = mapped_column(String, nullable=True)
-    profile_picture_data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     status: Mapped[RiderStatus] = mapped_column(ENUM(RiderStatus, name='rider_status', create_type=False), default=RiderStatus.pending)

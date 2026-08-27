@@ -56,8 +56,12 @@ async def assign_rider(
     if not business or business.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
     rider = await rider_repo.get_by_id(uuid.UUID(rider_id))
-    if not rider or rider.business_id != order.business_id:
-        raise HTTPException(status_code=403, detail="Rider does not belong to this business")
+    if not rider:
+        raise HTTPException(status_code=404, detail="Rider not found")
+    from app.repositories.business_rider_repository import BusinessRiderRepository
+    br_repo = BusinessRiderRepository(db)
+    if not await br_repo.exists(order.business_id, rider.id):
+        raise HTTPException(status_code=403, detail="Rider is not associated with this business")
     business = await business_repo.get_by_id(order.business_id)
     if business.collect_payment_before_delivery:
         # Only allow assignment after payment is verified

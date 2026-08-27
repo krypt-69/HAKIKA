@@ -12,35 +12,30 @@ import {
 
 interface Rider {
   id: string;
-  name: string;
-  phone: string;
-  email: string;
-  status: string; // 'pending' | 'active' | 'busy'
-  business_id: string;
+  username: string | null;
+  name: string | null;
+  email: string | null;
+  status: string;
+  business_id?: string | null;
   profile_picture_url?: string | null;
 }
 
 const Riders: React.FC = () => {
   const { businessId } = useAuth();
-  const [riders, setRiders] = useState<Rider[]>([]);
+  const [associated, setAssociated] = useState<Rider[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Rider[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Form state
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const fetchRiders = async () => {
-    if (!businessId) {
-      setLoading(false);
-      return;
-    }
+  const fetchAssociated = async () => {
+    if (!businessId) return;
     try {
       setLoading(true);
       const data = await api.riders.listByBusiness(businessId);
-      setRiders(data || []);
+      setAssociated(data || []);
       setError('');
     } catch (err: any) {
       setError(err.message || 'Failed to load riders');
@@ -50,48 +45,50 @@ const Riders: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchRiders();
+    fetchAssociated();
   }, [businessId]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessId) return;
-    if (!name.trim() || !phone.trim()) {
-      setError('Name and phone are required');
-      return;
-    }
-
-    setSubmitting(true);
+    if (!businessId || !searchQuery.trim()) return;
+    setSearchLoading(true);
     setError('');
     setSuccess('');
-
-    // Auto-generate email from name
-    const email = `${name.toLowerCase().replace(/\s/g, '.')}@rider.hakika`;
-
     try {
-      await api.riders.create(businessId, {
-        name: name.trim(),
-        phone: phone.trim(),
-        email,
-      });
-      setSuccess('Rider added successfully!');
-      setName('');
-      setPhone('');
-      await fetchRiders();
+      const results = await api.riders.search(businessId, searchQuery.trim());
+      setSearchResults(results || []);
     } catch (err: any) {
-      setError(err.message || 'Failed to add rider');
+      setError(err.message || 'Search failed');
     } finally {
-      setSubmitting(false);
+      setSearchLoading(false);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    const map: Record<string, string> = {
-      pending: '#000000',
-      active: '#16a34a',
-      busy: '#6b7280', // gray, since we don't have orange in palette
-    };
-    return map[status] || '#6b7280';
+  const handleInvite = async (riderId: string) => {
+    if (!businessId) return;
+    setError('');
+    setSuccess('');
+    try {
+      await api.riders.invite(businessId, riderId);
+      setSuccess('Rider invited successfully.');
+      await fetchAssociated();
+      setSearchResults(prev => prev.filter(r => r.id !== riderId));
+    } catch (err: any) {
+      setError(err.message || 'Failed to add rider');
+    }
+  };
+
+  const handleRemove = async (riderId: string) => {
+    if (!businessId) return;
+    setError('');
+    setSuccess('');
+    try {
+      await api.riders.remove(businessId, riderId);
+      setSuccess('Rider removed.');
+      await fetchAssociated();
+    } catch (err: any) {
+      setError(err.message || 'Failed to remove rider');
+    }
   };
 
   const getStatusLabel = (status: string) => {
@@ -99,6 +96,7 @@ const Riders: React.FC = () => {
       pending: 'Pending',
       active: 'Active',
       busy: 'Busy',
+      inactive: 'Inactive',
     };
     return map[status] || status;
   };
@@ -111,151 +109,99 @@ const Riders: React.FC = () => {
     );
   }
 
-  if (error && !riders.length) {
-    return <ErrorState message={error} onRetry={fetchRiders} />;
-  }
-
-  const activeCount = riders.filter(r => r.status === 'active' || r.status === 'busy').length;
-
   return (
     <div>
       <SectionHeader
         title="Riders"
-        subtitle={`${riders.length} total · ${activeCount} active`}
+        subtitle={`${associated.length} associated rider${associated.length !== 1 ? 's' : ''}`}
       />
 
-      {success && (
-        <div style={{ background: '#dcfce7', color: '#16a34a', padding: '10px 16px', borderRadius: '6px', marginBottom: '16px' }}>
-          {success}
-        </div>
-      )}
-      {error && (
-        <div style={{ background: '#fef2f2', color: '#dc2626', padding: '10px 16px', borderRadius: '6px', marginBottom: '16px' }}>
-          {error}
-        </div>
-      )}
+      {success && <div style={{ background: '#dcfce7', color: '#16a34a', padding: '10px 16px', borderRadius: '6px', marginBottom: '16px' }}>{success}</div>}
+      {error && <div style={{ background: '#fef2f2', color: '#dc2626', padding: '10px 16px', borderRadius: '6px', marginBottom: '16px' }}>{error}</div>}
 
-      {/* Add Rider Form */}
+      {/* Search */}
       <Card style={{ marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#111111', marginBottom: '12px' }}>
-          Add New Rider
-        </h3>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+        <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '12px' }}>Find Rider</h3>
+        <form onSubmit={handleSearch} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <input
             type="text"
-            placeholder="Full Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            placeholder="Search by username, name, or email"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             required
             style={{
-              flex: '1 1 200px',
+              flex: '1 1 240px',
               padding: '8px 12px',
               border: '1px solid #d1d5db',
               borderRadius: '6px',
               fontSize: '1rem',
             }}
           />
-          <input
-            type="tel"
-            placeholder="Phone Number"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            required
-            style={{
-              flex: '1 1 200px',
-              padding: '8px 12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '1rem',
-            }}
-          />
-          <Button
-            type="submit"
-            variant="primary"
-            isLoading={submitting}
-            disabled={submitting}
-            style={{ flexShrink: 0 }}
-          >
-            Add Rider
+          <Button type="submit" variant="primary" isLoading={searchLoading} disabled={searchLoading}>
+            Search
           </Button>
         </form>
-        <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '8px' }}>
-          An email will be auto-generated for rider activation.
-        </p>
-      </Card>
 
-      {/* Rider List */}
-      {riders.length === 0 ? (
-        <EmptyState
-          title="No riders yet"
-          description="Add a rider to start assigning deliveries"
-          action={
-            <Button variant="primary" onClick={() => document.querySelector('input')?.focus()}>
-              Add Your First Rider
-            </Button>
-          }
-        />
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-          {riders.map((rider) => (
-            <Card key={rider.id}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                {rider.profile_picture_url ? (
-                  <img
-                    src={rider.profile_picture_url}
-                    alt={rider.name}
-                    style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '50%',
-                      objectFit: 'cover',
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '50%',
-                      background: '#f1f5f9',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '1.25rem',
-                      fontWeight: 700,
-                      color: '#111111',
-                    }}
-                  >
-                    {rider.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontWeight: 600, color: '#111111' }}>{rider.name}</p>
-                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>{rider.phone}</p>
+        {searchResults.length > 0 && (
+          <div style={{ marginTop: '16px' }}>
+            <p style={{ fontWeight: 600, marginBottom: '8px' }}>Search Results</p>
+            {searchResults.map(rider => (
+              <div key={rider.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                <div>
+                  <p style={{ fontWeight: 600, color: '#111111' }}>
+                    {rider.name || rider.username || rider.email}
+                  </p>
+                  <p style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                    @{rider.username || 'no-username'} · {rider.email}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <Button variant="primary" size="sm" onClick={() => handleInvite(rider.id)}>
+                    Invite
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={async () => {
+                    const profile = await api.riders.getProfile(rider.id);
+                    alert(JSON.stringify(profile, null, 2));
+                  }}>
+                    View
+                  </Button>
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span
-                  style={{
-                    display: 'inline-block',
-                    padding: '2px 12px',
-                    borderRadius: '12px',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    background: getStatusColor(rider.status),
-                    color: '#ffffff',
-                  }}
-                >
-                  {getStatusLabel(rider.status)}
-                </span>
-                <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                  {rider.email}
-                </span>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Associated Riders */}
+      <div>
+        <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '12px' }}>
+          My Riders ({associated.length})
+        </h3>
+        {associated.length === 0 ? (
+          <EmptyState
+            title="No riders yet"
+            description="Search and add riders to make them available for order assignment"
+          />
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+            {associated.map(rider => (
+              <Card key={rider.id}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <p style={{ fontWeight: 600, color: '#111111' }}>{rider.name || rider.username || rider.email}</p>
+                    <p style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                      @{rider.username || 'no-username'} · {getStatusLabel(rider.status)}
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => handleRemove(rider.id)}>
+                    Remove
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

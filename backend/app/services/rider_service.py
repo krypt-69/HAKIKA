@@ -55,7 +55,7 @@ class RiderService:
         return [self._to_response(r) for r in riders]
 
     def _to_response(self, rider) -> RiderResponse:
-        profile_picture_url = f"/api/v1/riders/{rider.id}/profile-picture" if rider.profile_picture_data else None
+        profile_picture_url = None
         return RiderResponse(
             id=rider.id,
             business_id=rider.business_id,

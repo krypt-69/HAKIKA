@@ -122,7 +122,7 @@ const Orders: React.FC = () => {
   const fetchRiders = async () => {
     if (!businessId) return;
     try {
-      const resp = await authenticatedFetch(`${Config.API_BASE}/riders/${businessId}`, undefined, 'hakika_business');
+      const resp = await authenticatedFetch(`${Config.API_BASE}/businesses/${businessId}/riders?active_only=true`, undefined, 'hakika_business');
       if (!resp.ok) throw new Error('Failed to load riders');
       const data = await resp.json();
       setRiders(data || []);

@@ -8,6 +8,7 @@ class UserCreateRequest(BaseModel):
     password: str
     phone: str | None = None
     role: UserRole = UserRole.owner
+    username: str | None = None
 
 class UserResponse(BaseModel):
     id: uuid.UUID

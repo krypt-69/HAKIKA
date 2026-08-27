@@ -44,7 +44,8 @@ async def register(
             email=request.email,
             password=request.password,
             phone=request.phone,
-            role=request.role.value
+            role=request.role.value,
+            username=request.username,
         )
         return user
     except ValueError as e:
@@ -82,6 +83,8 @@ async def get_current_user_info(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    from app.repositories.business_repository import BusinessRepository
+    from app.repositories.business_rider_repository import BusinessRiderRepository
     data = {"id": str(current_user.id), "email": current_user.email, "role": current_user.role.value}
     if current_user.role == UserRole.owner:
         business_repo = BusinessRepository(db)
@@ -97,7 +100,16 @@ async def get_current_user_info(
         rider = rider_result.scalar_one_or_none()
         if rider:
             data["rider_id"] = str(rider.id)
-            data["business_id"] = str(rider.business_id)
+            data["business_id"] = str(rider.business_id) if rider.business_id else None
+            br_repo = BusinessRiderRepository(db)
+            biz_repo = BusinessRepository(db)
+            assocs = await br_repo.list_businesses_by_rider(rider.id)
+            businesses = []
+            for assoc in assocs:
+                biz = await biz_repo.get_by_id(assoc.business_id)
+                if biz:
+                    businesses.append({"id": str(biz.id), "name": biz.name, "status": assoc.status})
+            data["businesses"] = businesses
     return data
 
 from app.schemas.auth import ActivationCheckRequest, ActivationCheckResponse

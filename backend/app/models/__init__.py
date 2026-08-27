@@ -25,3 +25,5 @@ from .credit_plan import CreditPlan
 from .payment_policy import PaymentPolicy
 from .merchant_credit_order import MerchantCreditOrder, MerchantCreditOrderStatus
 from .credit_transaction import CreditTransaction, CreditTransactionType, CreditTransactionDirection, CreditTransactionStatus
+
+from app.models.business_rider import BusinessRider, BusinessRiderStatus

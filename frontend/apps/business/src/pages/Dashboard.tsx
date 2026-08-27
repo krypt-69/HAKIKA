@@ -293,7 +293,7 @@ const Dashboard: React.FC = () => {
                   }}
                 />
               ) : (
-                <div className="rider-avatar">{rider.name.charAt(0).toUpperCase()}</div>
+                <div className="rider-avatar">{(rider.name || 'R').charAt(0).toUpperCase()}</div>
               )}
               <div>
                 <p className="rider-name">{rider.name}</p>

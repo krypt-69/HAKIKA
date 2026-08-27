@@ -13,9 +13,16 @@ interface Product {
     images: { id: string; position: number; url: string }[];
 }
 
+const GOLD = '#b8860b';
+const GOLD_BRIGHT = '#f4c430';
+
+/* NOTE: full-page views (cover/logo, product, profile) stop this many px
+   short of the bottom so your app's bottom navigation bar stays visible
+   underneath — set this to its real height. */
+const BOTTOM_NAV_RESERVE = 64;
+
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-/* ── Open/closed helpers (same logic used on Home) ──────── */
 const isOpenNow = (hours: any[]): boolean => {
     if (!hours || hours.length === 0) return true;
     const now = new Date();
@@ -71,19 +78,20 @@ const getStatusInfo = (hours: any[]): { open: boolean; label: string } => {
     return { open: false, label: 'Closed' };
 };
 
-/* ── Fade the lightbox/quick-view content in after a short delay ── */
-const useDelayedVisible = (delay = 120) => {
-    const [visible, setVisible] = useState(false);
+/* Half-a-second "anticipation" beat before any full-page view reveals
+   its content — matches the request for a deliberate, felt loading
+   moment rather than an instant swap. */
+const usePageTransition = (loadDelay = 500) => {
+    const [ready, setReady] = useState(false);
     useEffect(() => {
-        const t = setTimeout(() => setVisible(true), delay);
+        const t = setTimeout(() => setReady(true), loadDelay);
         return () => clearTimeout(t);
     }, []);
-    return visible;
+    return ready;
 };
 
-/* ── Icons ────────────────────────────────────────────── */
-const BackArrowSvg = () =>
-    React.createElement('svg', { width: 19, height: 19, viewBox: '0 0 24 24', fill: 'none', stroke: '#fff', strokeWidth: 2.4, strokeLinecap: 'round', strokeLinejoin: 'round' },
+const BackArrowSvg = ({ color = '#fff', size = 22 }: { color?: string; size?: number }) =>
+    React.createElement('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 2.6, strokeLinecap: 'round', strokeLinejoin: 'round', style: { filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.5))' } },
         React.createElement('line', { x1: 19, y1: 12, x2: 5, y2: 12 }),
         React.createElement('polyline', { points: '12 19 5 12 12 5' })
     );
@@ -135,10 +143,10 @@ const ChevronDownSvg = ({ style, color = '#6b7280' }: { style?: React.CSSPropert
         React.createElement('polyline', { points: '6 9 12 15 18 9' })
     );
 
-const UserSvg = ({ color = '#4b5563', size = 13 }: { color?: string; size?: number }) =>
+const ProfileBadgeSvg = ({ color = '#4b5563', size = 15 }: { color?: string; size?: number }) =>
     React.createElement('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' },
-        React.createElement('path', { d: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2' }),
-        React.createElement('circle', { cx: 12, cy: 7, r: 4 })
+        React.createElement('path', { d: 'M12 2l2.4 1.6 2.83.2 1.2 2.53 2.2 1.6-.6 2.77.6 2.77-2.2 1.6-1.2 2.53-2.83.2L12 19.2l-2.4-1.6-2.83-.2-1.2-2.53-2.2-1.6.6-2.77-.6-2.77 2.2-1.6 1.2-2.53 2.83-.2z' }),
+        React.createElement('path', { d: 'M9 12l2 2 4-4' })
     );
 
 const BoxSvg = ({ color = '#6b7280', size = 13 }: { color?: string; size?: number }) =>
@@ -184,18 +192,25 @@ const BagSvg = ({ size = 24, color = '#fff' }: { size?: number; color?: string }
         React.createElement('path', { d: 'M16 10a4 4 0 0 1-8 0' })
     );
 
-/* ── Story-ring spinner (same palette as the Home category rings) ── */
-const StoryRingSpinner: React.FC<{ size?: number }> = ({ size = 60 }) => (
-    <div style={{
-        width: size, height: size, borderRadius: '50%', padding: 4,
-        background: 'conic-gradient(from 0deg, #fb923c, #f472b6, #a78bfa, #4ade80, #fb923c)',
-        animation: 'spin 1s linear infinite',
-    }}>
-        <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#f9fafb' }} />
-    </div>
+const CartAddSvg = ({ size = 15, color = '#16a34a' }: { size?: number; color?: string }) =>
+    React.createElement('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 2.2, strokeLinecap: 'round', strokeLinejoin: 'round' },
+        React.createElement('circle', { cx: 9, cy: 21, r: 1 }),
+        React.createElement('circle', { cx: 20, cy: 21, r: 1 }),
+        React.createElement('path', { d: 'M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6' })
+    );
+
+/* ── Gmail-style spinner: a single golden arc chasing around the ring,
+   smooth and continuous — used everywhere a full-page view "loads". ── */
+const GoldSpinner: React.FC<{ size?: number }> = ({ size = 52 }) => (
+    <svg width={size} height={size} viewBox="0 0 50 50" style={{ animation: 'gold-spin 0.9s linear infinite' }}>
+        <circle
+            cx="25" cy="25" r="20" fill="none"
+            stroke={GOLD_BRIGHT} strokeWidth="4" strokeLinecap="round"
+            strokeDasharray="90 150"
+        />
+    </svg>
 );
 
-/* ── Image helpers with graceful fallback ────────────────── */
 const CoverImage: React.FC<{ src: string; alt: string; style?: React.CSSProperties }> = ({ src, alt, style }) => {
     const [failed, setFailed] = useState(false);
     if (failed || !src) return (
@@ -206,144 +221,123 @@ const CoverImage: React.FC<{ src: string; alt: string; style?: React.CSSProperti
     return <img src={src} alt={alt} style={style} onError={() => setFailed(true)} />;
 };
 
-const LogoImg: React.FC<{ src: string; alt: string; style?: React.CSSProperties }> = ({ src, alt, style }) => {
+const LogoImg: React.FC<{ src: string; alt: string; className?: string }> = ({ src, alt, className }) => {
     const [failed, setFailed] = useState(false);
     if (failed) return (
-        <div style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e5e7eb' }}>
+        <div className={className} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e5e7eb' }}>
             <ShopSvg size={24} />
         </div>
     );
-    return <img src={src} alt={alt} style={style} onError={() => setFailed(true)} />;
+    return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} />;
 };
 
-/* ── Fullscreen lightbox for tapping cover / logo — fades in after a short delay ── */
-const ImageLightbox: React.FC<{ src: string; alt: string; onClose: () => void }> = ({ src, alt, onClose }) => {
-    const visible = useDelayedVisible(120);
-    return (
-        <div
-            onClick={onClose}
-            style={{
-                position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.94)', zIndex: 3000,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
-            }}
-        >
-            <button
-                onClick={onClose}
-                style={{
-                    position: 'absolute', top: 16, left: 16, width: 36, height: 36, borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-            >
-                <CloseSvg />
+/* ── Shared shell for every full-page view. The bar and the page share
+   the exact same background so there is no seam/gap of a different
+   colour showing at the top edge, and the back control is a bare gold
+   arrow (no circle) sitting flush in the corner. ── */
+const FullPageShell: React.FC<{ onClose: () => void; dark?: boolean; children: React.ReactNode; ready: boolean }> = ({ onClose, dark, children, ready }) => (
+    <div className="fp-shell" style={{ background: dark ? '#0f172a' : '#fdfaf3' }}>
+        <div className="fp-topbar" style={{ background: dark ? 'linear-gradient(rgba(15,23,42,0.55), transparent)' : 'transparent' }}>
+            <button onClick={onClose} className="fp-back-btn" aria-label="Back">
+                <BackArrowSvg color={GOLD_BRIGHT} />
             </button>
-            <img
-                src={src}
-                alt={alt}
-                onClick={e => e.stopPropagation()}
-                style={{
-                    maxWidth: '100%', maxHeight: '100%', borderRadius: 12, objectFit: 'contain',
-                    opacity: visible ? 1 : 0, transition: 'opacity 320ms ease',
-                }}
-            />
         </div>
+        {!ready ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '70vh' }}>
+                <GoldSpinner />
+            </div>
+        ) : (
+            <div className="fp-content">{children}</div>
+        )}
+    </div>
+);
+
+const ImageFullPage: React.FC<{ src: string; alt: string; onClose: () => void }> = ({ src, alt, onClose }) => {
+    const ready = usePageTransition();
+    return (
+        <FullPageShell onClose={onClose} dark ready={ready}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 200px)', padding: 24 }}>
+                <img src={src} alt={alt} style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 12, objectFit: 'contain', animation: 'fadeIn 260ms ease' }} />
+            </div>
+        </FullPageShell>
     );
 };
 
-/* ── Business details modal: hours, rating, location, payment, product count ── */
-const BusinessDetailsModal: React.FC<{ business: any; hours: any[]; open: boolean; status: { open: boolean; label: string }; productCount: number; onClose: () => void }> = ({ business, hours, open, status, productCount, onClose }) => {
-    const visible = useDelayedVisible(120);
+/* ── Profile: a warmer, "boutique" styled page — gold hairline dividers,
+   soft cream panels, and section headers set in the same script/gold
+   language as the rest of the brand instead of flat grey blocks. ── */
+const ProfileFullPage: React.FC<{ business: any; hours: any[]; open: boolean; status: { open: boolean; label: string }; productCount: number; onClose: () => void }> = ({ business, hours, open, status, productCount, onClose }) => {
+    const ready = usePageTransition();
     return (
-        <div
-            onClick={onClose}
-            style={{
-                position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', zIndex: 2500,
-                display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 0,
-            }}
-        >
-            <div
-                onClick={e => e.stopPropagation()}
-                style={{
-                    width: '100%', maxWidth: 480, maxHeight: '82vh', background: '#fff', borderRadius: '20px 20px 0 0',
-                    overflow: 'hidden', display: 'flex', flexDirection: 'column',
-                    opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(24px)',
-                    transition: 'opacity 280ms ease, transform 280ms ease',
-                }}
-            >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid #f3f4f6' }}>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: '#111827', fontFamily: 'Georgia, serif' }}>Business Profile</span>
-                    <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: '50%', background: '#f3f4f6', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <CloseSvg color="#4b5563" size={15} />
-                    </button>
+        <FullPageShell onClose={onClose} ready={ready}>
+            <div className="profile-page-inner">
+                <div className="profile-hero">
+                    <div className="profile-script">{business.name}</div>
+                    {business.description && <p className="profile-desc">{business.description}</p>}
+                    <div className={`profile-open-pill ${open ? 'is-open' : 'is-closed'}`}>
+                        {open ? <CheckCircleSvg color="#fff" size={13} /> : <XCircleSvg color="#fff" size={13} />}
+                        <span>{open ? 'Open now' : 'Closed now'}{status.label ? ` · ${status.label}` : ''}</span>
+                    </div>
                 </div>
 
-                <div style={{ padding: '14px 16px 22px', overflowY: 'auto' }}>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: '#111827', fontFamily: 'Georgia, serif', marginBottom: 2 }}>{business.name}</div>
-                    {business.description && <p style={{ fontSize: 12.5, color: '#6b7280', margin: '2px 0 14px', lineHeight: 1.5 }}>{business.description}</p>}
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                        {open ? <CheckCircleSvg /> : <XCircleSvg />}
-                        <span style={{ fontSize: 13, fontWeight: 700, color: open ? '#16a34a' : '#ef4444' }}>{open ? 'Open now' : 'Closed now'}</span>
-                        {status.label && <span style={{ fontSize: 12, color: '#6b7280' }}>· {status.label}</span>}
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                <div className="profile-panel">
+                    <div className="profile-row">
                         <StarSvg />
-                        <span style={{ fontSize: 13, color: '#374151' }}>Rating: <b>{business.trust_score?.toFixed(0)}%</b> trust score</span>
+                        <span>Rating: <b>{business.trust_score?.toFixed(0)}%</b> trust score</span>
                     </div>
-
                     {business.location?.address_text && (
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 10 }}>
+                        <div className="profile-row">
                             <LocationSvg />
-                            <span style={{ fontSize: 13, color: '#374151' }}>{business.location.address_text}</span>
+                            <span>{business.location.address_text}</span>
                         </div>
                     )}
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+                    <div className="profile-row">
                         <BoxSvg />
-                        <span style={{ fontSize: 13, color: '#374151' }}><b>{productCount}</b> product{productCount === 1 ? '' : 's'} listed</span>
+                        <span><b>{productCount}</b> product{productCount === 1 ? '' : 's'} listed</span>
                     </div>
+                </div>
 
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#111827', marginBottom: 8 }}>Payment methods</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: business.collect_payment_before_delivery ? '#eff6ff' : '#f9fafb', border: `1px solid ${business.collect_payment_before_delivery ? '#bfdbfe' : '#e5e7eb'}` }}>
-                            <CardSvg color={business.collect_payment_before_delivery ? '#1d4ed8' : '#9ca3af'} />
-                            <span style={{ fontSize: 12.5, color: business.collect_payment_before_delivery ? '#1d4ed8' : '#9ca3af', fontWeight: business.collect_payment_before_delivery ? 700 : 500 }}>
-                                Pay before delivery {business.collect_payment_before_delivery && '· active'}
-                            </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: !business.collect_payment_before_delivery ? '#ECFDF5' : '#f9fafb', border: `1px solid ${!business.collect_payment_before_delivery ? '#bbf7d0' : '#e5e7eb'}` }}>
-                            <CardSvg color={!business.collect_payment_before_delivery ? '#16a34a' : '#9ca3af'} />
-                            <span style={{ fontSize: 12.5, color: !business.collect_payment_before_delivery ? '#16a34a' : '#9ca3af', fontWeight: !business.collect_payment_before_delivery ? 700 : 500 }}>
-                                Pay after delivery {!business.collect_payment_before_delivery && '· active'}
-                            </span>
-                        </div>
+                <div className="profile-section-title">Payment methods</div>
+                <div className="profile-panel">
+                    <div className={`profile-pay-row ${business.collect_payment_before_delivery ? 'active-blue' : ''}`}>
+                        <CardSvg color={business.collect_payment_before_delivery ? '#1d4ed8' : '#9ca3af'} />
+                        <span>Pay before delivery {business.collect_payment_before_delivery && '· active'}</span>
                     </div>
+                    <div className={`profile-pay-row ${!business.collect_payment_before_delivery ? 'active-green' : ''}`}>
+                        <CardSvg color={!business.collect_payment_before_delivery ? '#16a34a' : '#9ca3af'} />
+                        <span>Pay after delivery {!business.collect_payment_before_delivery && '· active'}</span>
+                    </div>
+                    <div className="profile-pay-note">
+                        {business.collect_payment_before_delivery
+                            ? "This business requires payment before delivery. You'll be asked to pay after your order is accepted."
+                            : "This business collects payment after delivery. You'll be prompted to pay when your order is delivered."}
+                    </div>
+                </div>
 
-                    {hours.length > 0 && (
-                        <>
-                            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#111827', margin: '16px 0 8px' }}>Opening hours</div>
+                {hours.length > 0 && (
+                    <>
+                        <div className="profile-section-title">Opening hours</div>
+                        <div className="profile-panel">
                             {hours.map((h: any) => (
-                                <div key={h.day_of_week} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0' }}>
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: '#374151' }}>
-                                        <ClockSvg color="#9ca3af" />
-                                        {DAYS[h.day_of_week]}
-                                    </span>
-                                    <span style={{ fontSize: 12.5, fontWeight: 600, color: h.is_closed ? '#ef4444' : '#16a34a' }}>
+                                <div key={h.day_of_week} className="profile-hours-row">
+                                    <span><ClockSvg color={GOLD} /> {DAYS[h.day_of_week]}</span>
+                                    <span style={{ color: h.is_closed ? '#ef4444' : '#16a34a', fontWeight: 700 }}>
                                         {h.is_closed ? 'Closed' : `${h.opens_at?.slice(0,5)} - ${h.closes_at?.slice(0,5)}`}
                                     </span>
                                 </div>
                             ))}
-                        </>
-                    )}
-                </div>
+                        </div>
+                    </>
+                )}
             </div>
-        </div>
+        </FullPageShell>
     );
 };
 
-/* ── Product quick-view: image carousel (scrollable when several photos) + description + add to cart ── */
-const ProductQuickView: React.FC<{
+/* ── Product page: bigger hero image, script name, price treatment,
+   and the add-to-cart control now lives under the details instead of
+   floating on the photo. ── */
+const ProductFullPage: React.FC<{
     product: Product;
     quantity: number;
     onAdd: () => void;
@@ -351,7 +345,7 @@ const ProductQuickView: React.FC<{
     onDec: () => void;
     onClose: () => void;
 }> = ({ product, quantity, onAdd, onInc, onDec, onClose }) => {
-    const visible = useDelayedVisible(120);
+    const ready = usePageTransition();
     const [activeIndex, setActiveIndex] = useState(0);
     const scrollerRef = useRef<HTMLDivElement>(null);
     const images = product.images ?? [];
@@ -366,114 +360,72 @@ const ProductQuickView: React.FC<{
     };
 
     return (
-        <div
-            onClick={onClose}
-            style={{
-                position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.94)', zIndex: 3000,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-            }}
-        >
-            <div
-                onClick={e => e.stopPropagation()}
-                style={{
-                    width: '100%', maxWidth: 420, maxHeight: '86vh', display: 'flex', flexDirection: 'column',
-                    background: '#fff', borderRadius: 18, overflow: 'hidden',
-                    opacity: visible ? 1 : 0, transform: visible ? 'scale(1)' : 'scale(0.97)',
-                    transition: 'opacity 320ms ease, transform 320ms ease',
-                }}
-            >
-                {/* Image carousel */}
-                <div style={{ position: 'relative', flexShrink: 0 }}>
-                    <button
-                        onClick={onClose}
-                        style={{
-                            position: 'absolute', top: 10, left: 10, width: 34, height: 34, borderRadius: '50%',
-                            background: 'rgba(15,23,42,0.55)', border: 'none', cursor: 'pointer', zIndex: 2,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}
-                    >
-                        <CloseSvg />
-                    </button>
-
+        <FullPageShell onClose={onClose} ready={ready}>
+            <div className="pfp-body">
+                <div className="pfp-media">
                     {images.length > 0 ? (
-                        <div
-                            ref={scrollerRef}
-                            onScroll={handleScroll}
-                            style={{
-                                display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory',
-                                scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' as any,
-                            }}
-                        >
+                        <div ref={scrollerRef} onScroll={handleScroll} className="pfp-scroller">
                             {images.map(img => (
-                                <img
-                                    key={img.id}
-                                    src={img.url}
-                                    alt={product.name}
-                                    style={{ width: '100%', height: 260, objectFit: 'cover', flexShrink: 0, scrollSnapAlign: 'center', display: 'block' }}
-                                />
+                                <img key={img.id} src={img.url} alt={product.name} className="pfp-img" />
                             ))}
                         </div>
                     ) : (
-                        <div style={{ width: '100%', height: 260, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <ShopSvg size={40} />
+                        <div className="pfp-img" style={{ background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <ShopSvg size={48} />
                         </div>
                     )}
-
                     {images.length > 1 && (
                         <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 5 }}>
                             {images.map((_, i) => (
                                 <span key={i} style={{
                                     width: i === activeIndex ? 16 : 6, height: 6, borderRadius: 3,
-                                    background: i === activeIndex ? '#fff' : 'rgba(255,255,255,0.5)',
-                                    transition: 'width 0.15s ease',
+                                    background: i === activeIndex ? GOLD_BRIGHT : 'rgba(255,255,255,0.55)',
+                                    boxShadow: '0 0 4px rgba(0,0,0,0.4)', transition: 'width 0.15s ease',
                                 }} />
                             ))}
                         </div>
                     )}
                 </div>
 
-                {/* Details */}
-                <div style={{ padding: '14px 16px 16px', overflowY: 'auto' }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: '#111827', fontFamily: 'Georgia, serif', marginBottom: 4 }}>
-                        {product.name}
-                    </div>
+                <div className="pfp-details">
+                    <div className="pfp-name">{product.name}</div>
 
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+                    <div className="pfp-price-row">
+                        {hasDiscount && <span className="price-strike" style={{ fontSize: 15 }}>KES {product.original_price}</span>}
+                        <span className="pfp-price">KES {finalPrice}</span>
                         {hasDiscount && (
-                            <span style={{ fontSize: 13, color: '#9ca3af', textDecoration: 'line-through' }}>
-                                KES {product.original_price}
+                            <span className="pfp-save-badge">
+                                Save {Math.round(100 - (finalPrice / product.original_price) * 100)}%
                             </span>
                         )}
-                        <span style={{ fontSize: 17, fontWeight: 800, color: '#16a34a' }}>KES {finalPrice}</span>
                     </div>
 
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Description</div>
-                    <p style={{ fontSize: 12.5, color: product.description ? '#374151' : '#9ca3af', lineHeight: 1.5, marginBottom: 16 }}>
+                    <div className="pfp-divider" />
+
+                    <div className="pfp-desc-title">Description</div>
+                    <p className="pfp-desc-text">
                         {product.description || 'No description provided for this product.'}
                     </p>
 
-                    {quantity > 0 ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#ECFDF5', borderRadius: 12, padding: '8px 12px' }}>
-                            <button onClick={onDec} style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' }}>
-                                <MinusSvg size={14} />
+                    <div className="pfp-cart-zone">
+                        {quantity > 0 ? (
+                            <div className="pfp-qty-row">
+                                <button onClick={onDec} className="pfp-qty-btn"><MinusSvg size={14} /></button>
+                                <span className="pfp-qty-num">{quantity} in cart</span>
+                                <button onClick={onInc} className="pfp-qty-btn"><PlusSvg size={14} /></button>
+                            </div>
+                        ) : (
+                            <button onClick={onAdd} className="pfp-add-btn">
+                                <CartAddSvg size={16} color="#fff" /> Add to Cart
                             </button>
-                            <span style={{ fontSize: 15, fontWeight: 700, color: '#16a34a' }}>{quantity} in cart</span>
-                            <button onClick={onInc} style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' }}>
-                                <PlusSvg size={14} />
-                            </button>
-                        </div>
-                    ) : (
-                        <button onClick={onAdd} style={{ width: '100%', padding: 12, background: '#16a34a', color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                            Add to Cart
-                        </button>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
+        </FullPageShell>
     );
 };
 
-/* ── Product card ─────────────────────────────────────────── */
 const ProductCard: React.FC<{
     product: Product;
     quantity: number;
@@ -488,53 +440,35 @@ const ProductCard: React.FC<{
     const img = product.images?.[0]?.url;
 
     return (
-        <div style={{ background: '#fff', borderRadius: 14, overflow: 'hidden', border: '1px solid #f3f4f6', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column' }}>
-            <div onClick={onOpen} style={{ width: '100%', height: 120, background: '#f3f4f6', position: 'relative', cursor: 'pointer' }}>
+        <div className="pc-card">
+            <div onClick={onOpen} className="pc-img-wrap">
                 {img && !imgFailed ? (
-                    <img src={img} alt={product.name} onError={() => setImgFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    <img src={img} alt={product.name} onError={() => setImgFailed(true)} className="pc-img" />
                 ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="pc-img" style={{ background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <ShopSvg size={30} />
                     </div>
                 )}
-                {(product.images?.length ?? 0) > 1 && (
-                    <span style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(15,23,42,0.55)', color: '#fff', fontSize: 9, fontWeight: 600, padding: '2px 6px', borderRadius: 4 }}>
-                        {product.images.length} photos
-                    </span>
-                )}
             </div>
 
-            <div style={{ padding: '9px 10px 10px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                <div onClick={onOpen} style={{
-                    fontSize: 13, fontWeight: 700, color: '#111827', fontFamily: 'Georgia, serif', marginBottom: 6, lineHeight: 1.3, cursor: 'pointer',
-                    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: '2.5em',
-                }}>
-                    {product.name}
+            <div onClick={onOpen} className="pc-name-chip">{product.name}</div>
+            <div className="pc-info">
+                <div className="pc-price-row">
+                    {hasDiscount && <span className="price-strike pc-price-strike">KES {product.original_price}</span>}
+                    <span className="pc-price">KES {finalPrice}</span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: '#16a34a' }}>KES {finalPrice}</span>
-                    {hasDiscount && (
-                        <span style={{ fontSize: 11, color: '#9ca3af', textDecoration: 'line-through' }}>
-                            KES {product.original_price}
-                        </span>
-                    )}
-                </div>
-
-                <div style={{ marginTop: 'auto' }}>
+                {/* Cart control now sits under the details, not floating on the image */}
+                <div className="pc-cart-zone" onClick={e => e.stopPropagation()}>
                     {quantity > 0 ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#ECFDF5', borderRadius: 10, padding: '5px 6px' }}>
-                            <button onClick={e => { e.stopPropagation(); onDec(); }} style={{ width: 24, height: 24, borderRadius: '50%', border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' }}>
-                                <MinusSvg size={12} />
-                            </button>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>{quantity}</span>
-                            <button onClick={e => { e.stopPropagation(); onInc(); }} style={{ width: 24, height: 24, borderRadius: '50%', border: 'none', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' }}>
-                                <PlusSvg size={12} />
-                            </button>
+                        <div className="pc-qty-pill">
+                            <button onClick={onDec} className="pc-qty-btn"><MinusSvg size={11} /></button>
+                            <span className="pc-qty-num">{quantity}</span>
+                            <button onClick={onInc} className="pc-qty-btn"><PlusSvg size={11} /></button>
                         </div>
                     ) : (
-                        <button onClick={e => { e.stopPropagation(); onAdd(); }} style={{ width: '100%', padding: '8px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                            Add to Cart
+                        <button onClick={onAdd} className="pc-cart-btn" aria-label="Add to cart">
+                            <CartAddSvg size={13} /> <span>Add</span>
                         </button>
                     )}
                 </div>
@@ -543,7 +477,6 @@ const ProductCard: React.FC<{
     );
 };
 
-/* ── Business profile page ───────────────────────────────── */
 const BusinessProfile: React.FC = () => {
     const { slug } = useParams<{ slug: string }>();
     const [business, setBusiness] = useState<any>(null);
@@ -558,8 +491,6 @@ const BusinessProfile: React.FC = () => {
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Cart: mini bubble on the right by default so it never covers a product;
-    // tapping it restores the full drawer.
     const [cartMini, setCartMini] = useState(true);
     const [itemsListOpen, setItemsListOpen] = useState(false);
 
@@ -612,8 +543,8 @@ const BusinessProfile: React.FC = () => {
 
     if (loading) return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '70vh' }}>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-            <StoryRingSpinner />
+            <style>{`@keyframes gold-spin { to { transform: rotate(360deg); } }`}</style>
+            <GoldSpinner />
         </div>
     );
     if (error) return <div style={{ padding: 20, color: '#ef4444', fontSize: 13 }}>{error}</div>;
@@ -634,25 +565,192 @@ const BusinessProfile: React.FC = () => {
         })
         : products;
 
-    // Extra bottom padding so the expanded cart drawer never hides the last product.
     const bottomPadding = totalItems === 0 ? 24 : cartMini ? 96 : (itemsListOpen ? 420 : 210);
+    const marqueeText = `✦ Welcome to ${business.name} ✦ Get the best from ${business.name} ✦ Welcome to Hakika, where our customers are our passion ✦ Enjoy — we love you ✦`;
 
     return (
         <div style={{ background: '#f9fafb', minHeight: '100vh', paddingBottom: bottomPadding }}>
             <style>{`
-                @keyframes spin { to { transform: rotate(360deg); } }
-                .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+                @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap');
+
+                @keyframes gold-spin { to { transform: rotate(360deg); } }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes marquee-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+                @keyframes bulb-chase { from { background-position: 0 0; } to { background-position: 40px 0; } }
+
                 .page-wrap { max-width: 900px; margin: 0 auto; width: 100%; }
+
+                .price-strike { position: relative; color: #9ca3af; font-size: 10.5px; white-space: nowrap; }
+                .price-strike::after {
+                    content: ''; position: absolute; left: -2px; right: -2px; top: 52%;
+                    height: 2px; background: #ef4444; transform: rotate(-7deg);
+                }
+
+                /* ── Full-page chrome ─────────────────────────── */
+                .fp-shell { position: fixed; top: 0; left: 0; right: 0; bottom: ${BOTTOM_NAV_RESERVE}px; z-index: 2500; overflow-y: auto; }
+                .fp-topbar { position: sticky; top: 0; z-index: 5; display: flex; padding: 10px 12px; }
+                .fp-back-btn { background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
+                .fp-content { animation: fadeIn 260ms ease; }
+
+                /* ── Profile page styling ─────────────────────── */
+                .profile-page-inner { max-width: 640px; margin: 0 auto; padding: 0 18px 40px; }
+                .profile-hero { text-align: center; padding: 6px 0 20px; border-bottom: 1px solid #eee0c0; margin-bottom: 18px; }
+                .profile-script { font-family: 'Caveat', cursive; font-weight: 700; font-size: 34px; color: ${GOLD}; }
+                .profile-desc { font-size: 13px; color: #6b7280; margin: 4px 0 12px; line-height: 1.6; }
+                .profile-open-pill {
+                    display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px;
+                    font-size: 12.5px; font-weight: 700; color: #fff;
+                }
+                .profile-open-pill.is-open { background: #16a34a; }
+                .profile-open-pill.is-closed { background: #ef4444; }
+                .profile-panel { background: #fffdf7; border: 1px solid #f1e5c3; border-radius: 14px; padding: 14px 16px; margin-bottom: 8px; }
+                .profile-row { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #374151; padding: 7px 0; }
+                .profile-section-title { font-size: 13px; font-weight: 700; color: ${GOLD}; margin: 20px 2px 8px; letter-spacing: 0.3px; }
+                .profile-pay-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #6b7280; padding: 8px 0; }
+                .profile-pay-row.active-blue { color: #1d4ed8; font-weight: 700; }
+                .profile-pay-row.active-green { color: #16a34a; font-weight: 700; }
+                .profile-pay-note { margin-top: 8px; padding-top: 10px; border-top: 1px dashed #f1e5c3; font-size: 12px; color: #92794a; line-height: 1.6; }
+                .profile-hours-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #374151; padding: 7px 0; border-bottom: 1px solid #f7f0dd; }
+                .profile-hours-row:last-child { border-bottom: none; }
+                .profile-hours-row span:first-child { display: flex; align-items: center; gap: 6px; }
+
+                /* ── Product page styling ─────────────────────── */
+                .pfp-body { max-width: 900px; margin: 0 auto; padding: 0 0 40px; }
+                .pfp-media { position: relative; }
+                .pfp-scroller { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+                .pfp-img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; flex-shrink: 0; scroll-snap-align: center; display: block; }
+                .pfp-details { padding: 20px 18px 16px; }
+                .pfp-name { font-family: 'Caveat', cursive; font-weight: 700; font-size: 32px; color: ${GOLD}; line-height: 1.15; }
+                .pfp-price-row { display: flex; align-items: baseline; gap: 10px; margin: 10px 0 4px; flex-wrap: wrap; }
+                .pfp-price { font-size: 24px; font-weight: 800; color: #16a34a; }
+                .pfp-save-badge { background: #fef2f2; color: #ef4444; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+                .pfp-divider { height: 1px; background: linear-gradient(90deg, transparent, #eddca0, transparent); margin: 16px 0; }
+                .pfp-desc-title { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+                .pfp-desc-text { font-size: 13.5px; color: #4b5563; line-height: 1.7; margin-bottom: 22px; }
+                .pfp-cart-zone { }
+                .pfp-add-btn {
+                    width: 100%; padding: 14px; background: linear-gradient(135deg, #16a34a, #15803d); color: #fff; border: none;
+                    border-radius: 14px; font-size: 14.5px; font-weight: 700; cursor: pointer; font-family: inherit;
+                    display: flex; align-items: center; justify-content: center; gap: 8px;
+                    box-shadow: 0 6px 16px rgba(22,163,74,0.3);
+                }
+                .pfp-qty-row { display: flex; align-items: center; justify-content: space-between; background: #ECFDF5; border-radius: 14px; padding: 10px 16px; }
+                .pfp-qty-btn { width: 34px; height: 34px; border-radius: 50%; border: none; background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+                .pfp-qty-num { font-size: 15px; font-weight: 700; color: #16a34a; }
+
+                /* ── Product grid ─────────────────────────────── */
+                .product-grid { column-count: 2; column-gap: 4px; padding: 0 4px; }
+                .product-grid > div { break-inside: avoid; margin-bottom: 4px; display: inline-block; width: 100%; }
+                .product-grid > div:nth-child(2n) { margin-top: 24px; }
+
+                .pc-card { background: #fff; overflow: hidden; }
+                .pc-img-wrap { width: 100%; cursor: pointer; }
+                .pc-img { width: 100%; height: auto; display: block; }
+                .pc-name-chip {
+                    font-family: 'Caveat', cursive; font-weight: 700; font-size: 18px; color: ${GOLD}; background: #f3f4f6;
+                    padding: 3px 8px 0; cursor: pointer; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                }
+                .pc-info { padding: 0 8px 8px; background: #f3f4f6; }
+                .pc-price-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+                .pc-price { font-size: 13px; font-weight: 800; color: #111827; }
+                .pc-cart-zone { }
+                .pc-cart-btn {
+                    display: flex; align-items: center; gap: 5px; border-radius: 8px; padding: 5px 10px;
+                    background: #fff; border: 1px solid #bbf7d0; cursor: pointer; font-size: 11.5px; font-weight: 700; color: #16a34a;
+                }
+                .pc-qty-pill { display: flex; align-items: center; justify-content: space-between; gap: 4px; background: #fff; border: 1px solid #bbf7d0; border-radius: 8px; padding: 4px 8px; }
+                .pc-qty-btn { width: 20px; height: 20px; border-radius: 50%; border: none; background: #ECFDF5; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+                .pc-qty-num { font-size: 12px; font-weight: 700; color: #16a34a; min-width: 12px; text-align: center; }
+
+                /* ── Header: logo on top, cover square below ────── */
+                .top-header { padding: 14px 12px 0; }
+                .header-controls-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+                .side-btn {
+                    display: flex; align-items: center; gap: 6px; background: #f3f4f6; border: none;
+                    border-radius: 8px; padding: 8px 12px; cursor: pointer; font-family: inherit; flex-shrink: 0;
+                }
+                .side-btn.search-btn { background: #f0fdf4; border: 1px solid #bbf7d0; }
+                .side-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+
+                .logo-ring {
+                    cursor: pointer; padding: 4px; border-radius: 50%; flex-shrink: 0;
+                    background: ${GOLD};
+                }
+                .logo-ring-inner { padding: 3px; border-radius: 50%; background: #f9fafb; }
+                .logo-img { width: 88px; height: 88px; object-fit: cover; border-radius: 50%; display: block; }
+
+                .cover-wrap {
+                    position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 480px; margin: 14px auto 0;
+                    background: #f3f4f6; overflow: hidden; cursor: pointer; border-radius: 18px;
+                }
+
+                .header-name { text-align: center; margin: 14px 0 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 30px; color: ${GOLD}; }
+                .status-row { display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 4px; padding-bottom: 14px; }
+
+                /* ── Hotel-marquee welcome belt ──────────────────
+                   Grey belt, brighter gold scrolling text, and a
+                   chasing row of "bulbs" along the top and bottom
+                   edges made from an animated dotted gradient. */
+                .welcome-belt {
+                    position: relative; overflow: hidden; background: #2b2b2b;
+                    padding: 10px 0; margin: 0 0 4px;
+                    border-top: 3px dotted transparent;
+                    border-bottom: 3px dotted transparent;
+                    background-image:
+                        radial-gradient(circle, ${GOLD_BRIGHT} 1.4px, transparent 1.6px),
+                        radial-gradient(circle, ${GOLD_BRIGHT} 1.4px, transparent 1.6px),
+                        linear-gradient(#2b2b2b, #2b2b2b);
+                    background-size: 16px 3px, 16px 3px, 100% 100%;
+                    background-position: 0 0, 0 100%, 0 0;
+                    background-repeat: repeat-x, repeat-x, no-repeat;
+                    animation: bulb-chase 0.8s linear infinite;
+                }
+                .welcome-belt-track {
+                    display: inline-flex; white-space: nowrap; animation: marquee-scroll 18s linear infinite;
+                }
+                .welcome-belt-text {
+                    font-family: 'Caveat', cursive; font-weight: 700; font-size: 19px; color: ${GOLD_BRIGHT};
+                    padding: 0 18px; text-shadow: 0 0 8px rgba(244,196,48,0.6);
+                }
+
+                .search-row { display: flex; align-items: center; gap: 7px; padding: 12px 16px 14px; }
+
+                /* ── Desktop ───────────────────────────────────── */
                 @media (min-width: 900px) {
-                    .product-grid { grid-template-columns: repeat(4, 1fr); gap: 14px; }
-                    .cover-wrap { border-radius: 16px; margin-top: 16px; height: 260px !important; }
+                    .page-wrap { max-width: 1000px; padding: 0 32px; }
+                    .top-header { padding-top: 22px; }
+                    .logo-img { width: 130px; height: 130px; }
+                    .side-btn { padding: 10px 18px; font-size: 13.5px; }
+                    .cover-wrap { max-width: 560px; margin-top: 20px; border-radius: 22px; }
+                    .header-name { font-size: 44px; margin-top: 18px; }
+                    .status-row span { font-size: 14.5px !important; }
+                    .welcome-belt-text { font-size: 24px; }
+
+                    .product-grid { column-count: 4; column-gap: 18px; padding: 0; }
+                    .product-grid > div { margin-bottom: 18px; }
+                    .product-grid > div:nth-child(4n+2) { margin-top: 56px; }
+                    .product-grid > div:nth-child(4n+3) { margin-top: 22px; }
+                    .product-grid > div:nth-child(4n) { margin-top: 80px; }
+                    .pc-card { border-radius: 10px; }
+                    .pc-name-chip { font-size: 21px; padding: 6px 12px 0; }
+                    .pc-info { padding: 0 12px 12px; }
+                    .pc-price { font-size: 16px; }
+                    .price-strike { font-size: 13px; }
+                    .pc-cart-btn, .pc-qty-pill { font-size: 13px; padding: 7px 14px; }
+
+                    .pfp-body { display: flex; gap: 48px; align-items: flex-start; padding-top: 8px; }
+                    .pfp-media { flex: 1.1; }
+                    .pfp-img { aspect-ratio: 4 / 5; border-radius: 14px; }
+                    .pfp-details { flex: 1; padding: 8px 0 0; }
+                    .pfp-name { font-size: 40px; }
+                    .pfp-price { font-size: 30px; }
                 }
             `}</style>
 
-            {lightbox && <ImageLightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />}
+            {lightbox && <ImageFullPage src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />}
 
             {quickViewProduct && (
-                <ProductQuickView
+                <ProductFullPage
                     product={quickViewProduct}
                     quantity={cartQuantityFor(quickViewProduct.id)}
                     onAdd={() => addToCart(quickViewProduct)}
@@ -663,7 +761,7 @@ const BusinessProfile: React.FC = () => {
             )}
 
             {detailsOpen && (
-                <BusinessDetailsModal
+                <ProfileFullPage
                     business={business}
                     hours={hours}
                     open={open}
@@ -674,87 +772,36 @@ const BusinessProfile: React.FC = () => {
             )}
 
             <div className="page-wrap">
-                {/* ── Cover ─────────────────────────────────── */}
-                <div className="cover-wrap" style={{ position: 'relative', width: '100%', height: 190, background: '#f3f4f6', overflow: 'hidden', cursor: 'pointer' }}
-                     onClick={() => setLightbox({ src: coverSrc, alt: business.name })}>
-                    <CoverImage src={coverSrc} alt={business.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-
-                    <button
-                        onClick={e => { e.stopPropagation(); window.history.back(); }}
-                        style={{
-                            position: 'absolute', top: 14, left: 14, width: 36, height: 36, borderRadius: '50%',
-                            background: 'rgba(15,23,42,0.55)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.2)', zIndex: 5,
-                        }}
-                    >
-                        <BackArrowSvg />
-                    </button>
-                </div>
-
-                {/* ── Instagram-style ring logo + name/status/actions on the right ── */}
-                <div style={{ position: 'relative', marginTop: -44, padding: '0 16px', display: 'flex', alignItems: 'flex-end', gap: 14 }}>
-                    <div
-                        onClick={() => setLightbox({ src: logoSrc, alt: business.name })}
-                        style={{
-                            cursor: 'pointer', flexShrink: 0, padding: 3, borderRadius: '50%',
-                            background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)',
-                        }}
-                    >
-                        <div style={{ padding: 3, borderRadius: '50%', background: '#f9fafb' }}>
-                            <LogoImg
-                                src={logoSrc}
-                                alt={business.name}
-                                style={{ width: 82, height: 82, objectFit: 'cover', borderRadius: '50%', display: 'block' }}
-                            />
-                        </div>
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: 0, paddingBottom: 6 }}>
-                        <h1 style={{
-                            margin: 0, fontSize: 20, fontWeight: 700, color: '#111827', fontFamily: 'Georgia, serif',
-                            letterSpacing: 0.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                        }}>
-                            {business.name}
-                        </h1>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
-                            {open ? <CheckCircleSvg size={13} /> : <XCircleSvg size={13} />}
-                            <span style={{ fontSize: 12.5, fontWeight: 700, color: open ? '#16a34a' : '#ef4444' }}>
-                                {open ? 'Open' : 'Closed'}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── Profile button + expandable search ── */}
-                <div style={{ padding: '10px 16px 0' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                        <button
-                            onClick={() => setDetailsOpen(true)}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: 6, background: '#f3f4f6', border: 'none',
-                                borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontFamily: 'inherit',
-                            }}
-                        >
-                            <UserSvg />
-                            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#4b5563' }}>Profile</span>
+                {/* ── Logo on top, search left / profile+status right ── */}
+                <div className="top-header">
+                    <div className="header-controls-row">
+                        <button className="side-btn search-btn" onClick={() => setSearchOpen(v => !v)}>
+                            <SearchSvg color="#16a34a" size={13} />
+                            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#16a34a' }}>Search</span>
                         </button>
 
-                        {!searchOpen && (
-                            <button
-                                onClick={() => setSearchOpen(true)}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 6, background: '#f0fdf4', border: '1px solid #bbf7d0',
-                                    borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontFamily: 'inherit',
-                                }}
-                            >
-                                <SearchSvg color="#16a34a" size={13} />
-                                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#16a34a' }}>Search</span>
+                        <div onClick={() => setLightbox({ src: logoSrc, alt: business.name })} className="logo-ring">
+                            <div className="logo-ring-inner">
+                                <LogoImg src={logoSrc} alt={business.name} className="logo-img" />
+                            </div>
+                        </div>
+
+                        <div className="side-stack">
+                            <button className="side-btn" onClick={() => setDetailsOpen(true)}>
+                                <ProfileBadgeSvg />
+                                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#4b5563' }}>Profile</span>
                             </button>
-                        )}
+                            <div className="status-row" style={{ paddingBottom: 0 }}>
+                                {open ? <CheckCircleSvg size={12} /> : <XCircleSvg size={12} />}
+                                <span style={{ fontSize: 11.5, fontWeight: 700, color: open ? '#16a34a' : '#ef4444' }}>
+                                    {open ? 'Open' : 'Closed'}
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     {searchOpen && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
+                        <div className="search-row">
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, background: '#f9fafb', border: '1px solid #16a34a', borderRadius: 10, padding: '0 12px' }}>
                                 <SearchSvg />
                                 <input
@@ -773,24 +820,32 @@ const BusinessProfile: React.FC = () => {
                             </button>
                         </div>
                     )}
+
+                    {/* ── Square cover, centered ── */}
+                    <div className="cover-wrap" onClick={() => setLightbox({ src: coverSrc, alt: business.name })}>
+                        <CoverImage src={coverSrc} alt={business.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    </div>
+
+                    <h1 className="header-name">{business.name}</h1>
+                    <div className="status-row">
+                        {open ? <CheckCircleSvg size={13} /> : <XCircleSvg size={13} />}
+                        <span style={{ fontSize: 12.5, fontWeight: 700, color: open ? '#16a34a' : '#ef4444' }}>
+                            {open ? 'Open now' : 'Closed'}{status.label ? ` · ${status.label}` : ''}
+                        </span>
+                    </div>
                 </div>
 
-                {/* Payment info banner */}
-                <div style={{ padding: '0 16px' }}>
-                    {business.collect_payment_before_delivery ? (
-                        <div style={{ padding: '10px 12px', background: '#eff6ff', borderRadius: 10, border: '1px solid #bfdbfe', color: '#1d4ed8', fontSize: 12, marginBottom: 16 }}>
-                            This business requires payment before delivery. You'll be asked to pay after your order is accepted.
-                        </div>
-                    ) : (
-                        <div style={{ padding: '10px 12px', background: '#ECFDF5', borderRadius: 10, border: '1px solid #bbf7d0', color: '#16a34a', fontSize: 12, marginBottom: 16 }}>
-                            This business collects payment after delivery. You'll be prompted to pay when your order is delivered.
-                        </div>
-                    )}
+                {/* ── Hotel-entrance style welcome marquee ── */}
+                <div className="welcome-belt">
+                    <div className="welcome-belt-track">
+                        <span className="welcome-belt-text">{marqueeText}</span>
+                        <span className="welcome-belt-text">{marqueeText}</span>
+                    </div>
                 </div>
 
-                {/* ── Products grid ───────────────────────────── */}
-                <div style={{ padding: '0 16px 16px' }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 10 }}>
+                {/* ── Products masonry grid ───────────────────────────── */}
+                <div style={{ padding: '12px 4px 16px' }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 10, padding: '0 4px' }}>
                         Products {products.length > 0 && <span style={{ color: '#9ca3af', fontWeight: 500 }}>({products.length})</span>}
                     </div>
 
@@ -801,22 +856,22 @@ const BusinessProfile: React.FC = () => {
                     ) : (
                         <div className="product-grid">
                             {filteredProducts.map(product => (
-                                <ProductCard
-                                    key={product.id}
-                                    product={product}
-                                    quantity={cartQuantityFor(product.id)}
-                                    onOpen={() => setQuickViewProduct(product)}
-                                    onAdd={() => addToCart(product)}
-                                    onInc={() => updateQuantity(product.id, cartQuantityFor(product.id) + 1)}
-                                    onDec={() => updateQuantity(product.id, cartQuantityFor(product.id) - 1)}
-                                />
+                                <div key={product.id}>
+                                    <ProductCard
+                                        product={product}
+                                        quantity={cartQuantityFor(product.id)}
+                                        onOpen={() => setQuickViewProduct(product)}
+                                        onAdd={() => addToCart(product)}
+                                        onInc={() => updateQuantity(product.id, cartQuantityFor(product.id) + 1)}
+                                        onDec={() => updateQuantity(product.id, cartQuantityFor(product.id) - 1)}
+                                    />
+                                </div>
                             ))}
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* ── Cart: mini bubble on the right, expands into the full drawer ── */}
             {totalItems > 0 && cartMini && (
                 <button
                     onClick={() => setCartMini(false)}
@@ -840,8 +895,6 @@ const BusinessProfile: React.FC = () => {
             {totalItems > 0 && !cartMini && (
                 <div style={{ position: 'fixed', left: 8, right: 8, bottom: 78, zIndex: 900, maxWidth: 480, margin: '0 auto' }}>
                     <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #f3f4f6', boxShadow: '0 10px 28px rgba(0,0,0,0.14)', overflow: 'hidden' }}>
-
-                        {/* Drag-handle style bar — tap to collapse back to the bubble */}
                         <button
                             onClick={() => setCartMini(true)}
                             style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '7px 0 2px', background: 'transparent', border: 'none', cursor: 'pointer' }}

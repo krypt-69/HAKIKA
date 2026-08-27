@@ -45,7 +45,9 @@ const Login: React.FC = () => {
         </button>
       </form>
       <p style={{ marginTop: 16 }}>
-        <Link to="/activate" style={{ color: "#2563eb" }}>First time here? Activate your account</Link>
+        <Link to="/register" style={{ color: "#2563eb" }}>New rider? Create account</Link>
+      <span style={{ margin: '0 8px', color: '#6b7280' }}>|</span>
+      <Link to="/activate" style={{ color: "#6b7280" }}>Legacy activation</Link>
       </p>
     </div>
   );
