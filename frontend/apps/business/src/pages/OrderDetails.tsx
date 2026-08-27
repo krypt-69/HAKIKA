@@ -342,7 +342,7 @@ const OrderDetails: React.FC = () => {
                 >
                   <option value="">Select rider</option>
                   {riders.map(r => (
-                    <option key={r.id} value={r.id}>{r.name} ({r.phone})</option>
+                    <option key={r.id} value={r.id}>{r.username ? `@${r.username}` : r.name}</option>
                   ))}
                 </select>
                 <Button

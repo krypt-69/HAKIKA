@@ -44,6 +44,8 @@ interface Rider {
   name: string;
   phone: string;
   status: string;
+  username?: string | null;
+  profile_picture_url?: string | null;
 }
 
 const RED = '#dc2626';
@@ -364,7 +366,7 @@ const Orders: React.FC = () => {
             >
               <option value="">Select rider</option>
               {riders.map(r => (
-                <option key={r.id} value={r.id}>{r.name} ({r.phone})</option>
+                <option key={r.id} value={r.id}>{r.username ? `@${r.username}` : r.name}</option>
               ))}
             </select>
             <Button

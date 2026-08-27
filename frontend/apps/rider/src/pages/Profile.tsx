@@ -172,6 +172,31 @@ const Profile: React.FC = () => {
             </div>
           )}
 
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            style={{
+              padding: '10px 16px',
+              backgroundColor: '#2563eb',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              fontWeight: 600,
+              cursor: 'pointer',
+              opacity: uploading ? 0.6 : 1,
+            }}
+          >
+            {uploading ? 'Uploading...' : 'Change Profile Picture'}
+          </button>
+
 
         </div>
       ) : (

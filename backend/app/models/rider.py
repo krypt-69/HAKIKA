@@ -19,4 +19,5 @@ class Rider(Base):
     name: Mapped[str | None] = mapped_column(String, nullable=True)
     email: Mapped[str | None] = mapped_column(String, nullable=True)
     phone: Mapped[str | None] = mapped_column(String, nullable=True)
+    profile_picture_data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     status: Mapped[RiderStatus] = mapped_column(ENUM(RiderStatus, name='rider_status', create_type=False), default=RiderStatus.pending)

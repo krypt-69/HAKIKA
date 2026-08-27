@@ -1,14 +1,14 @@
-"""add rider profile picture
+"""add rider profile_picture_data
 
 Revision ID: add_rider_profile_picture
-Revises: add_order_item_thumb
-Create Date: 2026-08-15
+Revises: add_business_riders
+Create Date: 2026-08-27
 """
 from alembic import op
 import sqlalchemy as sa
 
 revision = 'add_rider_profile_picture'
-down_revision = 'add_order_item_thumb'
+down_revision = 'add_business_riders'
 branch_labels = None
 depends_on = None
 

@@ -231,9 +231,9 @@ async def get_rider_profile_picture(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid rider ID")
     rider = await db.get(Rider, rid)
-    if not rider:
-        raise HTTPException(status_code=404, detail="Profile picture not found")
-    raise HTTPException(status_code=404, detail="Profile picture not available")
+    if not rider or not rider.profile_picture_data:
+        raise HTTPException(status_code=404, detail="Profile picture not available")
+    return Response(content=rider.profile_picture_data, media_type="image/webp")
 
 @router.post("/{business_id}", response_model=RiderResponse, status_code=status.HTTP_201_CREATED)
 async def create_rider(

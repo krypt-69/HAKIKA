@@ -59,6 +59,7 @@ async def get_business_riders(
     for assoc in assocs:
         rider = await rider_repo.get_by_id(assoc.rider_id)
         if rider:
+            profile_picture_url = f"/api/v1/riders/{rider.id}/profile-picture" if rider.profile_picture_data else None
             riders.append({
                 "id": str(rider.id),
                 "username": rider.username,
@@ -66,6 +67,7 @@ async def get_business_riders(
                 "email": rider.email,
                 "phone": rider.phone,
                 "status": assoc.status,
+                "profile_picture_url": profile_picture_url,
             })
     return riders
 
