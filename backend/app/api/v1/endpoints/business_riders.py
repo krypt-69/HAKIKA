@@ -30,12 +30,14 @@ async def search_riders(
     riders = await rider_repo.search(q.strip(), limit=20)
     result = []
     for rider in riders:
+        profile_picture_url = f"/api/v1/riders/{rider.id}/profile-picture" if rider.profile_picture_data else None
         result.append({
             "id": str(rider.id),
             "username": rider.username,
             "name": rider.name,
             "email": rider.email,
             "status": rider.status.value,
+            "profile_picture_url": profile_picture_url,
         })
     return result
 
