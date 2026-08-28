@@ -12,41 +12,6 @@ class RiderService:
         self.rider_repo = rider_repo
         self.business_repo = business_repo
 
-    async def create_rider(self, user: User, business_id: uuid.UUID, data: RiderCreate) -> RiderResponse:
-        # Verify business ownership
-        business = await self.business_repo.get_by_id(business_id)
-        if not business or business.owner_id != user.id:
-            raise HTTPException(status_code=403, detail="Forbidden")
-
-        # Normalize phone
-        normalized_phone = normalize_phone(data.phone)
-        if not normalized_phone:
-            raise HTTPException(status_code=400, detail="Invalid phone number format")
-
-        # Check email uniqueness
-        existing_email = await self.rider_repo.get_by_email(data.email)
-        if existing_email:
-            raise HTTPException(status_code=400, detail="Rider with this email already exists")
-
-        # Check phone uniqueness
-        existing_phone = await self.rider_repo.get_by_phone(normalized_phone)
-        if existing_phone:
-            raise HTTPException(status_code=400, detail="Rider with this phone already exists")
-
-        try:
-            rider = await self.rider_repo.create(
-                business_id=business_id,
-                name=data.name,
-                email=data.email,
-                phone=normalized_phone
-            )
-        except IntegrityError as e:
-            if 'uq_riders_phone' in str(e) or 'uq_riders_email' in str(e):
-                raise HTTPException(status_code=400, detail="Duplicate rider identity detected.")
-            raise
-
-        return self._to_response(rider)
-
     async def list_riders(self, user: User, business_id: uuid.UUID) -> list[RiderResponse]:
         business = await self.business_repo.get_by_id(business_id)
         if not business or business.owner_id != user.id:

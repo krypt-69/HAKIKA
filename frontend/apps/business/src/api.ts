@@ -118,12 +118,7 @@ export const api = {
   },
   riders: {
     listByBusiness: (businessId: string) => request<any[]>(`/businesses/${businessId}/riders`),
-    // Deprecated: use invite instead
-    create: (businessId: string, data: { name: string; phone: string; email?: string }) =>
-      request<any>(`/riders/${businessId}`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
+
     search: (businessId: string, query: string) =>
       request<any[]>(`/businesses/${businessId}/riders/search?q=${encodeURIComponent(query)}`),
     getProfile: (riderId: string) =>

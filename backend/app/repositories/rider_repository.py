@@ -7,20 +7,6 @@ class RiderRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(self, business_id: uuid.UUID, name: str, email: str, phone: str) -> Rider:
-        rider = Rider(
-            business_id=business_id,
-            name=name,
-            email=email,
-            phone=phone,
-            status=RiderStatus.pending
-        )
-        self.db.add(rider)
-        await self.db.commit()
-        await self.db.refresh(rider)
-        return rider
-
-
     async def create_from_registration(self, username: str, name: str | None, email: str, phone: str | None) -> Rider:
         rider = Rider(
             user_id=None,

@@ -235,15 +235,6 @@ async def get_rider_profile_picture(
         raise HTTPException(status_code=404, detail="Profile picture not available")
     return Response(content=rider.profile_picture_data, media_type="image/webp")
 
-@router.post("/{business_id}", response_model=RiderResponse, status_code=status.HTTP_201_CREATED)
-async def create_rider(
-    business_id: str,
-    data: RiderCreate,
-    current_user: User = Depends(get_current_user),
-    service: RiderService = Depends(get_rider_service)
-):
-    return await service.create_rider(current_user, uuid.UUID(business_id), data)
-
 @router.get("/{business_id}", response_model=list[RiderResponse])
 async def list_riders(
     business_id: str,

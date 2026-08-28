@@ -16,10 +16,9 @@ interface Product {
 const GOLD = '#b8860b';
 const GOLD_BRIGHT = '#f4c430';
 
-/* NOTE: full-page views (cover/logo, product, profile) stop this many px
-   short of the bottom so your app's bottom navigation bar stays visible
-   underneath — set this to its real height. */
-const BOTTOM_NAV_RESERVE = 64;
+/* Full-page views reserve 44px at the bottom on mobile (bottom nav bar)
+   and 64px at the top on desktop (top nav bar) — see .fp-shell in the
+   stylesheet below. Adjust those numbers to match your real nav sizes. */
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -143,7 +142,7 @@ const ChevronDownSvg = ({ style, color = '#6b7280' }: { style?: React.CSSPropert
         React.createElement('polyline', { points: '6 9 12 15 18 9' })
     );
 
-const ProfileBadgeSvg = ({ color = '#4b5563', size = 15 }: { color?: string; size?: number }) =>
+const ProfileBadgeSvg = ({ color = '#2563eb', size = 15 }: { color?: string; size?: number }) =>
     React.createElement('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' },
         React.createElement('path', { d: 'M12 2l2.4 1.6 2.83.2 1.2 2.53 2.2 1.6-.6 2.77.6 2.77-2.2 1.6-1.2 2.53-2.83.2L12 19.2l-2.4-1.6-2.83-.2-1.2-2.53-2.2-1.6.6-2.77-.6-2.77 2.2-1.6 1.2-2.53 2.83-.2z' }),
         React.createElement('path', { d: 'M9 12l2 2 4-4' })
@@ -242,13 +241,15 @@ const FullPageShell: React.FC<{ onClose: () => void; dark?: boolean; children: R
                 <BackArrowSvg color={GOLD_BRIGHT} />
             </button>
         </div>
-        {!ready ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '70vh' }}>
-                <GoldSpinner />
-            </div>
-        ) : (
-            <div className="fp-content">{children}</div>
-        )}
+        <div className="fp-scroll-area">
+            {!ready ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '70vh' }}>
+                    <GoldSpinner />
+                </div>
+            ) : (
+                <div className="fp-content">{children}</div>
+            )}
+        </div>
     </div>
 );
 
@@ -566,7 +567,12 @@ const BusinessProfile: React.FC = () => {
         : products;
 
     const bottomPadding = totalItems === 0 ? 24 : cartMini ? 96 : (itemsListOpen ? 420 : 210);
-    const marqueeText = `✦ Welcome to ${business.name} ✦ Get the best from ${business.name} ✦ Welcome to Hakika, where our customers are our passion ✦ Enjoy — we love you ✦`;
+
+    const MarqueeContent = () => (
+        <span className="welcome-belt-text">
+            <span className="belt-gold">✦ Welcome to </span><span className="belt-maroon">{business.name}</span><span className="belt-gold"> ✦ Get the best from </span><span className="belt-maroon">{business.name}</span><span className="belt-gold"> ✦ Welcome to </span><span className="belt-maroon">Hakika</span><span className="belt-gold">, where our customers are our passion ✦ Enjoy — </span><span className="belt-maroon">we love you</span><span className="belt-gold"> ✦</span>
+        </span>
+    );
 
     return (
         <div style={{ background: '#f9fafb', minHeight: '100vh', paddingBottom: bottomPadding }}>
@@ -576,7 +582,6 @@ const BusinessProfile: React.FC = () => {
                 @keyframes gold-spin { to { transform: rotate(360deg); } }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
                 @keyframes marquee-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-                @keyframes bulb-chase { from { background-position: 0 0; } to { background-position: 40px 0; } }
 
                 .page-wrap { max-width: 900px; margin: 0 auto; width: 100%; }
 
@@ -587,9 +592,10 @@ const BusinessProfile: React.FC = () => {
                 }
 
                 /* ── Full-page chrome ─────────────────────────── */
-                .fp-shell { position: fixed; top: 0; left: 0; right: 0; bottom: ${BOTTOM_NAV_RESERVE}px; z-index: 2500; overflow-y: auto; }
-                .fp-topbar { position: sticky; top: 0; z-index: 5; display: flex; padding: 10px 12px; }
+                .fp-shell { position: fixed; top: 0; left: 0; right: 0; bottom: 44px; z-index: 2500; display: flex; flex-direction: column; }
+                .fp-topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 6; display: flex; padding: 10px 12px; }
                 .fp-back-btn { background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
+                .fp-scroll-area { flex: 1; overflow-y: auto; padding-top: 46px; }
                 .fp-content { animation: fadeIn 260ms ease; }
 
                 /* ── Profile page styling ─────────────────────── */
@@ -662,69 +668,64 @@ const BusinessProfile: React.FC = () => {
                 .pc-qty-btn { width: 20px; height: 20px; border-radius: 50%; border: none; background: #ECFDF5; display: flex; align-items: center; justify-content: center; cursor: pointer; }
                 .pc-qty-num { font-size: 12px; font-weight: 700; color: #16a34a; min-width: 12px; text-align: center; }
 
-                /* ── Header: logo on top, cover square below ────── */
-                .top-header { padding: 14px 12px 0; }
-                .header-controls-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+                /* ── Header: logo sits on the lower-left corner of the cover ── */
+                .top-header { padding: 0 12px; }
+                .cover-logo-wrap { position: relative; max-width: 480px; margin: 0 auto; }
+                .logo-ring {
+                    cursor: pointer; padding: 4px; border-radius: 50%; flex-shrink: 0;
+                    background: ${GOLD};
+                    position: absolute; left: 18px; bottom: -34px; z-index: 3;
+                    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+                }
+                .logo-ring-inner { padding: 3px; border-radius: 50%; background: #f9fafb; }
+                .logo-img { width: 76px; height: 76px; object-fit: cover; border-radius: 50%; display: block; }
+
+                .cover-wrap {
+                    position: relative; width: 100%; aspect-ratio: 2 / 1; max-width: 480px; margin: 0 auto;
+                    background: #f3f4f6; overflow: hidden; cursor: pointer; border-radius: 18px;
+                }
+
+                .header-name { text-align: center; margin: 46px 0 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 36px; color: ${GOLD}; }
+
+                .header-controls-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
                 .side-btn {
                     display: flex; align-items: center; gap: 6px; background: #f3f4f6; border: none;
                     border-radius: 8px; padding: 8px 12px; cursor: pointer; font-family: inherit; flex-shrink: 0;
                 }
                 .side-btn.search-btn { background: #f0fdf4; border: 1px solid #bbf7d0; }
-                .side-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+                .status-pill { display: flex; align-items: center; gap: 5px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; }
 
-                .logo-ring {
-                    cursor: pointer; padding: 4px; border-radius: 50%; flex-shrink: 0;
-                    background: ${GOLD};
-                }
-                .logo-ring-inner { padding: 3px; border-radius: 50%; background: #f9fafb; }
-                .logo-img { width: 88px; height: 88px; object-fit: cover; border-radius: 50%; display: block; }
-
-                .cover-wrap {
-                    position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 480px; margin: 14px auto 0;
-                    background: #f3f4f6; overflow: hidden; cursor: pointer; border-radius: 18px;
-                }
-
-                .header-name { text-align: center; margin: 14px 0 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 30px; color: ${GOLD}; }
-                .status-row { display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 4px; padding-bottom: 14px; }
-
-                /* ── Hotel-marquee welcome belt ──────────────────
-                   Grey belt, brighter gold scrolling text, and a
-                   chasing row of "bulbs" along the top and bottom
-                   edges made from an animated dotted gradient. */
+                /* ── Hotel-marquee welcome belt: transparent background,
+                   just the glowing scrolling text with a subtle chase
+                   of light only along the bottom edge. ── */
                 .welcome-belt {
-                    position: relative; overflow: hidden; background: #2b2b2b;
-                    padding: 10px 0; margin: 0 0 4px;
-                    border-top: 3px dotted transparent;
-                    border-bottom: 3px dotted transparent;
-                    background-image:
-                        radial-gradient(circle, ${GOLD_BRIGHT} 1.4px, transparent 1.6px),
-                        radial-gradient(circle, ${GOLD_BRIGHT} 1.4px, transparent 1.6px),
-                        linear-gradient(#2b2b2b, #2b2b2b);
-                    background-size: 16px 3px, 16px 3px, 100% 100%;
-                    background-position: 0 0, 0 100%, 0 0;
-                    background-repeat: repeat-x, repeat-x, no-repeat;
-                    animation: bulb-chase 0.8s linear infinite;
+                    position: relative; overflow: hidden; background: transparent;
+                    padding: 10px 0 12px; margin: 6px 0 4px;
                 }
                 .welcome-belt-track {
                     display: inline-flex; white-space: nowrap; animation: marquee-scroll 18s linear infinite;
                 }
                 .welcome-belt-text {
-                    font-family: 'Caveat', cursive; font-weight: 700; font-size: 19px; color: ${GOLD_BRIGHT};
-                    padding: 0 18px; text-shadow: 0 0 8px rgba(244,196,48,0.6);
+                    font-family: 'Caveat', cursive; font-weight: 700; font-size: 20px;
+                    padding: 0 18px;
                 }
+                .belt-gold { color: ${GOLD_BRIGHT}; text-shadow: 0 0 8px rgba(244,196,48,0.5); }
+                .belt-maroon { color: #8b2252; text-shadow: 0 0 8px rgba(139,34,82,0.4); }
 
-                .search-row { display: flex; align-items: center; gap: 7px; padding: 12px 16px 14px; }
+                .search-row { display: flex; align-items: center; gap: 7px; padding: 12px 4px 4px; }
 
                 /* ── Desktop ───────────────────────────────────── */
                 @media (min-width: 900px) {
-                    .page-wrap { max-width: 1000px; padding: 0 32px; }
-                    .top-header { padding-top: 22px; }
-                    .logo-img { width: 130px; height: 130px; }
-                    .side-btn { padding: 10px 18px; font-size: 13.5px; }
-                    .cover-wrap { max-width: 560px; margin-top: 20px; border-radius: 22px; }
-                    .header-name { font-size: 44px; margin-top: 18px; }
-                    .status-row span { font-size: 14.5px !important; }
-                    .welcome-belt-text { font-size: 24px; }
+                    .fp-shell { top: 64px; bottom: 0; }
+                    .page-wrap { max-width: 1600px; padding: 0 32px; }
+                    .top-header { padding-top: 4px; }
+                    .logo-ring { left: 32px; bottom: -55px; padding: 5px; }
+                    .logo-img { width: 120px; height: 120px; }
+                    .side-btn, .status-pill { padding: 10px 18px; font-size: 13.5px; }
+                    .cover-wrap { max-width: 620px; border-radius: 22px; }
+                    .cover-logo-wrap { max-width: 620px; }
+                    .header-name { font-size: 48px; margin-top: 70px; }
+                    .welcome-belt-text { font-size: 26px; }
 
                     .product-grid { column-count: 4; column-gap: 18px; padding: 0; }
                     .product-grid > div { margin-bottom: 18px; }
@@ -732,7 +733,7 @@ const BusinessProfile: React.FC = () => {
                     .product-grid > div:nth-child(4n+3) { margin-top: 22px; }
                     .product-grid > div:nth-child(4n) { margin-top: 80px; }
                     .pc-card { border-radius: 10px; }
-                    .pc-name-chip { font-size: 21px; padding: 6px 12px 0; }
+                    .pc-name-chip { font-size: 20px; padding: 6px 12px 0; }
                     .pc-info { padding: 0 12px 12px; }
                     .pc-price { font-size: 16px; }
                     .price-strike { font-size: 13px; }
@@ -772,31 +773,39 @@ const BusinessProfile: React.FC = () => {
             )}
 
             <div className="page-wrap">
-                {/* ── Logo on top, search left / profile+status right ── */}
+                {/* ── Logo overlapping the top edge of the square cover ── */}
                 <div className="top-header">
-                    <div className="header-controls-row">
-                        <button className="side-btn search-btn" onClick={() => setSearchOpen(v => !v)}>
-                            <SearchSvg color="#16a34a" size={13} />
-                            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#16a34a' }}>Search</span>
-                        </button>
+                    <div className="cover-logo-wrap">
+                        <div className="cover-wrap" onClick={() => setLightbox({ src: coverSrc, alt: business.name })}>
+                            <CoverImage src={coverSrc} alt={business.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        </div>
 
                         <div onClick={() => setLightbox({ src: logoSrc, alt: business.name })} className="logo-ring">
                             <div className="logo-ring-inner">
                                 <LogoImg src={logoSrc} alt={business.name} className="logo-img" />
                             </div>
                         </div>
+                    </div>
 
-                        <div className="side-stack">
-                            <button className="side-btn" onClick={() => setDetailsOpen(true)}>
-                                <ProfileBadgeSvg />
-                                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#4b5563' }}>Profile</span>
-                            </button>
-                            <div className="status-row" style={{ paddingBottom: 0 }}>
-                                {open ? <CheckCircleSvg size={12} /> : <XCircleSvg size={12} />}
-                                <span style={{ fontSize: 11.5, fontWeight: 700, color: open ? '#16a34a' : '#ef4444' }}>
-                                    {open ? 'Open' : 'Closed'}
-                                </span>
-                            </div>
+                    <h1 className="header-name">{business.name}</h1>
+
+                    {/* ── Search / Profile / Open-Closed — below the cover ── */}
+                    <div className="header-controls-row">
+                        <button className="side-btn search-btn" onClick={() => setSearchOpen(v => !v)}>
+                            <SearchSvg color="#16a34a" size={13} />
+                            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#16a34a' }}>Search</span>
+                        </button>
+
+                        <button className="side-btn" onClick={() => setDetailsOpen(true)}>
+                            <ProfileBadgeSvg />
+                            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#2563eb' }}>Profile</span>
+                        </button>
+
+                        <div className="status-pill">
+                            {open ? <CheckCircleSvg size={13} /> : <XCircleSvg size={13} />}
+                            <span style={{ fontSize: 12.5, fontWeight: 700, color: open ? '#16a34a' : '#ef4444' }}>
+                                {open ? 'Open' : 'Closed'}
+                            </span>
                         </div>
                     </div>
 
@@ -820,26 +829,13 @@ const BusinessProfile: React.FC = () => {
                             </button>
                         </div>
                     )}
-
-                    {/* ── Square cover, centered ── */}
-                    <div className="cover-wrap" onClick={() => setLightbox({ src: coverSrc, alt: business.name })}>
-                        <CoverImage src={coverSrc} alt={business.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    </div>
-
-                    <h1 className="header-name">{business.name}</h1>
-                    <div className="status-row">
-                        {open ? <CheckCircleSvg size={13} /> : <XCircleSvg size={13} />}
-                        <span style={{ fontSize: 12.5, fontWeight: 700, color: open ? '#16a34a' : '#ef4444' }}>
-                            {open ? 'Open now' : 'Closed'}{status.label ? ` · ${status.label}` : ''}
-                        </span>
-                    </div>
                 </div>
 
                 {/* ── Hotel-entrance style welcome marquee ── */}
                 <div className="welcome-belt">
                     <div className="welcome-belt-track">
-                        <span className="welcome-belt-text">{marqueeText}</span>
-                        <span className="welcome-belt-text">{marqueeText}</span>
+                        <MarqueeContent />
+                        <MarqueeContent />
                     </div>
                 </div>
 
