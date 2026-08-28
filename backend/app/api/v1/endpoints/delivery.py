@@ -44,39 +44,21 @@ async def assign_rider(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    from app.services.delivery_service import DeliveryService
+
     delivery_repo = DeliveryRepository(db)
     order_repo = OrderRepository(db)
     rider_repo = RiderRepository(db)
     business_repo = BusinessRepository(db)
+    service = DeliveryService(delivery_repo, order_repo, rider_repo, business_repo)
 
+    await service.assign_rider(current_user, uuid.UUID(order_id), uuid.UUID(rider_id))
+
+    # WebSocket notification to rider
     order = await order_repo.get_by_id(uuid.UUID(order_id))
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    business = await business_repo.get_by_id(order.business_id)
-    if not business or business.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    rider = await rider_repo.get_by_id(uuid.UUID(rider_id))
-    if not rider:
-        raise HTTPException(status_code=404, detail="Rider not found")
-    from app.repositories.business_rider_repository import BusinessRiderRepository
-    br_repo = BusinessRiderRepository(db)
-    if not await br_repo.exists(order.business_id, rider.id):
-        raise HTTPException(status_code=403, detail="Rider is not associated with this business")
-    business = await business_repo.get_by_id(order.business_id)
-    if business.collect_payment_before_delivery:
-        # Only allow assignment after payment is verified
-        allowed_statuses = [OrderStatus.paid]
-    else:
-        allowed_statuses = [OrderStatus.accepted, OrderStatus.preparing, OrderStatus.ready_for_delivery]
-    if order.status not in allowed_statuses:
-        raise HTTPException(status_code=400, detail="Order not ready for delivery")
-    await delivery_repo.assign_rider(order.id, rider.id)
-    await order_repo.update_status(order, OrderStatus.out_for_delivery)
-
-    # Publish WebSocket event to the assigned rider (fire-and-forget)
     asyncio.create_task(
         manager.send_event(
-            rider_id,  # rider_id is the string UUID from the request
+            rider_id,
             {
                 "type": "order_assigned",
                 "payload": {"order_id": str(order.id), "order_number": order.order_number},
@@ -95,38 +77,22 @@ async def mark_arrived(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    from app.services.delivery_service import DeliveryService
+
     delivery_repo = DeliveryRepository(db)
     order_repo = OrderRepository(db)
     rider_repo = RiderRepository(db)
+    business_repo = BusinessRepository(db)
+    service = DeliveryService(delivery_repo, order_repo, rider_repo, business_repo)
 
-    order = await order_repo.get_by_id(uuid.UUID(order_id))
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    assignment = await db.execute(
-        sa_select(DeliveryAssignment).where(
-            DeliveryAssignment.order_id == uuid.UUID(order_id),
-            DeliveryAssignment.status == AssignmentStatus.assigned,
-        )
+    await service.mark_arrived(
+        current_user,
+        uuid.UUID(order_id),
+        gps_lat,
+        gps_lon,
+        photo_url,
     )
-    assignment = assignment.scalar_one_or_none()
-    if not assignment:
-        raise HTTPException(status_code=400, detail="No active rider assigned")
-    rider = await rider_repo.get_by_id(assignment.rider_id)
-    if not rider or rider.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not your delivery")
-    if order.status != OrderStatus.out_for_delivery:
-        raise HTTPException(status_code=400, detail="Order is not out for delivery")
 
-    await delivery_repo.create_attempt(
-        order_id=order.id,
-        rider_id=rider.id,
-        status=DeliveryAttemptStatus.successful,
-        gps_lat=gps_lat,
-        gps_lon=gps_lon,
-        photo_url=photo_url,
-        evidence_required=False
-    )
-    await order_repo.update_status(order, OrderStatus.arrived)
     return {"status": "arrived"}
 
 @router.put("/orders/{order_id}/attempt")

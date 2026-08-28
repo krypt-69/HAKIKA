@@ -15,6 +15,11 @@ class CreditTransactionRepository:
         await self.db.refresh(transaction)
         return transaction
 
+    async def add_noncommit(self, transaction_data: dict) -> CreditTransaction:
+        transaction = CreditTransaction(**transaction_data)
+        self.db.add(transaction)
+        return transaction
+
     async def get_by_order_id(self, order_id: uuid.UUID) -> list[CreditTransaction]:
         result = await self.db.execute(
             select(CreditTransaction).where(CreditTransaction.order_id == order_id)

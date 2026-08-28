@@ -22,5 +22,7 @@ class Settlement(Base):
     status: Mapped[SettlementStatus] = mapped_column(ENUM(SettlementStatus, name='settlement_status', create_type=False), default=SettlementStatus.pending)
     retry_count: Mapped[int] = mapped_column(Integer, default=0)
     provider_reference: Mapped[str | None] = mapped_column(String, nullable=True)
+    payout_reference: Mapped[str | None] = mapped_column(String(100), nullable=True, unique=True)
+    provider_payout_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_retry_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
     created_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, default=datetime.utcnow)

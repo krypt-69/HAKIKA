@@ -5,6 +5,7 @@ from app.repositories.payment_method_repository import PaymentMethodRepository
 from app.models.settlement import SettlementStatus
 from app.models.ledger_entry import LedgerTransactionType
 from app.integrations.intasend.client import IntaSendClient
+from app.payment.providers.intasend import IntaSendProvider
 from app.models.audit_log import AuditLog
 from fastapi import HTTPException, status
 import uuid
@@ -115,6 +116,30 @@ class SettlementService:
             self.settlement_repo.db.add(audit)
             await self.settlement_repo.db.commit()
             raise HTTPException(status_code=500, detail=f"Settlement failed: {str(e)}")
+
+    async def reconcile_settlement_status(self, settlement_id: uuid.UUID) -> dict:
+        """Look up provider payout status and reconcile settlement state."""
+        settlement = await self.settlement_repo.get_by_id(settlement_id)
+        if not settlement:
+            raise HTTPException(status_code=404, detail="Settlement not found")
+        if settlement.status != SettlementStatus.processing:
+            raise HTTPException(status_code=400, detail="Settlement is not in processing state")
+        if not settlement.provider_payout_reference:
+            return {"status": "unknown", "reason": "missing_tracking_id"}
+
+        provider = IntaSendProvider()
+        result = await provider.get_payout_status(settlement.provider_payout_reference)
+        mapped = result.get("status", "unknown")
+
+        if mapped == "completed":
+            await self.settlement_repo.update_status(settlement, SettlementStatus.completed)
+            return {"status": "completed"}
+        if mapped == "failed":
+            await self.settlement_repo.update_status(settlement, SettlementStatus.failed)
+            return {"status": "failed"}
+        if mapped == "processing":
+            return {"status": "processing"}
+        return {"status": "unknown", "reason": result.get("raw", "unknown")}
 
     async def get_settlements_for_business(self, business_id: uuid.UUID):
         return await self.settlement_repo.get_by_business(business_id)

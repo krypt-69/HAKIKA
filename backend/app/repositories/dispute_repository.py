@@ -20,6 +20,18 @@ class DisputeRepository:
         await self.db.refresh(dispute)
         return dispute
 
+    async def add(
+        self, order_id: uuid.UUID, customer_id: uuid.UUID, reason: str
+    ) -> Dispute:
+        dispute = Dispute(
+            order_id=order_id,
+            customer_id=customer_id,
+            reason=reason,
+            status=DisputeStatus.pending
+        )
+        self.db.add(dispute)
+        return dispute
+
     async def get_by_order(self, order_id: uuid.UUID) -> Dispute | None:
         result = await self.db.execute(select(Dispute).where(Dispute.order_id == order_id))
         return result.scalar_one_or_none()

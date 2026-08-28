@@ -47,29 +47,12 @@ class DeliveryService:
             allowed_statuses = [OrderStatus.accepted, OrderStatus.preparing, OrderStatus.ready_for_delivery]
         if order.status not in allowed_statuses:
             raise HTTPException(status_code=400, detail="Order not ready for delivery")
-        # Prepaid dispatch guard: payment must be verified if business requires it
-        if business.collect_payment_before_delivery:
-            from app.services.payment_service import PaymentService
-            from app.repositories.payment_repository import PaymentRepository
-            from app.repositories.order_repository import OrderRepository
-            from app.repositories.customer_repository import CustomerRepository
-            from app.repositories.ledger_repository import LedgerRepository
-            from app.services.payment_policy_service import PaymentPolicyService
-            from app.repositories.payment_policy_repository import PaymentPolicyRepository
-            payment_repo = PaymentRepository(self.db)
-            order_repo = OrderRepository(self.db)
-            customer_repo = CustomerRepository(self.db)
-            ledger_repo = LedgerRepository(self.db)
-            policy_repo = PaymentPolicyRepository(self.db)
-            policy_service = PaymentPolicyService(policy_repo)
-            payment_service = PaymentService(payment_repo, order_repo, customer_repo, ledger_repo, policy_service)
-            state = await payment_service.get_order_payment_state(order.id)
-            if state != "paid":
-                raise HTTPException(status_code=409, detail="Payment must be completed before assigning a rider.")
         # Assign and move to OUT_FOR_DELIVERY
         prev = order.status
-        await self.delivery_repo.assign_rider(order.id, rider.id)
-        await self.order_repo.update_status(order, OrderStatus.out_for_delivery)
+        # Non-committing delivery write
+        await self.delivery_repo.add_assignment(order.id, rider.id)
+        # Atomic transition (locks order, sets status+version+event, commits)
+        await self.order_repo.assign_order_transaction(order.id)
         await publish_order_update(order, prev)
 
     async def mark_arrived(self, rider_user: User, order_id: uuid.UUID, gps_lat: float, gps_lon: float, photo_url: str | None = None):
@@ -98,7 +81,18 @@ class DeliveryService:
             evidence_required=False  # optional for now
         )
         prev = order.status
-        await self.order_repo.update_status(order, OrderStatus.arrived)
+        # Non-committing attempt write
+        await self.delivery_repo.add_attempt(
+            order_id=order.id,
+            rider_id=rider.id,
+            status=DeliveryAttemptStatus.successful,
+            gps_lat=gps_lat,
+            gps_lon=gps_lon,
+            photo_url=photo_url,
+            evidence_required=False,
+        )
+        # Atomic transition
+        await self.order_repo.arrive_order_transaction(order.id)
         await publish_order_update(order, prev)
 
     async def record_failed_attempt(self, rider_user: User, order_id: uuid.UUID, reason: DeliveryAttemptStatus, gps_lat: float, gps_lon: float):

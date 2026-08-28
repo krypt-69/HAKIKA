@@ -34,6 +34,7 @@ class Order(Base):
         default=OrderStatus.created,
         nullable=False
     )
+    status_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     subtotal: Mapped[float] = mapped_column(Numeric, nullable=False)
     delivery_fee: Mapped[float] = mapped_column(Numeric, nullable=False, default=0)
     total_amount: Mapped[float] = mapped_column(Numeric, nullable=False)

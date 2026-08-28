@@ -31,6 +31,32 @@ class PaymentRepository:
         result = await self.db.execute(select(Payment).where(Payment.id == payment_id))
         return result.scalar_one_or_none()
 
+    async def get_and_lock(self, payment_id: uuid.UUID) -> Payment | None:
+        result = await self.db.execute(
+            select(Payment)
+            .where(Payment.id == payment_id)
+            .with_for_update()
+        )
+        return result.scalar_one_or_none()
+
+    async def set_status_noncommit(self, payment: Payment, status: PaymentStatus, provider_reference: str | None = None):
+        payment.status = status
+        if provider_reference:
+            payment.provider_reference = provider_reference
+
+    async def get_and_lock(self, payment_id: uuid.UUID) -> Payment | None:
+        result = await self.db.execute(
+            select(Payment)
+            .where(Payment.id == payment_id)
+            .with_for_update()
+        )
+        return result.scalar_one_or_none()
+
+    async def set_status_noncommit(self, payment: Payment, status: PaymentStatus, provider_reference: str | None = None):
+        payment.status = status
+        if provider_reference:
+            payment.provider_reference = provider_reference
+
     async def get_by_order(self, order_id: uuid.UUID) -> Payment | None:
         result = await self.db.execute(select(Payment).where(Payment.order_id == order_id))
         return result.scalar_one_or_none()

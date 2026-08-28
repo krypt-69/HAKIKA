@@ -10,6 +10,7 @@ from app.repositories.business_repository import BusinessRepository
 from app.repositories.trust_event_repository import TrustEventRepository
 from app.api.v1.endpoints.credit import get_payment_service
 from app.services.order_service import OrderService
+from app.services.order_events import publish_order_update
 from app.services.payment_service import PaymentService
 from app.repositories.payment_repository import PaymentRepository
 from app.repositories.order_repository import OrderRepository
@@ -86,7 +87,13 @@ async def pay_order(
     order_orm = await order_service.order_repo.get_by_id(uuid.UUID(order_id))
     if not order_orm:
         raise HTTPException(status_code=404, detail="Order not found")
-    await order_service.order_repo.update_status(order_orm, OrderStatus.payment_pending)
+    prev = order_orm.status
+    await order_service.order_repo.transition_status(
+        order_id=order_orm.id,
+        new_status=OrderStatus.payment_pending,
+        visible_to_customer=True,
+    )
+    await publish_order_update(order_orm, prev)
     result = await service.initiate_payment(uuid.UUID(order_id))
     return result
 

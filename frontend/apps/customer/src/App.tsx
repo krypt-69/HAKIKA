@@ -2,6 +2,7 @@ import { Config } from "@hakika/config";
 import React from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate, useParams } from 'react-router-dom';
 import Home from './pages/Home';
+import { api } from './api';
 import { CustomerFeedProvider } from './CustomerFeedContext';
 import { OrdersProvider } from './OrdersContext';
 import BusinessProfile from './pages/BusinessProfile';
@@ -63,14 +64,43 @@ const BellIcon: React.FC = () => (
 const NotificationBell: React.FC = () => {
     const [count, setCount] = React.useState<number | null>(null);
 
-    React.useEffect(() => {
-        let cancelled = false;
-        fetch('/api/notifications/unread-count')
-            .then(r => r.json())
-            .then(data => { if (!cancelled) setCount(data.count || 0); })
-            .catch(() => { if (!cancelled) setCount(0); });
-        return () => { cancelled = true; };
+    const refreshCount = React.useCallback(async () => {
+        const phone = sessionStorage.getItem('hakika_customer_phone');
+        if (!phone) { setCount(0); return; }
+        try {
+            const data = await api.getUnreadNotificationCount(phone);
+            setCount(data.count || 0);
+        } catch {
+            setCount(0);
+        }
     }, []);
+
+    React.useEffect(() => {
+        refreshCount();
+        const onFocus = () => refreshCount();
+        const onReconnect = () => refreshCount();
+        const onUnreadUpdated = (e: Event) => {
+          const custom = e as CustomEvent<{ count?: number }>;
+          if (custom.detail?.count !== undefined) {
+            setCount(custom.detail.count);
+          } else {
+            refreshCount();
+          }
+        };
+        window.addEventListener('focus', onFocus);
+        window.addEventListener('online', onReconnect);
+        window.addEventListener('hakika:unread-updated', onUnreadUpdated);
+
+        // Conservative reconciliation interval
+        const interval = setInterval(refreshCount, 30000);
+
+        return () => {
+            window.removeEventListener('focus', onFocus);
+            window.removeEventListener('online', onReconnect);
+            window.removeEventListener('hakika:unread-updated', onUnreadUpdated);
+            clearInterval(interval);
+        };
+    }, [refreshCount]);
 
     return (
         <span style={{ position: 'relative', display: 'inline-flex' }}>

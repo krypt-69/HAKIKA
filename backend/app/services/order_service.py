@@ -125,7 +125,11 @@ class OrderService:
                 )
 
         previous_status = order.status
-        await self.order_repo.update_status(order, OrderStatus.accepted)
+        await self.order_repo.transition_status(
+            order_id=order.id,
+            new_status=OrderStatus.accepted,
+            visible_to_customer=True,
+        )
         await publish_order_update(order, previous_status)
         order_items = await self.order_repo.get_order_items(order.id)
         customer_phone = await self._get_customer_phone(order.customer_id)
@@ -140,6 +144,7 @@ class OrderService:
         if order.status not in (OrderStatus.waiting_acceptance, OrderStatus.accepted):
             raise HTTPException(status_code=400, detail="Order cannot be cancelled in current state")
 
+        trust_event = None
         if actor == 'customer':
             if not customer_phone:
                 raise HTTPException(status_code=400, detail="Customer phone required")
@@ -153,14 +158,13 @@ class OrderService:
             if order.customer_id != customer.id:
                 raise HTTPException(status_code=403, detail="Forbidden")
             if order.status == OrderStatus.accepted:
-                await self.trust_event_repo.create_trust_event(
-                    subject_type='customer', subject_id=customer.id,
-                    event_type='CUSTOMER_CANCELLED_AFTER_ACCEPT', score_change=-5,
-                    reason="Customer cancelled after acceptance"
-                )
-            prev = order.status
-            await self.order_repo.update_status(order, OrderStatus.cancelled)
-            await publish_order_update(order, prev)
+                trust_event = {
+                    "subject_type": "customer",
+                    "subject_id": customer.id,
+                    "event_type": "CUSTOMER_CANCELLED_AFTER_ACCEPT",
+                    "score_change": -5,
+                    "reason": "Customer cancelled after acceptance",
+                }
 
         elif actor == 'business':
             if not user:
@@ -169,16 +173,22 @@ class OrderService:
             if business.owner_id != user.id:
                 raise HTTPException(status_code=403, detail="Forbidden")
             if order.status == OrderStatus.accepted:
-                await self.trust_event_repo.create_trust_event(
-                    subject_type='business', subject_id=business.id,
-                    event_type='BUSINESS_CANCELLED_AFTER_ACCEPT', score_change=-5,
-                    reason="Business cancelled after acceptance"
-                )
-            prev = order.status
-            await self.order_repo.update_status(order, OrderStatus.cancelled)
-            await publish_order_update(order, prev)
+                trust_event = {
+                    "subject_type": "business",
+                    "subject_id": business.id,
+                    "event_type": "BUSINESS_CANCELLED_AFTER_ACCEPT",
+                    "score_change": -5,
+                    "reason": "Business cancelled after acceptance",
+                }
         else:
             raise HTTPException(status_code=400)
+
+        prev = order.status
+        await self.order_repo.cancel_order_transaction(
+            order_id=order.id,
+            trust_event=trust_event,
+        )
+        await publish_order_update(order, prev)
 
         order_items = await self.order_repo.get_order_items(order.id)
         resp = self._to_response(order, order_items)

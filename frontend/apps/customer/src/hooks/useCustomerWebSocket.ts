@@ -13,6 +13,11 @@ export function useCustomerWebSocket(
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptRef = useRef(0);
   const [isConnected, setIsConnected] = useState(false);
+  const onEventRef = useRef(onEvent);
+
+  useEffect(() => {
+    onEventRef.current = onEvent;
+  }, [onEvent]);
 
   const connect = useCallback(() => {
     if (!orderId || !phone) { console.log('Customer WS: skipped – missing orderId or phone', {orderId, phone}); return; }
@@ -28,7 +33,7 @@ export function useCustomerWebSocket(
       try {
         const event = JSON.parse(msg.data);
         if (event.type === 'order_status_changed') {
-          onEvent();
+          onEventRef.current();
         }
       } catch {}
     };
@@ -48,7 +53,7 @@ export function useCustomerWebSocket(
         connect();
       }, delay);
     }
-  }, [orderId, phone, onEvent]);
+  }, [orderId, phone]);
 
   useEffect(() => {
     connect();

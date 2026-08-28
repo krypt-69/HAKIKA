@@ -117,6 +117,7 @@ const Notifications: React.FC = () => {
     const navigate = useNavigate();
     const { orders, loading, refreshing, error, setError, fetchOrders } = useOrdersContext();
     const [inputPhone, setInputPhone] = useState('');
+    const [notifications, setNotifications] = useState<any[]>([]);
 
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -133,6 +134,9 @@ const Notifications: React.FC = () => {
         const storedPhone = sessionStorage.getItem('hakika_customer_phone');
         if (storedPhone) {
             fetchOrders(storedPhone);
+            api.getNotifications(storedPhone)
+                .then(setNotifications)
+                .catch(() => setNotifications([]));
         }
     }, [fetchOrders]);
 
@@ -194,7 +198,26 @@ const Notifications: React.FC = () => {
                                 </div>
                                 <div className="nt-card-body">
                                     <div className="nt-card-top">
-                                        <strong className="nt-order-no">Order {order.order_number}</strong>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <strong className="nt-order-no">Order {order.order_number}</strong>
+                                            {notifications.find(n => n.order_id === order.id)?.unread_count > 0 && (
+                                                <span style={{
+                                                    background: '#16a34a',
+                                                    color: '#fff',
+                                                    borderRadius: '50%',
+                                                    minWidth: 18,
+                                                    height: 18,
+                                                    padding: '0 5px',
+                                                    fontSize: 11,
+                                                    fontWeight: 700,
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                }}>
+                                                    {notifications.find(n => n.order_id === order.id)?.unread_count}
+                                                </span>
+                                            )}
+                                        </div>
                                         <span className={`nt-status-pill tone-${meta.tone}`}>{meta.label}</span>
                                     </div>
                                     <p className="nt-business">{order.business_name}</p>

@@ -61,32 +61,25 @@ class ConfirmationService:
                             OrderStatus.paid, OrderStatus.completed):
             raise HTTPException(status_code=400, detail="Delivery already confirmed")
 
-        await self.trust_event_repo.create_trust_event(
-            subject_type='customer', subject_id=customer_id,
-            event_type='CUSTOMER_CONFIRMED_DELIVERY', score_change=0.0,
-            reason="Customer confirmed delivery"
-        )
-
-        audit = AuditLog(
-            table_name='orders', record_id=order.id,
-            action='CUSTOMER_CONFIRMED_DELIVERY',
-            new_values={"status": "customer_confirmed_delivery"}
-        )
-        self.db.add(audit)
-
         prev1 = order.status
-        await self.order_repo.update_status(order, OrderStatus.customer_confirmed_delivery)
+        order = await self.order_repo.confirm_delivery_transaction(
+            order_id=order.id,
+            customer_id=customer_id,
+            trust_event={
+                "subject_type": "customer",
+                "subject_id": customer_id,
+                "event_type": "CUSTOMER_CONFIRMED_DELIVERY",
+                "score_change": 0.0,
+                "reason": "Customer confirmed delivery",
+            },
+        )
         await publish_order_update(order, prev1)
-        prev2 = order.status
-        await self.order_repo.update_status(order, OrderStatus.payment_pending)
-        await publish_order_update(order, prev2)
-        await self.db.commit()
+        await publish_order_update(order, OrderStatus.customer_confirmed_delivery)
 
-        # Prepare payment policy dependencies
+        # Payment initiation outside transaction
         policy_repo = PaymentPolicyRepository(self.db)
         policy_service = PaymentPolicyService(policy_repo)
 
-        # Initiate payment – let exceptions propagate
         from app.repositories.payment_repository import PaymentRepository
         from app.repositories.customer_repository import CustomerRepository
         from app.repositories.ledger_repository import LedgerRepository
@@ -117,21 +110,14 @@ class ConfirmationService:
         if existing:
             raise HTTPException(status_code=400, detail="Dispute already exists for this order")
 
-        dispute = await self.dispute_repo.create(order_id, customer_id, reason)
-
-        await self.trust_event_repo.create_trust_event(
-            subject_type='customer', subject_id=customer_id,
-            event_type='CUSTOMER_REPORTED_PROBLEM', score_change=0.0, reason=reason
+        prev = order.status
+        order = await self.order_repo.report_problem_transaction(
+            order_id=order.id,
+            customer_id=customer_id,
+            reason=reason,
         )
+        await publish_order_update(order, prev)
 
-        audit = AuditLog(
-            table_name='disputes', record_id=dispute.id,
-            action='DISPUTE_CREATED',
-            new_values={"order_id": str(order_id), "reason": reason}
-        )
-        self.db.add(audit)
-
-        await self.order_repo.update_status(order, OrderStatus.dispute_review)
-        await self.db.commit()
+        dispute = await self.dispute_repo.get_by_order(order_id)
 
         return {"status": "dispute_review", "dispute_id": str(dispute.id)}

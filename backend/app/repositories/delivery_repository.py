@@ -32,6 +32,47 @@ class DeliveryRepository:
         await self.db.refresh(assignment)
         return assignment
 
+    async def add_assignment(self, order_id: uuid.UUID, rider_id: uuid.UUID) -> DeliveryAssignment:
+        # Deactivate previous assignments without committing
+        old_assign = await self.db.execute(
+            select(DeliveryAssignment).where(
+                DeliveryAssignment.order_id == order_id,
+                DeliveryAssignment.status == AssignmentStatus.assigned
+            )
+        )
+        for assign in old_assign.scalars().all():
+            assign.status = AssignmentStatus.unassigned
+
+        assignment = DeliveryAssignment(
+            order_id=order_id,
+            rider_id=rider_id,
+            status=AssignmentStatus.assigned
+        )
+        self.db.add(assignment)
+        return assignment
+
+    async def add_attempt(
+        self,
+        order_id: uuid.UUID,
+        rider_id: uuid.UUID,
+        status: DeliveryAttemptStatus,
+        gps_lat: float | None = None,
+        gps_lon: float | None = None,
+        photo_url: str | None = None,
+        evidence_required: bool = True
+    ) -> DeliveryAttempt:
+        attempt = DeliveryAttempt(
+            order_id=order_id,
+            rider_id=rider_id,
+            status=status,
+            photo_url=photo_url,
+            gps_point=WKTElement(f"POINT({gps_lon} {gps_lat})", srid=4326) if gps_lat is not None and gps_lon is not None else None,
+            attempt_time=datetime.utcnow(),
+            evidence_required=evidence_required
+        )
+        self.db.add(attempt)
+        return attempt
+
     async def get_active_assignment(self, order_id: uuid.UUID) -> DeliveryAssignment | None:
         result = await self.db.execute(
             select(DeliveryAssignment).where(

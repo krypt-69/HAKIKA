@@ -31,6 +31,7 @@ class IntaSendProvider(PaymentProvider):
         account_type: str,
         account_reference: str,
         business_name: str,
+        payout_reference: str | None = None,
     ) -> Dict[str, Any]:
         return await self.client.send_b2b_payout(
             amount=amount,
@@ -38,14 +39,28 @@ class IntaSendProvider(PaymentProvider):
             account_type=account_type,
             account_reference=account_reference,
             business_name=business_name,
+            payout_reference=payout_reference,
         )
 
     async def get_payout_status(
         self,
         provider_reference: str,
     ) -> Dict[str, Any]:
-        logger.warning("Payout status not implemented for IntaSend")
-        return {"status": "pending", "reference": provider_reference}
+        data = await self.client.get_b2b_payout_status(provider_reference)
+        if data.get("status") == "unknown":
+            return {"status": "unknown", "reference": provider_reference}
+        # inspect the first item's status, not just batch status
+        txns = data.get("transactions") or []
+        if not txns:
+            return {"status": "unknown", "reference": provider_reference}
+        code = txns[0].get("status_code") or data.get("status_code")
+        if code in ("TS100",):
+            return {"status": "completed", "reference": provider_reference}
+        if code in ("TF106", "TF103", "BF102", "BF105", "BF107", "TC108", "BE111"):
+            return {"status": "failed", "reference": provider_reference}
+        if code == "TF105":
+            return {"status": "unknown", "reference": provider_reference}
+        return {"status": "processing", "reference": provider_reference}
 
     def verify_webhook(
         self,

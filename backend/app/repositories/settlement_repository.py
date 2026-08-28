@@ -22,6 +22,20 @@ class SettlementRepository:
         await self.db.refresh(settlement)
         return settlement
 
+    async def add_noncommit(self, business_id: uuid.UUID, amount: float,
+                             order_id: uuid.UUID, payment_id: uuid.UUID,
+                             payout_reference: str | None = None) -> Settlement:
+        settlement = Settlement(
+            business_id=business_id,
+            order_id=order_id,
+            payment_id=payment_id,
+            amount=amount,
+            status=SettlementStatus.pending,
+            payout_reference=payout_reference
+        )
+        self.db.add(settlement)
+        return settlement
+
     async def get_by_id(self, settlement_id: uuid.UUID) -> Settlement | None:
         result = await self.db.execute(select(Settlement).where(Settlement.id == settlement_id))
         return result.scalar_one_or_none()

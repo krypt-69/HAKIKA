@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 import logging
 import uuid
 from fastapi import HTTPException
@@ -21,6 +22,7 @@ from app.services.order_events import publish_order_update
 from app.services.payment_policy_service import PaymentPolicyService
 from app.repositories.payment_policy_repository import PaymentPolicyRepository
 from app.models.payment import Payment, PaymentStatus
+from app.models.order_notification_event import OrderNotificationEvent
 from app.models.payment_attempt import PaymentAttemptStatus
 from app.models.order import Order, OrderStatus
 from app.models.merchant_credit_order import MerchantCreditOrderStatus
@@ -149,6 +151,141 @@ class PaymentService:
         except Exception as e:
             logger.error(f"Failed to auto-complete mock payment {payment_id}: {e}")
 
+    async def _process_credit_callback_transaction(
+        self,
+        payment: Payment,
+        business,
+        order: Order,
+    ) -> Order:
+        """Atomically complete a credit payment callback."""
+        from decimal import Decimal, ROUND_HALF_UP
+        from sqlalchemy.dialects.postgresql import insert
+        from app.repositories.credit_transaction_repository import CreditTransactionRepository
+        from app.repositories.order_notification_repository import OrderNotificationRepository
+
+        # Lock payment row
+        locked_payment = await self.payment_repo.get_and_lock(payment.id)
+        if locked_payment and locked_payment.status == PaymentStatus.verified:
+            return order  # already verified
+
+        if locked_payment is None:
+            raise ValueError("Payment not found")
+
+        current_credit = Decimal(str(business.credit_balance))
+        current_volume = Decimal(str(business.remaining_credit_volume))
+        order_amount = Decimal(str(payment.amount))
+        rate = current_credit / current_volume
+        deduction = (order_amount * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+        # Update business credit
+        business.credit_balance = (current_credit - deduction).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        business.remaining_credit_volume = (current_volume - order_amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+        # Payment status non-commit
+        await self.payment_repo.set_status_noncommit(locked_payment, PaymentStatus.verified)
+
+        # Credit transaction non-commit
+        ct_repo = CreditTransactionRepository(self.payment_repo.db)
+        await ct_repo.add_noncommit({
+            "business_id": business.id,
+            "order_id": order.id,
+            "type": CreditTransactionType.order_processing_fee,
+            "status": CreditTransactionStatus.completed,
+            "amount": deduction,
+            "direction": CreditTransactionDirection.DEBIT,
+            "reference": order.order_number,
+            "description": f"Processing fee for order {order.order_number}",
+        })
+
+        # Transition order paid with version/event/unread
+        order = await self.order_repo.get_by_id(order.id)
+        next_version = order.status_version + 1
+        order.status = OrderStatus.paid
+        order.status_version = next_version
+
+        notif_event = OrderNotificationEvent(order_id=order.id, status_version=next_version)
+        stmt = insert(OrderNotificationEvent).values(
+            order_id=order.id,
+            status_version=next_version,
+            created_at=datetime.utcnow(),
+        )
+        stmt = stmt.on_conflict_do_nothing(index_elements=['order_id', 'status_version']).returning(OrderNotificationEvent.id)
+        result = await self.payment_repo.db.execute(stmt)
+        inserted = result.scalar_one_or_none()
+
+        if inserted:
+            on_repo = OrderNotificationRepository(self.payment_repo.db)
+            await on_repo.add_or_increment(order.customer_id, order.id)
+
+        await self.payment_repo.db.commit()
+        await self.payment_repo.db.refresh(order)
+        return order
+
+    async def _process_payg_callback_transaction(
+        self,
+        payment: Payment,
+        business,
+        order: Order,
+        fee: float,
+    ) -> Order:
+        """Atomically complete PAYG payment callback DB portion."""
+        from sqlalchemy.dialects.postgresql import insert
+        from app.repositories.settlement_repository import SettlementRepository
+        from app.repositories.order_notification_repository import OrderNotificationRepository
+
+        locked_payment = await self.payment_repo.get_and_lock(payment.id)
+        if locked_payment and locked_payment.status == PaymentStatus.verified:
+            return order  # already verified
+        if locked_payment is None:
+            raise ValueError("Payment not found")
+
+        await self.payment_repo.set_status_noncommit(locked_payment, PaymentStatus.verified)
+
+        await self.ledger_repo.add_noncommit(
+            LedgerTransactionType.payment_in, float(payment.amount),
+            order_id=payment.order_id, payment_id=payment.id,
+            business_id=order.business_id
+        )
+        await self.ledger_repo.add_noncommit(
+            LedgerTransactionType.hakika_fee, -fee,
+            order_id=payment.order_id, payment_id=payment.id,
+            business_id=order.business_id
+        )
+
+        net_amount = float(payment.amount) - fee
+        settlement_repo = SettlementRepository(self.payment_repo.db)
+        payout_ref = f"STL-{uuid.uuid4().hex[:20]}"
+        await settlement_repo.add_noncommit(
+            business_id=order.business_id,
+            amount=net_amount,
+            order_id=order.id,
+            payment_id=payment.id,
+            payout_reference=payout_ref,
+        )
+
+        # Transition order paid
+        next_version = order.status_version + 1
+        order.status = OrderStatus.paid
+        order.status_version = next_version
+
+        from app.models.order_notification_event import OrderNotificationEvent
+        stmt = insert(OrderNotificationEvent).values(
+            order_id=order.id,
+            status_version=next_version,
+            created_at=datetime.utcnow(),
+        )
+        stmt = stmt.on_conflict_do_nothing(index_elements=['order_id', 'status_version']).returning(OrderNotificationEvent.id)
+        result = await self.payment_repo.db.execute(stmt)
+        inserted = result.scalar_one_or_none()
+
+        if inserted:
+            on_repo = OrderNotificationRepository(self.payment_repo.db)
+            await on_repo.add_or_increment(order.customer_id, order.id)
+
+        await self.payment_repo.db.commit()
+        await self.payment_repo.db.refresh(order)
+        return order
+
     async def process_callback(self, payload: dict) -> dict:
         logger.info(f"Callback payload: {payload}")
         state = payload.get('state')
@@ -189,8 +326,6 @@ class PaymentService:
         # Resolve provider from stored payment record
         provider = PaymentProviderFactory.by_name(payment.provider)
 
-        await self.payment_repo.update_status(payment, PaymentStatus.verified)
-
         order = await self.order_repo.get_by_id(payment.order_id)
         business = await BusinessRepository(self.payment_repo.db).get_by_id(order.business_id)
         if not business.is_active:
@@ -200,48 +335,16 @@ class PaymentService:
             raise HTTPException(status_code=404, detail="Business not found")
 
         if business.payment_model == PaymentModel.credit:
-            from decimal import Decimal, ROUND_HALF_UP
-            current_credit = Decimal(str(business.credit_balance))
-            current_volume = Decimal(str(business.remaining_credit_volume))
-            if current_volume == 0:
-                raise HakikaHTTPException(
-                    status_code=409,
-                    detail="Credit volume exhausted.",
-                    code="INSUFFICIENT_CREDIT"
-                )
-            order_amount = Decimal(str(payment.amount))
-            rate = current_credit / current_volume
-            deduction = (order_amount * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            business.credit_balance = (current_credit - deduction).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            business.remaining_credit_volume = (current_volume - order_amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-            ct_repo = CreditTransactionRepository(self.payment_repo.db)
-            await ct_repo.create_order_processing_fee(
-                business_id=business.id,
-                order_id=order.id,
-                order_number=order.order_number,
-                fee=float(deduction),
-            )
             prev = order.status
-            await self.order_repo.update_status(order, OrderStatus.paid)
+            order = await self._process_credit_callback_transaction(payment, business, order)
             await publish_order_update(order, prev)
-            logger.info(f"Credit Plan: order {order.id} paid, deduction {deduction} from credit.")
+            logger.info(f"Credit Plan: order {order.id} paid.")
             return {"status": "verified", "settlement": "none"}
 
         else:
             fee = await calculate_processing_fee(self.payment_repo.db, float(payment.amount))
-            await self.ledger_repo.create_entry(
-                LedgerTransactionType.payment_in, float(payment.amount),
-                order_id=payment.order_id, payment_id=payment.id,
-                business_id=order.business_id
-            )
-            await self.ledger_repo.create_entry(
-                LedgerTransactionType.hakika_fee, -fee,
-                order_id=payment.order_id, payment_id=payment.id,
-                business_id=order.business_id
-            )
             prev = order.status
-            await self.order_repo.update_status(order, OrderStatus.paid)
+            order = await self._process_payg_callback_transaction(payment, business, order, fee)
             await publish_order_update(order, prev)
 
             settlement_repo = SettlementRepository(self.payment_repo.db)
@@ -283,9 +386,13 @@ class PaymentService:
                     account_number=account_number,
                     account_type=account_type,
                     account_reference=account_reference,
-                    business_name=business_name
+                    business_name=business_name,
+                    payout_reference=settlement.payout_reference,
                 )
                 logger.info(f"B2B payout response: {payout_response}")
+                tracking_id = payout_response.get('tracking_id') or payout_response.get('file_id') or payout_response.get('transaction_id')
+                if tracking_id:
+                    settlement.provider_payout_reference = tracking_id
                 provider_ref = payout_response.get('file_id') or payout_response.get('transaction_id') or payout_response.get('reference')
                 await settlement_repo.update_status(settlement, SettlementStatus.completed,
                                                     provider_reference=provider_ref)

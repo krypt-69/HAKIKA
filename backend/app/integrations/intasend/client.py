@@ -50,13 +50,23 @@ class IntaSendClient:
             resp.raise_for_status()
             return resp.json()
 
+    async def get_b2b_payout_status(self, tracking_id: str) -> dict:
+        url = f"{self.base_url}/api/v1/send-money/status/"
+        payload = {"tracking_id": tracking_id}
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(url, json=payload, headers=self._headers())
+            if resp.status_code >= 400:
+                return {"status": "unknown", "raw": resp.text}
+            return resp.json()
+
     async def send_b2b_payout(
         self,
         amount: float,
         account_number: str,
         account_type: str = "PayBill",
         account_reference: str = "HAKIKA-SETTLEMENT",
-        business_name: str = "Business"
+        business_name: str = "Business",
+        payout_reference: str | None = None,
     ) -> dict:
         url = f"{self.base_url}/api/v1/send-money/initiate/"
         payload = {
@@ -69,7 +79,8 @@ class IntaSendClient:
                 "account_type": account_type,
                 "account_reference": account_reference,
                 "amount": float(amount),
-                "narrative": "Hakika Settlement"
+                "narrative": "Hakika Settlement",
+                "reference": payout_reference,
             }]
         }
         async with httpx.AsyncClient(timeout=30) as client:

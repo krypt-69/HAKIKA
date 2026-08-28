@@ -56,6 +56,12 @@ export const api = {
         request<any>(`/payments/mock/callback/${checkoutId}`, { method: 'POST' }),
     getMyOrders: (phone: string) =>
         request<any>(`/orders/customer/my?phone=${encodeURIComponent(phone)}`),
+    getUnreadNotificationCount: (phone: string) =>
+        request<{ count: number }>(`/notifications/unread-count?phone=${encodeURIComponent(phone)}`),
+    getNotifications: (phone: string) =>
+        request<any[]>(`/notifications?phone=${encodeURIComponent(phone)}`),
+    markNotificationRead: (orderId: string, phone: string) =>
+        request<{ status: string }>(`/notifications/order/${orderId}/read?phone=${encodeURIComponent(phone)}`, { method: 'POST' }),
     getReceipt: (orderId: string) =>
         request<any>(`/orders/${orderId}/receipt`),
 };
