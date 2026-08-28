@@ -5,6 +5,7 @@ import uuid
 class CategoryResponse(BaseModel):
     id: int
     name: str
+    image_url: Optional[str] = None
     class Config:
         from_attributes = True
 

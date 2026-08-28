@@ -494,6 +494,7 @@ const BusinessProfile: React.FC = () => {
 
     const [cartMini, setCartMini] = useState(true);
     const [itemsListOpen, setItemsListOpen] = useState(false);
+    const productsRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!slug) return;
@@ -505,6 +506,14 @@ const BusinessProfile: React.FC = () => {
             .catch(err => setError(err.message))
             .finally(() => setLoading(false));
     }, [slug]);
+
+    // Land straight on the products, not the header — the person can
+    // still scroll up a bit to see the cover, logo, and welcome belt.
+    useEffect(() => {
+        if (!loading && business && productsRef.current) {
+            productsRef.current.scrollIntoView({ block: 'start' });
+        }
+    }, [loading, business]);
 
     const addToCart = (product: Product) => {
         setCart(prev => {
@@ -645,13 +654,11 @@ const BusinessProfile: React.FC = () => {
                 .pfp-qty-num { font-size: 15px; font-weight: 700; color: #16a34a; }
 
                 /* ── Product grid ─────────────────────────────── */
-                .product-grid { column-count: 2; column-gap: 4px; padding: 0 4px; }
-                .product-grid > div { break-inside: avoid; margin-bottom: 4px; display: inline-block; width: 100%; }
-                .product-grid > div:nth-child(2n) { margin-top: 24px; }
+                .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 0 4px; }
 
-                .pc-card { background: #fff; overflow: hidden; }
+                .pc-card { background: #fff; overflow: hidden; border-radius: 10px; }
                 .pc-img-wrap { width: 100%; cursor: pointer; }
-                .pc-img { width: 100%; height: auto; display: block; }
+                .pc-img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; display: block; }
                 .pc-name-chip {
                     font-family: 'Caveat', cursive; font-weight: 700; font-size: 18px; color: ${GOLD}; background: #f3f4f6;
                     padding: 3px 8px 0; cursor: pointer; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -727,11 +734,7 @@ const BusinessProfile: React.FC = () => {
                     .header-name { font-size: 48px; margin-top: 70px; }
                     .welcome-belt-text { font-size: 26px; }
 
-                    .product-grid { column-count: 4; column-gap: 18px; padding: 0; }
-                    .product-grid > div { margin-bottom: 18px; }
-                    .product-grid > div:nth-child(4n+2) { margin-top: 56px; }
-                    .product-grid > div:nth-child(4n+3) { margin-top: 22px; }
-                    .product-grid > div:nth-child(4n) { margin-top: 80px; }
+                    .product-grid { grid-template-columns: repeat(4, 1fr); gap: 22px; padding: 0; }
                     .pc-card { border-radius: 10px; }
                     .pc-name-chip { font-size: 20px; padding: 6px 12px 0; }
                     .pc-info { padding: 0 12px 12px; }
@@ -840,7 +843,7 @@ const BusinessProfile: React.FC = () => {
                 </div>
 
                 {/* ── Products masonry grid ───────────────────────────── */}
-                <div style={{ padding: '12px 4px 16px' }}>
+                <div ref={productsRef} style={{ padding: '12px 4px 16px', scrollMarginTop: 8 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 10, padding: '0 4px' }}>
                         Products {products.length > 0 && <span style={{ color: '#9ca3af', fontWeight: 500 }}>({products.length})</span>}
                     </div>

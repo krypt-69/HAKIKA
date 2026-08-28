@@ -18,9 +18,16 @@ class DiscoveryService:
         self.db = db
         self.category_repo = CategoryRepository(db)
 
-    async def list_categories(self) -> list[Category]:
-        return await self.category_repo.list_all()
-
+    async def list_categories(self) -> list[dict]:
+        result = []
+        categories = await self.category_repo.list_all()
+        for c in categories:
+            result.append({
+                "id": c.id,
+                "name": c.name,
+                "image_url": f"/api/v1/categories/{c.id}/image" if c.image_data else None,
+            })
+        return result
     async def discover_businesses(
         self,
         lat: Optional[float] = None,

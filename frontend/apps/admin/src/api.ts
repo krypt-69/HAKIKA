@@ -8,8 +8,9 @@ async function getToken(): Promise<string | null> {
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const token = await getToken();
+  const isFormData = options?.body instanceof FormData;
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
     ...(options?.headers as Record<string, string> || {}),
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -66,10 +67,16 @@ export const api = {
     processSettlement: (id: string) =>
       request(`/admin/settlements/${id}/process`, { method: 'POST' }),
     categories: () => request<any[]>('/admin/categories'),
-    createCategory: (name: string) =>
-      request(`/admin/categories?name=${encodeURIComponent(name)}`, { method: 'POST' }),
-    updateCategory: (id: number, name: string) =>
-      request(`/admin/categories/${id}?name=${encodeURIComponent(name)}`, { method: 'PUT' }),
+    createCategory: (name: string, imageFile?: File) => {
+      const formData = new FormData();
+      if (imageFile) formData.append('image', imageFile);
+      return request(`/admin/categories?name=${encodeURIComponent(name)}`, { method: 'POST', body: formData, headers: {} });
+    },
+    updateCategory: (id: number, name: string, imageFile?: File) => {
+      const formData = new FormData();
+      if (imageFile) formData.append('image', imageFile);
+      return request(`/admin/categories/${id}?name=${encodeURIComponent(name)}`, { method: 'PUT', body: formData, headers: {} });
+    },
     deleteCategory: (id: number) =>
       request(`/admin/categories/${id}`, { method: 'DELETE' }),
     disputes: () => request<any[]>('/admin/disputes'),

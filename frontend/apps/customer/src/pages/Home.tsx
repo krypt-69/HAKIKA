@@ -419,11 +419,15 @@ const BeltSection: React.FC<{ items: BusinessCard[]; gpsEnabled: boolean; label:
 };
 
 /* ── Category stories (Instagram-style) ─────────────── */
-const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor; onClick: () => void }> = ({ label, active, colors, onClick }) => (
+const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor; onClick: () => void; imageUrl?: string | null }> = ({ label, active, colors, onClick, imageUrl }) => (
     <button onClick={onClick} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0, width: 66, fontFamily: 'inherit', padding: 0 }}>
         <div style={{ width: 58, height: 58, borderRadius: '50%', padding: 3, background: active ? `linear-gradient(135deg, ${colors.ring}, ${colors.strong})` : colors.ring, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: active ? 'scale(1.06)' : 'scale(1)', transition: 'transform 0.15s ease' }}>
             <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: colors.light, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>
-                <span style={{ fontSize: 20, fontWeight: 800, color: colors.strong, fontFamily: 'Georgia, serif' }}>{label.charAt(0).toUpperCase()}</span>
+                {imageUrl ? (
+                    <img src={imageUrl} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                ) : (
+                    <span style={{ fontSize: 20, fontWeight: 800, color: colors.strong, fontFamily: 'Georgia, serif' }}>{label.charAt(0).toUpperCase()}</span>
+                )}
             </div>
         </div>
         <span style={{ fontSize: 10.5, fontWeight: 700, color: colors.strong, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 66 }}>{label}</span>
@@ -758,6 +762,7 @@ const Home: React.FC = () => {
                                 active={selectedCategory === c.id}
                                 colors={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]}
                                 onClick={() => handleCategoryChange(c.id)}
+                                imageUrl={c.image_url || null}
                             />
                         ))}
                     </div>

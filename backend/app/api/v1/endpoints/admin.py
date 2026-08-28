@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.session import get_db
 from app.api.dependencies import get_current_user
@@ -19,6 +19,7 @@ from app.repositories.order_repository import OrderRepository
 from app.repositories.merchant_credit_order_repository import MerchantCreditOrderRepository
 from app.models.merchant_credit_order import MerchantCreditOrder
 from app.models.category import Category
+from app.utils.images import validate_and_process
 from app.models.payment_policy import PaymentPolicy
 from app.repositories.payment_policy_repository import PaymentPolicyRepository
 from app.models.credit_plan import CreditPlan
@@ -602,6 +603,7 @@ async def list_categories(
             "name": c.name,
             "acceptance_timeout_minutes": c.acceptance_timeout_minutes,
             "requires_deposit": c.requires_deposit,
+            "image_url": f"/api/v1/categories/{c.id}/image" if c.image_data else None,
         }
         for c in categories
     ]
@@ -613,12 +615,16 @@ async def create_category(
     db: AsyncSession = Depends(get_db),
     acceptance_timeout_minutes: int = 60,
     requires_deposit: bool = False,
+    image: UploadFile | None = File(None),
 ):
     """Create a new category."""
     existing = await db.execute(select(Category).where(Category.name == name))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Category already exists")
-    cat = Category(name=name, acceptance_timeout_minutes=acceptance_timeout_minutes, requires_deposit=requires_deposit)
+    image_data = None
+    if image is not None:
+        image_data = validate_and_process(image)
+    cat = Category(name=name, acceptance_timeout_minutes=acceptance_timeout_minutes, requires_deposit=requires_deposit, image_data=image_data)
     db.add(cat)
     await db.commit()
     await db.refresh(cat)
@@ -632,6 +638,7 @@ async def update_category(
     name: str | None = None,
     acceptance_timeout_minutes: int | None = None,
     requires_deposit: bool | None = None,
+    image: UploadFile | None = File(None),
 ):
     """Update a category."""
     cat = await db.get(Category, category_id)
@@ -640,6 +647,8 @@ async def update_category(
     if name is not None: cat.name = name
     if acceptance_timeout_minutes is not None: cat.acceptance_timeout_minutes = acceptance_timeout_minutes
     if requires_deposit is not None: cat.requires_deposit = requires_deposit
+    if image is not None:
+        cat.image_data = validate_and_process(image)
     await db.commit()
     await db.refresh(cat)
     return {"id": cat.id, "name": cat.name, "status": "updated"}

@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from geoalchemy2.shape import to_shape
 from app.database.session import get_db
 from app.services.discovery_service import DiscoveryService
+from app.api.v1.endpoints.images import _image_response
+from app.models.category import Category
 from app.models.business import Business
 from app.models.product import Product
 from app.models.product_image import ProductImage
@@ -21,6 +23,13 @@ def get_discovery_service(db: AsyncSession = Depends(get_db)):
 @router.get("/categories", response_model=List[CategoryResponse])
 async def list_categories(service: DiscoveryService = Depends(get_discovery_service)):
     return await service.list_categories()
+
+@router.get("/categories/{category_id}/image", response_class=Response)
+async def get_category_image(category_id: int, db: AsyncSession = Depends(get_db)):
+    cat = await db.get(Category, category_id)
+    if not cat or not cat.image_data:
+        raise HTTPException(status_code=404, detail="Image not found")
+    return _image_response(cat.image_data)
 
 @router.get("/businesses/discover", response_model=DiscoverResponse)
 async def discover_businesses(
