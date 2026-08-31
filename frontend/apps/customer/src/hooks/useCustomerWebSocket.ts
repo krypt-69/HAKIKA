@@ -7,17 +7,23 @@ interface UseCustomerWebSocketReturn {
 export function useCustomerWebSocket(
   orderId: string | undefined,
   phone: string | null,
-  onEvent: () => void
+  onEvent: () => void,
+  onReconnect?: () => void
 ): UseCustomerWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptRef = useRef(0);
   const [isConnected, setIsConnected] = useState(false);
   const onEventRef = useRef(onEvent);
+  const onReconnectRef = useRef(onReconnect);
 
   useEffect(() => {
     onEventRef.current = onEvent;
   }, [onEvent]);
+
+  useEffect(() => {
+    onReconnectRef.current = onReconnect;
+  }, [onReconnect]);
 
   const connect = useCallback(() => {
     if (!orderId || !phone) { console.log('Customer WS: skipped – missing orderId or phone', {orderId, phone}); return; }
@@ -28,6 +34,7 @@ export function useCustomerWebSocket(
     ws.onopen = () => {
       setIsConnected(true);
       attemptRef.current = 0;
+      onReconnectRef.current?.();
     };
     ws.onmessage = (msg) => {
       try {

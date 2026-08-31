@@ -60,7 +60,8 @@ const BellIcon: React.FC = () => (
 
 /* ── Notification bell with dynamic badge ────────────── */
 /* Count always comes from the API — never hardcoded. Badge simply
-   doesn't render when there's nothing unread. */
+   doesn't render when there's nothing unread. Badge is red so a new
+   notification clearly stands out against the green nav icons. */
 const NotificationBell: React.FC = () => {
     const [count, setCount] = React.useState<number | null>(null);
 
@@ -106,11 +107,11 @@ const NotificationBell: React.FC = () => {
         <span style={{ position: 'relative', display: 'inline-flex' }}>
             <BellIcon />
             {!!count && count > 0 && (
-                <span style={{
+                <span className="hk-notif-badge" style={{
                     position: 'absolute',
                     top: -4,
                     right: -7,
-                    background: '#16a34a',
+                    background: '#ef4444',
                     color: '#fff',
                     borderRadius: '50%',
                     minWidth: 14,
@@ -149,7 +150,7 @@ const NavItem: React.FC<{ to: string; icon: React.ReactNode; label: string; acti
             fontFamily: 'inherit',
         }}
     >
-        <div style={{
+        <div className="hk-nav-pill" style={{
             position: 'relative',
             display: 'flex',
             flexDirection: 'column',
@@ -164,19 +165,19 @@ const NavItem: React.FC<{ to: string; icon: React.ReactNode; label: string; acti
             transition: 'background 0.18s ease, color 0.18s ease, transform 0.18s ease',
         }}>
             {active && (
-                <span style={{
+                <span className="hk-nav-dot" style={{
                     position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)',
                     width: 3.5, height: 3.5, borderRadius: '50%', background: '#16a34a',
                 }} />
             )}
             {icon}
-            <span style={{ fontSize: 9.5, fontWeight: active ? 800 : 700, whiteSpace: 'nowrap' }}>
+            <span className="hk-nav-label" style={{ fontSize: 9.5, fontWeight: active ? 800 : 700, whiteSpace: 'nowrap' }}>
                 {label}
             </span>
         </div>
 
         {/* Underline — only takes width when active */}
-        <span style={{
+        <span className="hk-nav-underline" style={{
             marginTop: 2,
             width: active ? 16 : 0,
             height: 2,
@@ -197,8 +198,10 @@ const BottomNav: React.FC = () => {
     return (
         <div className="hk-navbar">
             <div className="hk-navbar-inner">
-                <NavItem to="/" icon={<HomeIcon />} label="Home" active={isActive('/')} />
-                <NavItem to="/my-orders" icon={<OrdersIcon />} label="My Orders" active={isActive('/my-orders')} />
+                <div className="hk-nav-group-left">
+                    <NavItem to="/" icon={<HomeIcon />} label="Home" active={isActive('/')} />
+                    <NavItem to="/my-orders" icon={<OrdersIcon />} label="My Orders" active={isActive('/my-orders')} />
+                </div>
                 <NavItem to="/notifications" icon={<NotificationBell />} label="Notifications" active={isActive('/notifications')} />
             </div>
         </div>
@@ -232,9 +235,15 @@ const App: React.FC = () => (
             .hk-navbar-inner {
                 display: flex;
             }
+            .hk-nav-group-left {
+                display: contents;
+            }
 
+            /* ── Desktop: noticeably bigger nav, scaled to the
+               wider screen — bigger icons, bigger text, taller bar,
+               more breathing room between items. ── */
             @media (min-width: 860px) {
-                .hk-app-shell { padding-bottom: 0; padding-top: 52px; }
+                .hk-app-shell { padding-bottom: 0; padding-top: 76px; }
 
                 .hk-navbar {
                     position: fixed;
@@ -242,21 +251,34 @@ const App: React.FC = () => (
                     bottom: auto;
                     left: 0;
                     right: 0;
-                    padding: 6px 24px;
+                    padding: 14px 56px;
                     background: #ffffff;
                     border-top: none;
                     border-bottom: 1px solid #f3f4f6;
-                    box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+                    box-shadow: 0 1px 8px rgba(0,0,0,0.05);
                 }
                 .hk-navbar-inner {
-                    max-width: 560px;
-                    margin: 0 auto;
-                    justify-content: center;
-                    gap: 40px;
+                    width: 100%;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .hk-nav-group-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 96px;
                 }
                 .hk-nav-item {
                     flex: none !important;
-                    min-width: 72px;
+                    min-width: 100px;
+                }
+                .hk-nav-pill { padding: 8px 20px !important; gap: 5px !important; border-radius: 16px !important; color: #16a34a !important; }
+                .hk-nav-pill svg { width: 26px !important; height: 26px !important; }
+                .hk-nav-label { font-size: 14px !important; }
+                .hk-nav-dot { background: #16a34a !important; }
+                .hk-nav-underline { background: #16a34a !important; }
+                .hk-notif-badge {
+                    min-width: 20px !important; height: 20px !important; font-size: 12px !important;
+                    top: -6px !important; right: -10px !important; border-width: 2.5px !important;
                 }
             }
         `}</style>

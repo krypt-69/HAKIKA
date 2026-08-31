@@ -141,13 +141,13 @@ const CategorySpinner: React.FC<{ size?: number; color?: string }> = ({ size = 4
     );
 };
 
-const ChevronLeft = () =>
-    React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' },
+const ChevronLeftSvg = () =>
+    React.createElement('svg', { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' },
         React.createElement('polyline', { points: '15 18 9 12 15 6' })
     );
 
-const ChevronRightSm = () =>
-    React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' },
+const ChevronRightSvg = () =>
+    React.createElement('svg', { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' },
         React.createElement('polyline', { points: '9 18 15 12 9 6' })
     );
 
@@ -211,28 +211,34 @@ const LogoImage: React.FC<{ id: string; logoUrl?: string | null; alt: string; st
     );
 };
 
-/* ── Zoom overlay (logo click) ───────────────────────── */
+/* ── Zoom overlay (logo click) ───────────────────────────────────
+   Mobile: centered modal, as before.
+   Desktop (see .hk-zoom-box media query): the box becomes 50% of the
+   viewport width, anchored to the very top so it touches the nav, and
+   the logo inside grows to fill three-quarters of the box. */
 const BizZoomOverlay: React.FC<{ biz: BusinessCard; open: boolean; statusLabel: string; catColor: CatColor; onClose: () => void }> = ({ biz, open, statusLabel, catColor, onClose }) => {
     return (
         <div
             onClick={onClose}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.72)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+            className="hk-zoom-overlay"
         >
-            <div onClick={e => e.stopPropagation()} style={{ background: catColor.light, borderRadius: 18, padding: '28px 24px 22px', width: '100%', maxWidth: 320, textAlign: 'center', position: 'relative', boxShadow: '0 20px 60px rgba(0,0,0,0.4)', animation: 'zoomIn 0.18s ease-out' }}>
-                <button onClick={onClose} style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(0,0,0,0.08)', border: 'none', borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <div onClick={e => e.stopPropagation()} className="hk-zoom-box" style={{ background: catColor.light }}>
+                <button onClick={onClose} style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(0,0,0,0.08)', border: 'none', borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 }}>
                     <XSvg color={catColor.strong} size={15} />
                 </button>
-                <LogoImage id={biz.id} logoUrl={biz.logo_url} alt={biz.name} style={{ width: 110, height: 110, objectFit: 'cover', borderRadius: '50%', border: `4px solid ${catColor.ring}`, margin: '0 auto 14px' }} />
-                <div style={{ fontSize: 20, fontWeight: 800, color: catColor.strong, fontFamily: 'Georgia, serif', marginBottom: 4 }}>{biz.name}</div>
-                <div style={{ fontSize: 13, color: catColor.strong, marginBottom: 10, opacity: 0.8 }}>{biz.category_name}</div>
+                <LogoImage id={biz.id} logoUrl={biz.logo_url} alt={biz.name} style={{ width: '75%', aspectRatio: '1 / 1', objectFit: 'cover', borderRadius: '50%', border: `4px solid ${catColor.ring}`, margin: '0 auto 14px', display: 'block' }} />
+                <div style={{ fontSize: 20, fontWeight: 800, color: catColor.strong, fontFamily: 'Georgia, serif', marginBottom: 4, textAlign: 'center' }}>{biz.name}</div>
+                <div style={{ fontSize: 13, color: catColor.strong, marginBottom: 10, opacity: 0.8, textAlign: 'center' }}>{biz.category_name}</div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 12 }}>
                     <StarSvg color="#facc15" size={15} /><StarSvg color="#facc15" size={15} /><StarSvg color="#facc15" size={15} />
                     <span style={{ fontSize: 13, color: catColor.strong, fontWeight: 700 }}>{biz.trust_score?.toFixed(0)}</span>
                 </div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: open ? '#052e16' : '#450a0a', borderRadius: 20, padding: '5px 14px', marginBottom: biz.address_text ? 10 : 0 }}>
-                    {open && <CheckCircleSvgBig color="#4ade80" size={13} />}
-                    <span style={{ fontSize: 12, fontWeight: 700, color: open ? '#4ade80' : '#f87171' }}>{open ? 'Open now' : 'Closed'}</span>
-                    {statusLabel && <span style={{ fontSize: 11, color: '#9ca3af' }}>· {statusLabel}</span>}
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: open ? '#052e16' : '#450a0a', borderRadius: 20, padding: '5px 14px', marginBottom: biz.address_text ? 10 : 0 }}>
+                        {open && <CheckCircleSvgBig color="#4ade80" size={13} />}
+                        <span style={{ fontSize: 12, fontWeight: 700, color: open ? '#4ade80' : '#f87171' }}>{open ? 'Open now' : 'Closed'}</span>
+                        {statusLabel && <span style={{ fontSize: 11, color: '#9ca3af' }}>· {statusLabel}</span>}
+                    </div>
                 </div>
                 {biz.address_text && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
@@ -245,97 +251,13 @@ const BizZoomOverlay: React.FC<{ biz: BusinessCard; open: boolean; statusLabel: 
     );
 };
 
-/* ── Vertical card ──────────────────────────────────── */
-const VerticalCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: CatColor; darkMode: boolean }> = ({ biz, gpsEnabled, catColor, darkMode }) => {
-    const [zoomed, setZoomed] = useState(false);
-    const open = isOpenNow(biz.operating_hours);
-    const status = getStatusInfo(biz.operating_hours);
-    const bizPath = `/business/${biz.slug ?? biz.id}`;
-    const hoursBg = hexToRgba(catColor.ring, 0.1);
+/* ── Business card ──────────────────────────────────────────────
+   One unified card style used everywhere — mobile belts and the
+   desktop grid alike (previously there were two separate designs;
+   now there's only this one, just laid out differently by CSS). */
+const BELT_LOGO_D = 76;
 
-    const pageBg = darkMode ? '#0a0a0a' : '#f9fafb';
-    const cardBg = pageBg; // match page background exactly
-    const coverBg = darkMode ? '#0a0a0a' : '#f3f4f6';
-
-    return (
-        <>
-            {/* marginBottom increased to ~2x the height of the hours/location strip below,
-                so cards in the vertical (stacked) arrangement have more breathing room.
-                data-business-id lets us restore scroll position by re-locating this exact
-                card rather than replaying a raw pixel offset (which breaks whenever card
-                heights/spacing change). */}
-            <div data-business-id={biz.id} style={{ background: cardBg, borderRadius: 0, overflow: 'hidden', marginBottom: 60 }}>
-                <div style={{ display: 'flex', alignItems: 'stretch', gap: 6 }}>
-                    <Link to={bizPath} style={{ flex: '0 0 68%', position: 'relative', overflow: 'hidden', background: coverBg, display: 'block', aspectRatio: '1 / 1' }}>
-                        <CoverImage src={biz.cover_url} alt={biz.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                        {open && (
-                            <span style={{ position: 'absolute', top: 6, right: 6, background: '#16a34a', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 4, padding: '2px 6px' }}>Open</span>
-                        )}
-                    </Link>
-
-                    <div
-                        onClick={() => setZoomed(true)}
-                        role="button"
-                        aria-label={`View ${biz.name} details`}
-                        style={{
-                            flex: '0 0 32%', minWidth: 0,
-                            background: darkMode ? pageBg : catColor.light,
-                            borderRadius: 10, padding: '10px 8px',
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
-                            cursor: 'zoom-in'
-                        }}
-                    >
-                        <LogoImage id={biz.id} logoUrl={biz.logo_url} alt={biz.name} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: '50%', border: `2px solid ${catColor.ring}`, flexShrink: 0 }} />
-                        <div style={{ minWidth: 0, width: '100%' }}>
-                            <div style={{ fontSize: 15, fontWeight: 800, color: catColor.strong, fontFamily: 'Georgia, serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center', marginBottom: 3 }}>{biz.name}</div>
-                            <div style={{ fontSize: 11.5, fontWeight: 700, color: catColor.strong, textAlign: 'center', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{biz.category_name}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                                <StarSvg color="#facc15" size={12} /><StarSvg color="#facc15" size={12} /><StarSvg color="#facc15" size={12} />
-                                <span style={{ fontSize: 12, color: darkMode ? '#d1d5db' : '#374151', fontWeight: 800, marginLeft: 3 }}>{biz.trust_score?.toFixed(0)}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <Link
-                    to={bizPath}
-                    style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6,
-                        background: darkMode ? pageBg : hoursBg,
-                        borderRadius: '0 0 4px 4px', padding: '7px 12px', marginTop: 6, textDecoration: 'none',
-                    }}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                        {open && <CheckCircleSvg color="#16a34a" size={14} />}
-                        <span style={{ fontSize: 12, fontWeight: 700, color: open ? '#16a34a' : '#ef4444' }}>{open ? 'Open' : 'Closed'}</span>
-                        {status.label && (
-                            <>
-                                <span style={{ color: catColor.strong, fontSize: 11 }}>•</span>
-                                <span style={{ fontSize: 11, fontWeight: 700, color: catColor.strong, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{status.label}</span>
-                            </>
-                        )}
-                    </div>
-                    {(biz.address_text || (gpsEnabled && biz.distance_meters)) && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                            <LocationSvg color="#16a34a" size={11} />
-                            <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {gpsEnabled && biz.distance_meters ? `${(biz.distance_meters / 1000).toFixed(1)} km away` : ''}
-                                {gpsEnabled && biz.distance_meters && biz.address_text ? ' • ' : ''}
-                                {biz.address_text}
-                            </span>
-                        </div>
-                    )}
-                </Link>
-            </div>
-            {zoomed && <BizZoomOverlay biz={biz} open={open} statusLabel={status.label} catColor={catColor} onClose={() => setZoomed(false)} />}
-        </>
-    );
-};
-
-/* ── Belt card ──────────────────────────────────────── */
-const BELT_LOGO_D = 64;
-
-const BeltCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: CatColor; darkMode: boolean }> = ({ biz, gpsEnabled, catColor, darkMode }) => {
+const BizCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: CatColor; darkMode: boolean }> = ({ biz, gpsEnabled, catColor, darkMode }) => {
     const [zoomed, setZoomed] = useState(false);
     const open = isOpenNow(biz.operating_hours);
     const status = getStatusInfo(biz.operating_hours);
@@ -346,7 +268,7 @@ const BeltCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: Cat
 
     return (
         <>
-            <Link to={bizPath} data-business-id={biz.id} style={{ textDecoration: 'none', color: 'inherit', display: 'block', flexShrink: 0, width: 'min(70vw, 280px)' }}>
+            <Link to={bizPath} data-business-id={biz.id} className="hk-biz-card-link">
                 <div style={{ borderRadius: 12, overflow: 'visible', boxShadow: darkMode ? '0 1px 6px rgba(0,0,0,0.6)' : '0 1px 6px rgba(0,0,0,0.07)' }}>
                     <div style={{ width: '100%', aspectRatio: '1 / 1', position: 'relative', background: cardBg, overflow: 'hidden', borderRadius: '12px 12px 0 0' }}>
                         <CoverImage src={biz.cover_url} alt={biz.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -368,21 +290,21 @@ const BeltCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: Cat
                         >
                             <LogoImage id={biz.id} logoUrl={biz.logo_url} alt={biz.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: catColor.strong, fontFamily: 'Georgia, serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{biz.name}</div>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: catColor.strong, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 3 }}>{biz.category_name}</div>
+                        <div className="hk-biz-name" style={{ fontWeight: 800, color: catColor.strong, fontFamily: 'Georgia, serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{biz.name}</div>
+                        <div className="hk-biz-cat" style={{ fontWeight: 700, color: catColor.strong, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 3 }}>{biz.category_name}</div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                             <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <StarSvg color="#facc15" size={10} /><StarSvg color="#facc15" size={10} /><StarSvg color="#facc15" size={10} />
-                                <span style={{ fontSize: 10, color: darkMode ? '#d1d5db' : '#374151', fontWeight: 800, marginLeft: 2 }}>{biz.trust_score?.toFixed(0)}</span>
+                                <StarSvg color="#facc15" size={11} /><StarSvg color="#facc15" size={11} /><StarSvg color="#facc15" size={11} />
+                                <span className="hk-biz-trust" style={{ color: darkMode ? '#d1d5db' : '#374151', fontWeight: 800, marginLeft: 2 }}>{biz.trust_score?.toFixed(0)}</span>
                             </span>
                             {biz.address_text && (
                                 <span style={{ display: 'flex', alignItems: 'center', gap: 3, minWidth: 0 }}>
                                     <LocationSvg color="#16a34a" size={10} />
-                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{biz.address_text}</span>
+                                    <span className="hk-biz-addr" style={{ fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{biz.address_text}</span>
                                 </span>
                             )}
                             {gpsEnabled && biz.distance_meters ? (
-                                <span style={{ fontSize: 10, color: '#16a34a', fontWeight: 700, whiteSpace: 'nowrap' }}>{(biz.distance_meters / 1000).toFixed(1)}km</span>
+                                <span className="hk-biz-dist" style={{ color: '#16a34a', fontWeight: 700, whiteSpace: 'nowrap' }}>{(biz.distance_meters / 1000).toFixed(1)}km</span>
                             ) : null}
                         </div>
                     </div>
@@ -393,24 +315,24 @@ const BeltCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: Cat
     );
 };
 
-/* ── Belt section ────────────────────────────────────── */
-const BeltSection: React.FC<{ items: BusinessCard[]; gpsEnabled: boolean; label: string; categoryColorMap: Record<string, CatColor>; darkMode: boolean }> = ({ items, gpsEnabled, label, categoryColorMap, darkMode }) => {
-    const beltRef = useRef<HTMLDivElement>(null);
-    const scrollBelt = (dir: 'left' | 'right') => { beltRef.current?.scrollBy({ left: dir === 'right' ? 260 : -260, behavior: 'smooth' }); };
+/* ── Business shelf ───────────────────────────────────────────────
+   The SAME markup renders two different layouts purely via CSS:
+     - Mobile: a horizontally-scrolling belt where each card is sized
+       so one full card plus a quarter of the next is visible at once.
+     - Desktop (≥860px): the track switches to a wrapping grid, so
+       businesses fill the page like a proper storefront instead of
+       a single scrolling strip. */
+const BizShelf: React.FC<{ items: BusinessCard[]; gpsEnabled: boolean; label: string; categoryColorMap: Record<string, CatColor>; darkMode: boolean }> = ({ items, gpsEnabled, label, categoryColorMap, darkMode }) => {
     if (items.length === 0) return null;
     return (
         <div style={{ marginBottom: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', marginBottom: 12 }}>
+            <div style={{ padding: '0 16px', marginBottom: 12 }}>
                 <span style={{ fontFamily: '"Caveat", cursive', fontWeight: 700, fontSize: 24, lineHeight: 1, color: '#D4AF37', background: darkMode ? '#333' : '#6b7280', padding: '4px 16px 6px', borderRadius: 8, display: 'inline-block' }}>{label}</span>
-                <div style={{ display: 'flex', gap: 5 }}>
-                    <button onClick={() => scrollBelt('left')} style={{ width: 28, height: 28, borderRadius: '50%', border: darkMode ? '1px solid #444' : '1px solid #e5e7eb', background: darkMode ? '#222' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: darkMode ? '#ccc' : 'inherit' }}><ChevronLeft /></button>
-                    <button onClick={() => scrollBelt('right')} style={{ width: 28, height: 28, borderRadius: '50%', border: darkMode ? '1px solid #444' : '1px solid #e5e7eb', background: darkMode ? '#222' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: darkMode ? '#ccc' : 'inherit' }}><ChevronRightSm /></button>
-                </div>
             </div>
-            <div ref={beltRef} style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingLeft: 'max(16px, calc(50vw - 550px))', paddingRight: 'max(16px, calc(50vw - 550px))', paddingTop: BELT_LOGO_D / 2 + 4, paddingBottom: 8, scrollbarWidth: 'none', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' as any }}>
+            <div className="hk-belt-track">
                 {items.map(biz => (
-                    <div key={biz.id} style={{ scrollSnapAlign: 'center', flexShrink: 0, width: 'min(70vw, 280px)' }}>
-                        <BeltCard biz={biz} gpsEnabled={gpsEnabled} catColor={categoryColorMap[biz.category_name] || DEFAULT_CAT_COLOR} darkMode={darkMode} />
+                    <div key={biz.id} className="hk-belt-item">
+                        <BizCard biz={biz} gpsEnabled={gpsEnabled} catColor={categoryColorMap[biz.category_name] || DEFAULT_CAT_COLOR} darkMode={darkMode} />
                     </div>
                 ))}
             </div>
@@ -418,19 +340,27 @@ const BeltSection: React.FC<{ items: BusinessCard[]; gpsEnabled: boolean; label:
     );
 };
 
-/* ── Category stories (Instagram-style) ─────────────── */
-const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor; onClick: () => void; imageUrl?: string | null }> = ({ label, active, colors, onClick, imageUrl }) => (
-    <button onClick={onClick} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0, width: 66, fontFamily: 'inherit', padding: 0 }}>
-        <div style={{ width: 58, height: 58, borderRadius: '50%', padding: 3, background: active ? `linear-gradient(135deg, ${colors.ring}, ${colors.strong})` : colors.ring, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: active ? 'scale(1.06)' : 'scale(1)', transition: 'transform 0.15s ease' }}>
-            <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: colors.light, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>
+/* ── Category stories (Instagram-style, squircle + colored ring) ──
+   Each avatar is a rounded-square ("squircle") rather than a plain
+   circle, wrapped in a ring whose color is unique per category.
+   Selecting a category zooms its avatar up and spreads the whole
+   row out with extra breathing room. */
+const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor; onClick: () => void; imageUrl?: string | null; size: number }> = ({ label, active, colors, onClick, imageUrl, size }) => (
+    <button onClick={onClick} className="hk-cat-story" style={{ width: size + 10 }}>
+        <div className="hk-cat-ring" style={{
+            width: size, height: size, borderRadius: '30%', padding: 3,
+            background: active ? `linear-gradient(135deg, ${colors.ring}, ${colors.strong})` : colors.ring,
+            transform: active ? 'scale(1.18)' : 'scale(1)',
+        }}>
+            <div style={{ width: '100%', height: '100%', borderRadius: '26%', background: colors.light, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff', overflow: 'hidden' }}>
                 {imageUrl ? (
-                    <img src={imageUrl} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                    <img src={imageUrl} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                    <span style={{ fontSize: 20, fontWeight: 800, color: colors.strong, fontFamily: 'Georgia, serif' }}>{label.charAt(0).toUpperCase()}</span>
+                    <span style={{ fontSize: size * 0.34, fontWeight: 800, color: colors.strong, fontFamily: 'Georgia, serif' }}>{label.charAt(0).toUpperCase()}</span>
                 )}
             </div>
         </div>
-        <span style={{ fontSize: 10.5, fontWeight: 700, color: colors.strong, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 66 }}>{label}</span>
+        <span className="hk-cat-label" style={{ fontWeight: 700, color: colors.strong, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: size + 10 }}>{label}</span>
     </button>
 );
 
@@ -446,6 +376,7 @@ const Home: React.FC = () => {
     const [gpsLoading, setGpsLoading] = useState(false);
     const [darkMode, setDarkMode] = useState(false); // default light
     const sentinelRef = useRef<HTMLDivElement>(null);
+    const catScrollRef = useRef<HTMLDivElement>(null);
     const requestIdRef = useRef(0);
     // Guards against re-running the restore-scroll effect more than once per mount
     // (e.g. if allBusinesses updates again later from pagination).
@@ -600,7 +531,9 @@ const Home: React.FC = () => {
     const toggleDarkMode = () => setDarkMode(prev => !prev);
 
     const mainBg = darkMode ? '#0a0a0a' : '#f9fafb';
-    const headerBg = darkMode ? '#121212' : '#fff';
+    // Semi-transparent so the page-wide watermark logo shows faintly through
+    // the header too, exactly as before, instead of the header hiding it.
+    const headerBg = darkMode ? 'rgba(18,18,18,0.94)' : 'rgba(255,255,255,0.94)';
     const headerBorder = darkMode ? '#0a0a0a' : '#f3f4f6';
     const textColor = darkMode ? '#e5e7eb' : '#111827';
     const mutedText = darkMode ? '#9ca3af' : '#6b7280';
@@ -608,6 +541,7 @@ const Home: React.FC = () => {
     const inputBorder = darkMode ? '#333' : '#e5e7eb';
     const inputText = darkMode ? '#e5e7eb' : '#111827';
     const placeholderColor = darkMode ? '#6b7280' : '#9ca3af';
+    const categoriesBg = darkMode ? '#1a1a1a' : '#fff';
 
     const buildDefaultLayout = () => {
         const sections: JSX.Element[] = [];
@@ -615,13 +549,20 @@ const Home: React.FC = () => {
         while (i < allBusinesses.length) {
             const vertSlice = allBusinesses.slice(i, i + 3);
             sections.push(
-                <div key={`v-${groupIndex}`} className="hk-vgrid">
-                    {vertSlice.map(biz => <VerticalCard key={biz.id} biz={biz} gpsEnabled={gpsEnabled} catColor={categoryColorMap[biz.category_name] || DEFAULT_CAT_COLOR} darkMode={darkMode} />)}
+                <div key={`v-${groupIndex}`} className="hk-vgroup-track">
+                    {vertSlice.map(biz => (
+                        <div key={biz.id} className="hk-vgroup-item">
+                            <BizCard biz={biz} gpsEnabled={gpsEnabled} catColor={categoryColorMap[biz.category_name] || DEFAULT_CAT_COLOR} darkMode={darkMode} />
+                        </div>
+                    ))}
                 </div>
             );
             i += 3;
             const beltSlice = allBusinesses.slice(i, i + 4);
-            if (beltSlice.length > 0) { sections.push(<BeltSection key={`b-${groupIndex}`} items={beltSlice} gpsEnabled={gpsEnabled} label="Nearby shops" categoryColorMap={categoryColorMap} darkMode={darkMode} />); i += 4; }
+            if (beltSlice.length > 0) {
+                sections.push(<BizShelf key={`b-${groupIndex}`} items={beltSlice} gpsEnabled={gpsEnabled} label="Nearby shops" categoryColorMap={categoryColorMap} darkMode={darkMode} />);
+                i += 4;
+            }
             groupIndex++;
         }
         return sections;
@@ -633,8 +574,12 @@ const Home: React.FC = () => {
         return (
             <>
                 <div style={{ padding: '0 16px', marginBottom: 8 }}><span style={{ fontSize: 13, fontWeight: 700, color: textColor }}>Exact match</span></div>
-                <div className="hk-container" style={{ padding: '0 16px' }}><VerticalCard biz={exactMatch} gpsEnabled={gpsEnabled} catColor={categoryColorMap[exactMatch.category_name] || DEFAULT_CAT_COLOR} darkMode={darkMode} /></div>
-                {others.length > 0 && <BeltSection items={others} gpsEnabled={gpsEnabled} label="Other shops near you" categoryColorMap={categoryColorMap} darkMode={darkMode} />}
+                <div className="hk-vgroup-track" style={{ marginBottom: 24 }}>
+                    <div className="hk-vgroup-item">
+                        <BizCard biz={exactMatch} gpsEnabled={gpsEnabled} catColor={categoryColorMap[exactMatch.category_name] || DEFAULT_CAT_COLOR} darkMode={darkMode} />
+                    </div>
+                </div>
+                {others.length > 0 && <BizShelf items={others} gpsEnabled={gpsEnabled} label="Other shops near you" categoryColorMap={categoryColorMap} darkMode={darkMode} />}
             </>
         );
     };
@@ -649,8 +594,19 @@ const Home: React.FC = () => {
         whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0,
     });
 
+    // Category row spreads out and gets extra breathing room once something is selected.
+    const catRowActive = selectedCategory !== undefined;
+
     return (
-        <div style={{ background: mainBg, minHeight: '100vh', color: textColor }}>
+        <div style={{ background: mainBg, minHeight: '100vh', color: textColor, position: 'relative' }}>
+            {/* Page-wide faint watermark — mobile only; hidden on desktop entirely
+                (see .hk-watermark media query below). */}
+            <div className="hk-watermark" style={{
+                position: 'fixed', inset: 0, backgroundImage: 'url(/customer/logo.png)',
+                backgroundSize: 'cover', backgroundPosition: 'center',
+                opacity: darkMode ? 0.05 : 0.1, zIndex: 0, pointerEvents: 'none',
+            }} />
+
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap');
                 @keyframes spin { to { transform: rotate(360deg); } }
@@ -658,133 +614,250 @@ const Home: React.FC = () => {
                 input::placeholder { color: ${placeholderColor}; }
                 ::-webkit-scrollbar { display: none; }
                 .hk-container { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
-                .hk-vgrid { padding: 0 16px; }
                 .hk-radius-scroll { -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
                 .hk-radius-scroll > button { scroll-snap-align: start; }
+
+                /* ── Category avatars: squircle + unique ring, zoom + spread when active ── */
+                .hk-cat-scroll { display: flex; align-items: flex-start; overflow-x: auto; padding: 14px 16px; scrollbar-width: none; transition: gap 0.25s ease, justify-content 0.25s ease; scroll-behavior: smooth; }
+                .hk-cat-story { display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; border: none; cursor: pointer; flex-shrink: 0; font-family: inherit; padding: 0; }
+                .hk-cat-ring { display: flex; align-items: center; justify-content: center; transition: transform 0.25s ease, background 0.25s ease; }
+                .hk-cat-label { font-size: 11px; }
+
+                .hk-cat-nav-btn {
+                    width: 30px; height: 30px; border-radius: 50%; border: none; cursor: pointer;
+                    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+                    background: rgba(0,0,0,0.06); color: inherit; margin: 18px 4px 0;
+                }
+                .hk-cat-nav-btn:hover { background: rgba(0,0,0,0.12); }
+                .hk-cat-bar-row { display: flex; align-items: stretch; }
+                /* Scroll-nav chevrons are desktop-only — on mobile the row scrolls
+                   fine via native touch swipe, and the buttons would just crowd it. */
+                .hk-cat-nav-desktop-only { display: none; }
+
+                /* Sticky category bar. top:0 on mobile (nav is at the bottom there).
+                   On desktop the app's top nav bar sits at the very top of the
+                   viewport, so this needs to sit below it instead of underneath it —
+                   see the desktop override further down. */
+                .hk-cat-sticky { position: sticky; top: 0; z-index: 20; }
+
+                /* ── Business card shelf: mobile = horizontal belt, desktop = grid ── */
+                .hk-biz-card-link { text-decoration: none; color: inherit; display: block; }
+                .hk-biz-name { font-size: 13px; margin-bottom: 1px; }
+                .hk-biz-cat { font-size: 10px; }
+                .hk-biz-trust { font-size: 10px; }
+                .hk-biz-addr, .hk-biz-dist { font-size: 10px; }
+
+                .hk-belt-track {
+                    display: flex; gap: 14px; overflow-x: auto;
+                    padding: ${BELT_LOGO_D / 2 + 4}px 16px 8px 16px;
+                    scrollbar-width: none; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+                }
+                /* start (not center) alignment so the first card sits flush under the
+                   section label, and the last card lands fully visible at the end of
+                   the scroll instead of being force-centered with odd overhang. */
+                .hk-belt-item { flex-shrink: 0; width: min(82vw, 360px); scroll-snap-align: start; }
+
+                /* ── Vertical group: stacked list on mobile, no gap above the very first
+                   group (sits right under the sticky category bar), bigger spacing
+                   between cards. On desktop this becomes the same edge-to-edge grid
+                   as belts (see media query). ── */
+                .hk-vgroup-track { display: flex; flex-direction: column; gap: 36px; padding: ${BELT_LOGO_D / 2 + 4}px 16px 8px 16px; }
+                .hk-vgroup-track:first-of-type { padding-top: ${BELT_LOGO_D / 2 + 4}px; margin-top: 0; }
+                .hk-vgroup-item { width: 100%; }
+
+                /* ── Zoom overlay — z-index above the app's bottom nav bar (App.tsx uses
+                   z-index:1000 for .hk-navbar), so the modal isn't hidden underneath it. ── */
+                .hk-zoom-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.72); z-index: 1100; display: flex; align-items: center; justify-content: center; padding: 24px; }
+                .hk-zoom-box { border-radius: 18px; padding: 28px 24px 22px; width: 100%; max-width: 320px; text-align: center; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: zoomIn 0.18s ease-out; }
+
                 @media (min-width: 860px) {
-                    .hk-vgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; max-width: 1100px; margin: 0 auto; }
-                    .hk-vgrid > div { margin-bottom: 0 !important; }
+                    /* Watermark is mobile-only */
+                    .hk-watermark { display: none; }
+
+                    /* App.tsx's top nav (.hk-navbar) is ~64px tall at desktop widths and
+                       sits fixed at the very top of the viewport — push the sticky
+                       category bar down so the nav doesn't cover it. */
+                    .hk-cat-sticky { position: static; top: auto; }
+
+                    .hk-cat-nav-desktop-only { display: flex; }
+
+                    .hk-cat-scroll { padding: 30px 40px !important; gap: 40px !important; }
+                    .hk-cat-ring { width: 92px !important; height: 92px !important; }
+                    .hk-cat-story { width: 104px !important; }
+                    .hk-cat-label { font-size: 13px !important; max-width: 104px !important; }
+
+                    /* Uniform 3-per-row on desktop for BOTH group types, matching the
+                       vertical group's sizing — belts (4 on mobile) collapse to the
+                       same 3-column grid here instead of a mismatched 4-column one. */
+                    .hk-belt-track, .hk-vgroup-track {
+                        display: grid; grid-template-columns: repeat(3, 1fr);
+                        gap: 32px; overflow-x: visible; padding: 32px 32px 8px; max-width: 1500px; margin: 0 auto;
+                    }
+                    .hk-belt-item { width: auto; scroll-snap-align: none; }
+                    .hk-vgroup-item { width: auto; }
+                    .hk-biz-name { font-size: 16px; }
+                    .hk-biz-cat { font-size: 12px; }
+                    .hk-biz-trust { font-size: 12px; }
+                    .hk-biz-addr, .hk-biz-dist { font-size: 12px; }
+
+                    /* Logo-zoom box: 50% of viewport width, top edge touches the nav */
+                    .hk-zoom-overlay { align-items: flex-start; }
+                    .hk-zoom-box { width: 50vw; max-width: 640px; margin-top: 0; }
                 }
             `}</style>
 
-            {/* ── Header ── */}
-            <div style={{ position: 'relative', overflow: 'hidden', borderBottom: `1px solid ${headerBorder}`, background: headerBg }}>
-                <div style={{ position: 'absolute', inset: 0, backgroundImage: 'url(/customer/logo.png)', backgroundSize: 'cover', backgroundPosition: 'center', opacity: darkMode ? 0.05 : 0.1, zIndex: 0 }} />
-                <div className="hk-container" style={{ position: 'relative', zIndex: 1, paddingTop: 8, paddingBottom: 8 }}>
-                    {/* First row: buttons at the very top */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <button onClick={() => window.open(Config.RIDER_BASE, '_blank', 'noopener,noreferrer')} style={{ display: 'flex', alignItems: 'center', gap: 5, background: darkMode ? '#2a2a2a' : '#f0fdf4', border: darkMode ? 'none' : '1.5px solid #bbf7d0', borderRadius: 8, padding: '6px 11px', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#16a34a', fontFamily: 'inherit' }}>
-                            <BikeSvg size={14} />Rider App
-                        </button>
+            <div style={{ position: 'relative', zIndex: 1 }}>
+                {/* ── Header ── */}
+                <div style={{ borderBottom: `1px solid ${headerBorder}`, background: headerBg }}>
+                    <div className="hk-container" style={{ paddingTop: 8, paddingBottom: 8 }}>
+                        {/* First row: buttons at the very top */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <button onClick={() => window.open(Config.RIDER_BASE, '_blank', 'noopener,noreferrer')} style={{ display: 'flex', alignItems: 'center', gap: 5, background: darkMode ? '#2a2a2a' : '#f0fdf4', border: darkMode ? 'none' : '1.5px solid #bbf7d0', borderRadius: 8, padding: '6px 11px', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#16a34a', fontFamily: 'inherit' }}>
+                                <BikeSvg size={14} />Rider App
+                            </button>
 
-                        <button onClick={() => window.open(Config.BUSINESS_BASE, '_blank', 'noopener,noreferrer')} style={{ display: 'flex', alignItems: 'center', gap: 5, background: darkMode ? '#2a2a2a' : '#f0fdf4', border: darkMode ? 'none' : '1.5px solid #bbf7d0', borderRadius: 8, padding: '6px 11px', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#16a34a', fontFamily: 'inherit' }}>
-                            <ShopSvg size={14} />Dashboard
-                        </button>
+                            <button onClick={() => window.open(Config.BUSINESS_BASE, '_blank', 'noopener,noreferrer')} style={{ display: 'flex', alignItems: 'center', gap: 5, background: darkMode ? '#2a2a2a' : '#f0fdf4', border: darkMode ? 'none' : '1.5px solid #bbf7d0', borderRadius: 8, padding: '6px 11px', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#16a34a', fontFamily: 'inherit' }}>
+                                <ShopSvg size={14} />Dashboard
+                            </button>
 
-                        <button onClick={toggleDarkMode} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: darkMode ? '#2a2a2a' : '#f0fdf4', border: darkMode ? 'none' : '1.5px solid #bbf7d0', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                            {darkMode ? <SunSvg size={18} color="#16a34a" /> : <MoonSvg size={18} color="#16a34a" />}
-                        </button>
-                    </div>
+                            <button onClick={toggleDarkMode} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: darkMode ? '#2a2a2a' : '#f0fdf4', border: darkMode ? 'none' : '1.5px solid #bbf7d0', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                {darkMode ? <SunSvg size={18} color="#16a34a" /> : <MoonSvg size={18} color="#16a34a" />}
+                            </button>
+                        </div>
 
-                    {/* row 2: location / search toggle */}
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        {barMode === 'search' ? (
-                            <>
-                                <div style={{ flex: 1, background: inputBg, borderRadius: 8, display: 'flex', alignItems: 'center', paddingLeft: 12, border: `1px solid ${inputBorder}` }}>
-                                    <SearchSvg color={darkMode ? '#6b7280' : '#9ca3af'} />
-                                    <input
-                                        autoFocus
-                                        value={searchText}
-                                        onChange={e => setSearchText(e.target.value)}
-                                        onKeyDown={e => { if (e.key === 'Enter') runSearch(); }}
-                                        placeholder="Search businesses..."
-                                        style={{ flex: 1, border: 'none', outline: 'none', padding: '10px 10px', fontSize: 13, background: 'transparent', color: inputText }}
-                                    />
-                                </div>
-                                <button onClick={runSearch} style={iconBtnStyle}><SearchSvg color="#fff" size={15} /></button>
-                            </>
-                        ) : barMode === 'location' ? (
-                            <>
-                                <button onClick={() => setBarMode('none')} style={locationBtnStyle(true)}>
-                                    {gpsLoading ? <SpinnerSvg /> : <LocationSvg size={12} color="#fff" />}{gpsLoading ? 'Locating...' : 'Location'}
-                                </button>
-                                <div className="hk-radius-scroll" style={{ flex: 1, display: 'flex', gap: 6, overflowX: 'auto' }}>
-                                    {RADIUS_OPTIONS.map(r => (
-                                        <button
-                                            key={r.value}
-                                            onClick={() => { setRadiusMeters(r.value); if (location) fetchBusinesses(location.lat, location.lon, selectedCategory, r.value, searchText); }}
-                                            style={{
-                                                flexShrink: 0, padding: '9px 13px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap', fontFamily: 'inherit',
-                                                background: radiusMeters === r.value ? r.strong : (darkMode ? '#2a2a2a' : r.light),
-                                                color: radiusMeters === r.value ? '#fff' : (darkMode ? '#e5e7eb' : r.strong),
-                                            }}
-                                        >{r.label}</button>
-                                    ))}
-                                    <button onClick={clearLocation} style={{ flexShrink: 0, background: 'transparent', border: darkMode ? '1px solid #444' : '1px solid #d1d5db', borderRadius: 8, padding: '9px 10px', fontSize: 11, fontWeight: 600, color: darkMode ? '#9ca3af' : '#6b7280', cursor: 'pointer', fontFamily: 'inherit' }}>Clear</button>
-                                </div>
-                            </>
-                        ) : (
-                            <>
+                        {/* row 2: location / search toggle */}
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            {barMode === 'search' ? (
+                                <>
+                                    <div style={{ flex: 1, background: inputBg, borderRadius: 8, display: 'flex', alignItems: 'center', paddingLeft: 12, border: `1px solid ${inputBorder}` }}>
+                                        <SearchSvg color={darkMode ? '#6b7280' : '#9ca3af'} />
+                                        <input
+                                            autoFocus
+                                            value={searchText}
+                                            onChange={e => setSearchText(e.target.value)}
+                                            onKeyDown={e => { if (e.key === 'Enter') runSearch(); }}
+                                            placeholder="Search businesses..."
+                                            style={{ flex: 1, border: 'none', outline: 'none', padding: '10px 10px', fontSize: 13, background: 'transparent', color: inputText }}
+                                        />
+                                    </div>
+                                    <button onClick={runSearch} style={iconBtnStyle}><SearchSvg color="#fff" size={15} /></button>
+                                </>
+                            ) : barMode === 'location' ? (
+                                <>
+                                    <button onClick={() => setBarMode('none')} style={locationBtnStyle(true)}>
+                                        {gpsLoading ? <SpinnerSvg /> : <LocationSvg size={12} color="#fff" />}{gpsLoading ? 'Locating...' : 'Location'}
+                                    </button>
+                                    <div className="hk-radius-scroll" style={{ flex: 1, display: 'flex', gap: 6, overflowX: 'auto' }}>
+                                        {RADIUS_OPTIONS.map(r => (
+                                            <button
+                                                key={r.value}
+                                                onClick={() => { setRadiusMeters(r.value); if (location) fetchBusinesses(location.lat, location.lon, selectedCategory, r.value, searchText); }}
+                                                style={{
+                                                    flexShrink: 0, padding: '9px 13px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap', fontFamily: 'inherit',
+                                                    background: radiusMeters === r.value ? r.strong : (darkMode ? '#2a2a2a' : r.light),
+                                                    color: radiusMeters === r.value ? '#fff' : (darkMode ? '#e5e7eb' : r.strong),
+                                                }}
+                                            >{r.label}</button>
+                                        ))}
+                                        <button onClick={clearLocation} style={{ flexShrink: 0, background: 'transparent', border: darkMode ? '1px solid #444' : '1px solid #d1d5db', borderRadius: 8, padding: '9px 10px', fontSize: 11, fontWeight: 600, color: darkMode ? '#9ca3af' : '#6b7280', cursor: 'pointer', fontFamily: 'inherit' }}>Clear</button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <button onClick={openLocationMode} disabled={gpsLoading} style={locationBtnStyle(false)}>
+                                        {gpsLoading ? <SpinnerSvg /> : <LocationSvg size={12} color={darkMode ? '#e5e7eb' : '#16a34a'} />}{gpsLoading ? 'Locating...' : 'Location'}
+                                    </button>
+                                    <div style={{ flex: 1 }} />
+                                    <button onClick={() => setBarMode('search')} style={iconBtnStyle}><SearchSvg color="#fff" size={15} /></button>
+                                </>
+                            )}
+                        </div>
+
+                        {/* row 3: the button that "went down" */}
+                        {barMode === 'search' && (
+                            <div style={{ marginTop: 8 }}>
                                 <button onClick={openLocationMode} disabled={gpsLoading} style={locationBtnStyle(false)}>
                                     {gpsLoading ? <SpinnerSvg /> : <LocationSvg size={12} color={darkMode ? '#e5e7eb' : '#16a34a'} />}{gpsLoading ? 'Locating...' : 'Location'}
                                 </button>
-                                <div style={{ flex: 1 }} />
+                            </div>
+                        )}
+                        {barMode === 'location' && (
+                            <div style={{ marginTop: 8 }}>
                                 <button onClick={() => setBarMode('search')} style={iconBtnStyle}><SearchSvg color="#fff" size={15} /></button>
-                            </>
+                            </div>
                         )}
                     </div>
+                </div>
 
-                    {/* row 3: the button that "went down" */}
-                    {barMode === 'search' && (
-                        <div style={{ marginTop: 8 }}>
-                            <button onClick={openLocationMode} disabled={gpsLoading} style={locationBtnStyle(false)}>
-                                {gpsLoading ? <SpinnerSvg /> : <LocationSvg size={12} color={darkMode ? '#e5e7eb' : '#16a34a'} />}{gpsLoading ? 'Locating...' : 'Location'}
+                {/* ── Categories — sticky so it stays put while the business list scrolls ── */}
+                {categories.length > 0 && (
+                    <div className="hk-cat-sticky" style={{
+                        background: categoriesBg, borderBottom: `1px solid ${darkMode ? '#0a0a0a' : '#f3f4f6'}`,
+                    }}>
+                        <div className="hk-cat-bar-row">
+                            <button
+                                className="hk-cat-nav-btn hk-cat-nav-desktop-only"
+                                onClick={() => catScrollRef.current?.scrollBy({ left: -240, behavior: 'smooth' })}
+                                aria-label="Scroll categories left"
+                            >
+                                <ChevronLeftSvg />
+                            </button>
+
+                            <div
+                                ref={catScrollRef}
+                                className="hk-cat-scroll"
+                                style={{
+                                    gap: catRowActive ? 28 : 14,
+                                }}
+                            >
+                                <CategoryStory
+                                    label="All"
+                                    active={selectedCategory === undefined}
+                                    colors={DEFAULT_CAT_COLOR}
+                                    onClick={() => handleCategoryChange(undefined)}
+                                    size={selectedCategory === undefined ? 78 : 70}
+                                />
+                                {categories.map((c, idx) => (
+                                    <CategoryStory
+                                        key={c.id}
+                                        label={c.name}
+                                        active={selectedCategory === c.id}
+                                        colors={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]}
+                                        onClick={() => handleCategoryChange(c.id)}
+                                        imageUrl={c.image_url || null}
+                                        size={selectedCategory === c.id ? 78 : 70}
+                                    />
+                                ))}
+                            </div>
+
+                            <button
+                                className="hk-cat-nav-btn hk-cat-nav-desktop-only"
+                                onClick={() => catScrollRef.current?.scrollBy({ left: 240, behavior: 'smooth' })}
+                                aria-label="Scroll categories right"
+                            >
+                                <ChevronRightSvg />
                             </button>
                         </div>
-                    )}
-                    {barMode === 'location' && (
-                        <div style={{ marginTop: 8 }}>
-                            <button onClick={() => setBarMode('search')} style={iconBtnStyle}><SearchSvg color="#fff" size={15} /></button>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* ── Categories ── */}
-            {categories.length > 0 && (
-                <div className="hk-container" style={{ background: darkMode ? '#1a1a1a' : '#fff', borderBottom: `1px solid ${darkMode ? '#0a0a0a' : '#f3f4f6'}` }}>
-                    <div style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: '12px 16px', scrollbarWidth: 'none' }}>
-                        <CategoryStory label="All" active={selectedCategory === undefined} colors={DEFAULT_CAT_COLOR} onClick={() => handleCategoryChange(undefined)} />
-                        {categories.map((c, idx) => (
-                            <CategoryStory
-                                key={c.id}
-                                label={c.name}
-                                active={selectedCategory === c.id}
-                                colors={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]}
-                                onClick={() => handleCategoryChange(c.id)}
-                                imageUrl={c.image_url || null}
-                            />
-                        ))}
                     </div>
-                </div>
-            )}
+                )}
 
-            {error && <div className="hk-container" style={{ marginTop: 10, padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#dc2626', fontSize: 12 }}>{error}</div>}
-            {loading && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', gap: 8, color: mutedText, fontSize: 13 }}><SpinnerSvg />Finding shops near you…</div>}
+                {error && <div className="hk-container" style={{ marginTop: 10, padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#dc2626', fontSize: 12 }}>{error}</div>}
+                {loading && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', gap: 8, color: mutedText, fontSize: 13 }}><SpinnerSvg />Finding shops near you…</div>}
 
-            {!loading && (
-                <div style={{ paddingTop: 12, paddingBottom: 24 }}>
-                    {allBusinesses.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '48px 20px', color: mutedText }}><div style={{ fontSize: 15, fontWeight: 600, color: textColor, marginBottom: 6 }}>No businesses found</div><div style={{ fontSize: 12 }}>Try adjusting your location or search terms</div></div>
-                    ) : hasSearch ? buildSearchLayout() : buildDefaultLayout()}
-                    <div ref={sentinelRef} style={{ height: 1 }} />
-                    {loadingMore && (
-                        <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
-                            <CategorySpinner size={36} color="#16a34a" />
-                        </div>
-                    )}
-                </div>
-            )}
+                {!loading && (
+                    <div style={{ paddingBottom: 24 }}>
+                        {allBusinesses.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '48px 20px', color: mutedText }}><div style={{ fontSize: 15, fontWeight: 600, color: textColor, marginBottom: 6 }}>No businesses found</div><div style={{ fontSize: 12 }}>Try adjusting your location or search terms</div></div>
+                        ) : hasSearch ? buildSearchLayout() : buildDefaultLayout()}
+                        <div ref={sentinelRef} style={{ height: 1 }} />
+                        {loadingMore && (
+                            <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
+                                <CategorySpinner size={36} color="#16a34a" />
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

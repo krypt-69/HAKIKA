@@ -191,7 +191,16 @@ const OrderTracking: React.FC = () => {
       }
     }, [id]);
 
-    useCustomerWebSocket(id, sessionStorage.getItem('hakika_customer_phone'), handleSocketEvent);
+    const handleSocketReconnect = useCallback(() => {
+      const phone = sessionStorage.getItem('hakika_customer_phone');
+      if (phone) {
+        api.getUnreadNotificationCount(phone).then(data => {
+          window.dispatchEvent(new CustomEvent('hakika:unread-updated', { detail: { count: data.count || 0 } }));
+        }).catch(() => {});
+      }
+    }, []);
+
+    useCustomerWebSocket(id, sessionStorage.getItem('hakika_customer_phone'), handleSocketEvent, handleSocketReconnect);
 
     const fetchPaymentStatus = async () => {
         if (!id) return;

@@ -601,10 +601,15 @@ const BusinessProfile: React.FC = () => {
                 }
 
                 /* ── Full-page chrome ─────────────────────────── */
-                .fp-shell { position: fixed; top: 0; left: 0; right: 0; bottom: 44px; z-index: 2500; display: flex; flex-direction: column; }
-                .fp-topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 6; display: flex; padding: 10px 12px; }
-                .fp-back-btn { background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
-                .fp-scroll-area { flex: 1; overflow-y: auto; padding-top: 46px; }
+                .fp-shell { position: fixed; top: 0; left: 0; right: 0; bottom: 56px; z-index: 2500; overflow: hidden; }
+                .fp-topbar { position: absolute; top: 0; left: 0; right: 0; z-index: 20; display: flex; padding: 10px 12px; pointer-events: none; }
+                .fp-topbar .fp-back-btn { pointer-events: auto; }
+                .fp-back-btn {
+                    width: 40px; height: 40px; border-radius: 50%;
+                    background: rgba(15,23,42,0.55);
+                    border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+                }
+                .fp-scroll-area { position: absolute; inset: 0; overflow-y: auto; padding-top: 46px; }
                 .fp-content { animation: fadeIn 260ms ease; }
 
                 /* ── Profile page styling ─────────────────────── */
@@ -654,7 +659,7 @@ const BusinessProfile: React.FC = () => {
                 .pfp-qty-num { font-size: 15px; font-weight: 700; color: #16a34a; }
 
                 /* ── Product grid ─────────────────────────────── */
-                .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 0 4px; }
+                .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); column-gap: 16px; row-gap: 40px; padding: 0 4px; }
 
                 .pc-card { background: #fff; overflow: hidden; border-radius: 10px; }
                 .pc-img-wrap { width: 100%; cursor: pointer; }
@@ -676,7 +681,7 @@ const BusinessProfile: React.FC = () => {
                 .pc-qty-num { font-size: 12px; font-weight: 700; color: #16a34a; min-width: 12px; text-align: center; }
 
                 /* ── Header: logo sits on the lower-left corner of the cover ── */
-                .top-header { padding: 0 12px; }
+                .top-header { padding: 18px 12px 0; }
                 .cover-logo-wrap { position: relative; max-width: 480px; margin: 0 auto; }
                 .logo-ring {
                     cursor: pointer; padding: 4px; border-radius: 50%; flex-shrink: 0;
@@ -713,8 +718,8 @@ const BusinessProfile: React.FC = () => {
                     display: inline-flex; white-space: nowrap; animation: marquee-scroll 18s linear infinite;
                 }
                 .welcome-belt-text {
-                    font-family: 'Caveat', cursive; font-weight: 700; font-size: 20px;
-                    padding: 0 18px;
+                    font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: 17px;
+                    letter-spacing: 0.6px; padding: 0 18px;
                 }
                 .belt-gold { color: ${GOLD_BRIGHT}; text-shadow: 0 0 8px rgba(244,196,48,0.5); }
                 .belt-maroon { color: #8b2252; text-shadow: 0 0 8px rgba(139,34,82,0.4); }
@@ -723,7 +728,7 @@ const BusinessProfile: React.FC = () => {
 
                 /* ── Desktop ───────────────────────────────────── */
                 @media (min-width: 900px) {
-                    .fp-shell { top: 64px; bottom: 0; }
+                    .fp-shell { top: 76px; bottom: 0; }
                     .page-wrap { max-width: 1600px; padding: 0 32px; }
                     .top-header { padding-top: 4px; }
                     .logo-ring { left: 32px; bottom: -55px; padding: 5px; }
@@ -732,9 +737,9 @@ const BusinessProfile: React.FC = () => {
                     .cover-wrap { max-width: 620px; border-radius: 22px; }
                     .cover-logo-wrap { max-width: 620px; }
                     .header-name { font-size: 48px; margin-top: 70px; }
-                    .welcome-belt-text { font-size: 26px; }
+                    .welcome-belt-text { font-size: 21px; }
 
-                    .product-grid { grid-template-columns: repeat(4, 1fr); gap: 22px; padding: 0; }
+                    .product-grid { grid-template-columns: repeat(4, 300px); justify-content: space-between; row-gap: 56px; padding: 0; }
                     .pc-card { border-radius: 10px; }
                     .pc-name-chip { font-size: 20px; padding: 6px 12px 0; }
                     .pc-info { padding: 0 12px 12px; }
@@ -854,18 +859,26 @@ const BusinessProfile: React.FC = () => {
                         <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af', fontSize: 12.5 }}>No products match "{searchQuery}"</div>
                     ) : (
                         <div className="product-grid">
-                            {filteredProducts.map(product => (
-                                <div key={product.id}>
-                                    <ProductCard
-                                        product={product}
-                                        quantity={cartQuantityFor(product.id)}
-                                        onOpen={() => setQuickViewProduct(product)}
-                                        onAdd={() => addToCart(product)}
-                                        onInc={() => updateQuantity(product.id, cartQuantityFor(product.id) + 1)}
-                                        onDec={() => updateQuantity(product.id, cartQuantityFor(product.id) - 1)}
-                                    />
-                                </div>
-                            ))}
+                            {filteredProducts.map((product, i) => {
+                                // Seeded pseudo-random offset so cards feel randomly staggered
+                                // (sometimes the left one is lower, sometimes the right one is)
+                                // rather than a repeating up/down/up/down column pattern.
+                                const seed = Math.sin(i * 12.9898) * 43758.5453;
+                                const frac = seed - Math.floor(seed);
+                                const offset = Math.round((frac - 0.5) * 2 * 18); // -18px .. 18px
+                                return (
+                                    <div key={product.id} style={{ transform: `translateY(${offset}px)` }}>
+                                        <ProductCard
+                                            product={product}
+                                            quantity={cartQuantityFor(product.id)}
+                                            onOpen={() => setQuickViewProduct(product)}
+                                            onAdd={() => addToCart(product)}
+                                            onInc={() => updateQuantity(product.id, cartQuantityFor(product.id) + 1)}
+                                            onDec={() => updateQuantity(product.id, cartQuantityFor(product.id) - 1)}
+                                        />
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
