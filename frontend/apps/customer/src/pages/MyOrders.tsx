@@ -166,7 +166,7 @@ const statusToStage = (status: string): StageKey => {
 };
 
 const MyOrders: React.FC = () => {
-    const { orders, loading, refreshing, error, setError, phone, fetchOrders, activeStage, setActiveStage, searchQuery, setSearchQuery } = useOrdersContext();
+    const { orders, loading, refreshing, error, setError, phone, fetchOrders, clearOrders, activeStage, setActiveStage, searchQuery, setSearchQuery } = useOrdersContext();
     const [inputPhone, setInputPhone] = useState('');
     const [zoomedLogo, setZoomedLogo] = useState<{ url: string; name: string } | null>(null);
     const navigate = useNavigate();
@@ -177,12 +177,13 @@ const MyOrders: React.FC = () => {
             setInputPhone(stored);
             fetchOrders(stored);
         }
-    }, [fetchOrders]);
+    }, [fetchOrders, phone]);
 
 
     const handleSwitchNumber = () => {
         sessionStorage.removeItem('hakika_customer_phone');
         setInputPhone('');
+        clearOrders();
     };
 
     const handleSubmit = (e: React.FormEvent) => {

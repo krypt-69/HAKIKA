@@ -171,7 +171,7 @@ const NavItem: React.FC<{ to: string; icon: React.ReactNode; label: string; acti
                 }} />
             )}
             {icon}
-            <span className="hk-nav-label" style={{ fontSize: 9.5, fontWeight: active ? 800 : 700, whiteSpace: 'nowrap' }}>
+            <span className="hk-nav-label" style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}>
                 {label}
             </span>
         </div>
@@ -219,6 +219,8 @@ const App: React.FC = () => (
       <CustomerFeedProvider>
         <OrdersProvider>
         <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap');
+
             .hk-app-shell { padding-bottom: 56px; }
 
             .hk-navbar {
@@ -228,7 +230,8 @@ const App: React.FC = () => (
                 right: 0;
                 padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
                 background: #ffffff;
-                border-top: 1px solid #f3f4f6;
+                border-radius: 22px 22px 0 0;
+                border-top: 2px solid #b8860b;
                 box-shadow: 0 -1px 6px rgba(0,0,0,0.04);
                 z-index: 1000;
             }
@@ -237,6 +240,18 @@ const App: React.FC = () => (
             }
             .hk-nav-group-left {
                 display: contents;
+            }
+
+            /* Handwriting-style label: strong gold text (matching the
+               top line) on a soft grey chip, mobile and desktop. */
+            .hk-nav-label {
+                font-family: 'Caveat', cursive !important;
+                font-weight: 700 !important;
+                color: #a06f00 !important;
+                background: #e5e7eb;
+                padding: 1px 8px 0;
+                border-radius: 6px;
+                margin-top: 1px;
             }
 
             /* ── Desktop: noticeably bigger nav, scaled to the
@@ -254,7 +269,8 @@ const App: React.FC = () => (
                     padding: 14px 56px;
                     background: #ffffff;
                     border-top: none;
-                    border-bottom: 1px solid #f3f4f6;
+                    border-bottom: 2px solid #b8860b;
+                    border-radius: 0 0 22px 22px;
                     box-shadow: 0 1px 8px rgba(0,0,0,0.05);
                 }
                 .hk-navbar-inner {
@@ -273,7 +289,7 @@ const App: React.FC = () => (
                 }
                 .hk-nav-pill { padding: 8px 20px !important; gap: 5px !important; border-radius: 16px !important; color: #16a34a !important; }
                 .hk-nav-pill svg { width: 26px !important; height: 26px !important; }
-                .hk-nav-label { font-size: 14px !important; }
+                .hk-nav-label { font-size: 18px !important; padding: 2px 12px 0 !important; }
                 .hk-nav-dot { background: #16a34a !important; }
                 .hk-nav-underline { background: #16a34a !important; }
                 .hk-notif-badge {

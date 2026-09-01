@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, useState } from 'react';
+import React, { createContext, useContext, useCallback, useRef, useState } from 'react';
 import { api } from './api';
 
 interface OrdersState {
@@ -25,6 +25,7 @@ interface OrdersActions {
   setActiveStage: (stage: string) => void;
   setSearchQuery: (query: string) => void;
   saveScrollPosition: (list: 'notifications' | 'myOrders', y: number) => void;
+  clearOrders: () => void;
 }
 
 const OrdersContext = createContext<(OrdersState & OrdersActions) | null>(null);
@@ -36,8 +37,8 @@ export const useOrdersContext = () => {
 };
 
 export const OrdersProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [phone, setPhone] = useState<string | null>(null);
+  const [orders, setOrdersState] = useState<any[]>([]);
+  const [phone, setPhoneState] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -48,31 +49,65 @@ export const OrdersProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     myOrders: 0,
   });
 
-  const fetchOrders = useCallback(async (phoneNumber: string, force = false) => {
-    if (!phoneNumber) return;
+  const ordersRef = useRef<any[]>([]);
+  const phoneRef = useRef<string | null>(null);
+  const requestIdRef = useRef(0);
 
-    const hasCached = orders.length > 0 && phone === phoneNumber;
-    if (!force && hasCached) return;
+  const setOrders = useCallback((newOrders: any[]) => {
+    ordersRef.current = newOrders;
+    setOrdersState(newOrders);
+  }, []);
 
-    setPhone(phoneNumber);
+  const setPhone = useCallback((newPhone: string | null) => {
+    phoneRef.current = newPhone;
+    setPhoneState(newPhone);
+  }, []);
+
+  const clearOrders = useCallback(() => {
+    ordersRef.current = [];
+    phoneRef.current = null;
+    requestIdRef.current++;
+    setOrdersState([]);
+    setPhoneState(null);
     setError('');
+    setLoading(false);
+    setRefreshing(false);
+  }, []);
 
-    if (orders.length === 0) {
-      setLoading(true);
-    } else {
-      setRefreshing(true);
+  const fetchOrders = useCallback(async (phoneNumber: string, force = false) => {
+    if (!phoneNumber.trim()) {
+      clearOrders();
+      return;
     }
+
+    // Use refs for cache and current state, not closure state
+    if (!force && phoneRef.current === phoneNumber && ordersRef.current.length > 0) {
+      return;
+    }
+
+    phoneRef.current = phoneNumber;
+    setPhoneState(phoneNumber);
+    setError('');
+    setLoading(true);
+    setRefreshing(false);
+
+    const currentRequestId = ++requestIdRef.current;
 
     try {
       const data = await api.getMyOrders(phoneNumber);
-      setOrders(data || []);
+      if (currentRequestId !== requestIdRef.current) return;
+      ordersRef.current = data || [];
+      setOrdersState(data || []);
     } catch (err: any) {
-      setError(err.message);
+      if (currentRequestId !== requestIdRef.current) return;
+      setError(err.message || 'Failed to load orders');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (currentRequestId === requestIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [orders, phone]);
+  }, [clearOrders]);
 
   const saveScrollPosition = useCallback((list: 'notifications' | 'myOrders', y: number) => {
     setScrollPositions(prev => ({ ...prev, [list]: y }));
@@ -96,6 +131,7 @@ export const OrdersProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setActiveStage,
     setSearchQuery,
     saveScrollPosition,
+    clearOrders,
   };
 
   return React.createElement(OrdersContext.Provider, { value }, children);

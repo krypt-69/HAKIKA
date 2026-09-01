@@ -498,24 +498,23 @@ const NavigationMap: React.FC<Props> = ({
         nextBearing = cameraBearingRef.current;
       }
 
-      if (nextBearing !== null) {
-        if (cameraBearingRef.current === null) {
-          cameraBearingRef.current = nextBearing;
-        } else {
-          cameraBearingRef.current = lerpAngle(cameraBearingRef.current, nextBearing, 0.3);
-        }
-
-        programmaticMoveRef.current = true;
-        map.current.easeTo({
-          center: riderLocation,
-          zoom: 15.5,
-          bearing: cameraBearingRef.current,
-          pitch: 0,
-          offset: [0, 120],
-          duration: 400,
-        });
-        programmaticMoveRef.current = false;
+            if (nextBearing !== null) {
+        cameraBearingRef.current =
+          cameraBearingRef.current === null
+            ? nextBearing
+            : lerpAngle(cameraBearingRef.current, nextBearing, 0.3);
       }
+
+      programmaticMoveRef.current = true;
+      map.current.easeTo({
+        center: riderLocation,
+        zoom: 15.5,
+        bearing: cameraBearingRef.current ?? 0,
+        pitch: 0,
+        offset: [0, 120],
+        duration: 400,
+      });
+      programmaticMoveRef.current = false;
     }
   }, [navigationPhase, riderLocation, riderHeading, riderSpeed, isFollowing]);
 

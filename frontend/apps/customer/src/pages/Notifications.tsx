@@ -115,7 +115,7 @@ const STATUS_META: Record<string, { label: string; icon: React.FC; tone: string 
 
 const Notifications: React.FC = () => {
     const navigate = useNavigate();
-    const { orders, loading, refreshing, error, setError, fetchOrders } = useOrdersContext();
+    const { orders, loading, refreshing, error, setError, fetchOrders, clearOrders } = useOrdersContext();
     const [inputPhone, setInputPhone] = useState('');
     const [notifications, setNotifications] = useState<any[]>([]);
 

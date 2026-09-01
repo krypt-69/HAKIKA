@@ -74,6 +74,7 @@ const CATEGORY_COLORS: CatColor[] = [
 ];
 
 const DEFAULT_CAT_COLOR: CatColor = { name: 'grey', ring: '#9ca3af', light: '#f3f4f6', strong: '#4b5563' };
+const ALL_CAT_COLOR: CatColor = { name: 'gold', ring: '#D4AF37', light: '#fdf6e3', strong: '#92720c' };
 
 const RADIUS_OPTIONS = [
     { value: 1000, label: '1 km', light: '#dbeafe', strong: '#1d4ed8' },
@@ -140,6 +141,11 @@ const CategorySpinner: React.FC<{ size?: number; color?: string }> = ({ size = 4
         }} />
     );
 };
+
+const ChevronUpSvg = () =>
+    React.createElement('svg', { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' },
+        React.createElement('polyline', { points: '18 15 12 9 6 15' })
+    );
 
 const ChevronLeftSvg = () =>
     React.createElement('svg', { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' },
@@ -269,7 +275,7 @@ const BizCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: CatC
     return (
         <>
             <Link to={bizPath} data-business-id={biz.id} className="hk-biz-card-link">
-                <div style={{ borderRadius: 12, overflow: 'visible', boxShadow: darkMode ? '0 1px 6px rgba(0,0,0,0.6)' : '0 1px 6px rgba(0,0,0,0.07)' }}>
+                <div style={{ borderRadius: 12, overflow: 'visible', boxShadow: darkMode ? '0 1px 6px rgba(0,0,0,0.6)' : '0 1px 6px rgba(0,0,0,0.07)', border: `1px solid ${catColor.ring}` }}>
                     <div style={{ width: '100%', aspectRatio: '1 / 1', position: 'relative', background: cardBg, overflow: 'hidden', borderRadius: '12px 12px 0 0' }}>
                         <CoverImage src={biz.cover_url} alt={biz.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                         {open && <span style={{ position: 'absolute', top: 6, right: 6, background: '#16a34a', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 4, padding: '2px 6px' }}>Open</span>}
@@ -323,34 +329,45 @@ const BizCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: CatC
        businesses fill the page like a proper storefront instead of
        a single scrolling strip. */
 const BizShelf: React.FC<{ items: BusinessCard[]; gpsEnabled: boolean; label: string; categoryColorMap: Record<string, CatColor>; darkMode: boolean }> = ({ items, gpsEnabled, label, categoryColorMap, darkMode }) => {
+    const beltRef = useRef<HTMLDivElement>(null);
     if (items.length === 0) return null;
     return (
         <div style={{ marginBottom: 24 }}>
-            <div style={{ padding: '0 16px', marginBottom: 12 }}>
+            <div style={{ padding: '0 16px', marginBottom: 6 }}>
                 <span style={{ fontFamily: '"Caveat", cursive', fontWeight: 700, fontSize: 24, lineHeight: 1, color: '#D4AF37', background: darkMode ? '#333' : '#6b7280', padding: '4px 16px 6px', borderRadius: 8, display: 'inline-block' }}>{label}</span>
             </div>
-            <div className="hk-belt-track">
+            <div ref={beltRef} className="hk-belt-track">
                 {items.map(biz => (
                     <div key={biz.id} className="hk-belt-item">
                         <BizCard biz={biz} gpsEnabled={gpsEnabled} catColor={categoryColorMap[biz.category_name] || DEFAULT_CAT_COLOR} darkMode={darkMode} />
                     </div>
                 ))}
             </div>
+            {/* Footer label — identical styling to the header label above, so the
+                shelf reads as bookended by matching handwritten gold pills.
+                Clicking it scrolls the belt back to its start. */}
+            <div style={{ padding: '0 16px', textAlign: 'center' }}>
+                <button
+                    onClick={() => beltRef.current?.scrollTo({ left: 0, behavior: 'smooth' })}
+                    className="hk-belt-footer"
+                    style={{ background: darkMode ? '#333' : '#6b7280' }}
+                >
+                    <ChevronUpSvg />
+                    <span>{label}</span>
+                </button>
+            </div>
         </div>
     );
 };
 
-/* ── Category stories (Instagram-style, squircle + colored ring) ──
-   Each avatar is a rounded-square ("squircle") rather than a plain
-   circle, wrapped in a ring whose color is unique per category.
-   Selecting a category zooms its avatar up and spreads the whole
-   row out with extra breathing room. */
-const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor; onClick: () => void; imageUrl?: string | null; size: number }> = ({ label, active, colors, onClick, imageUrl, size }) => (
+/* ── Category stories (Instagram-style, squircle + bright gold ring) ──
+   Every avatar shares the same bright gold ring and handwritten label
+   style now (previously each had its own per-category ring color). */
+const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor; onClick: () => void; imageUrl?: string | null; size: number; darkMode: boolean }> = ({ label, active, colors, onClick, imageUrl, size, darkMode }) => (
     <button onClick={onClick} className="hk-cat-story" style={{ width: size + 10 }}>
         <div className="hk-cat-ring" style={{
             width: size, height: size, borderRadius: '30%', padding: 3,
-            background: active ? `linear-gradient(135deg, ${colors.ring}, ${colors.strong})` : colors.ring,
-            transform: active ? 'scale(1.18)' : 'scale(1)',
+            background: '#B8860B',
         }}>
             <div style={{ width: '100%', height: '100%', borderRadius: '26%', background: colors.light, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff', overflow: 'hidden' }}>
                 {imageUrl ? (
@@ -360,7 +377,7 @@ const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor
                 )}
             </div>
         </div>
-        <span className="hk-cat-label" style={{ fontWeight: 700, color: colors.strong, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: size + 10 }}>{label}</span>
+        <span className="hk-cat-label" style={{ fontFamily: '"Caveat", cursive', fontWeight: 700, color: '#D4AF37', background: darkMode ? '#333' : '#6b7280', padding: '2px 10px 4px', borderRadius: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: size + 24 }}>{label}</span>
     </button>
 );
 
@@ -443,6 +460,22 @@ const Home: React.FC = () => {
         if (allBusinesses.length === 0) { fetchBusinesses(); }
         else { restoredRef.current = false; setLoading(false); }
     }, []);
+
+    // "All" stays the actual default filter, but visually starts just off the
+    // left edge — the first real (image-having) category is what's visible at
+    // first sight. A small scroll-left reveals "All" again when wanted.
+    const initialCatScrollDone = useRef(false);
+    useEffect(() => {
+        if (initialCatScrollDone.current) return;
+        if (categories.length === 0) return;
+        const row = catScrollRef.current;
+        if (!row) return;
+        const allItem = row.firstElementChild as HTMLElement | null;
+        if (!allItem) return;
+        initialCatScrollDone.current = true;
+        const gap = parseFloat(getComputedStyle(row).columnGap || '0') || 0;
+        row.scrollTo({ left: allItem.offsetWidth + gap, behavior: 'auto' });
+    }, [categories]);
 
     // Continuously track which business card is nearest the top of the viewport
     // and save it as we go. This must happen WHILE the page is still visible —
@@ -594,8 +627,10 @@ const Home: React.FC = () => {
         whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0,
     });
 
-    // Category row spreads out and gets extra breathing room once something is selected.
-    const catRowActive = selectedCategory !== undefined;
+    const activeCatIdx = categories.findIndex(c => c.id === selectedCategory);
+    const activeCatColor = selectedCategory === undefined
+        ? ALL_CAT_COLOR
+        : (activeCatIdx >= 0 ? CATEGORY_COLORS[activeCatIdx % CATEGORY_COLORS.length] : DEFAULT_CAT_COLOR);
 
     return (
         <div style={{ background: mainBg, minHeight: '100vh', color: textColor, position: 'relative' }}>
@@ -618,7 +653,7 @@ const Home: React.FC = () => {
                 .hk-radius-scroll > button { scroll-snap-align: start; }
 
                 /* ── Category avatars: squircle + unique ring, zoom + spread when active ── */
-                .hk-cat-scroll { display: flex; align-items: flex-start; overflow-x: auto; padding: 14px 16px; scrollbar-width: none; transition: gap 0.25s ease, justify-content 0.25s ease; scroll-behavior: smooth; }
+                .hk-cat-scroll { display: flex; align-items: flex-start; overflow-x: auto; padding: 14px 16px; gap: 42px; scrollbar-width: none; transition: gap 0.25s ease, justify-content 0.25s ease; scroll-behavior: smooth; }
                 .hk-cat-story { display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; border: none; cursor: pointer; flex-shrink: 0; font-family: inherit; padding: 0; }
                 .hk-cat-ring { display: flex; align-items: center; justify-content: center; transition: transform 0.25s ease, background 0.25s ease; }
                 .hk-cat-label { font-size: 11px; }
@@ -657,12 +692,21 @@ const Home: React.FC = () => {
                    the scroll instead of being force-centered with odd overhang. */
                 .hk-belt-item { flex-shrink: 0; width: min(82vw, 360px); scroll-snap-align: start; }
 
+                .hk-belt-footer {
+                    display: inline-flex; align-items: center; gap: 6px;
+                    margin: 6px 0 0; padding: 4px 16px 6px;
+                    border: none; cursor: pointer; border-radius: 8px;
+                    font-family: "Caveat", cursive; font-weight: 700; font-size: 24px; line-height: 1;
+                    color: #D4AF37;
+                }
+                .hk-belt-footer svg { flex-shrink: 0; }
+
                 /* ── Vertical group: stacked list on mobile, no gap above the very first
                    group (sits right under the sticky category bar), bigger spacing
                    between cards. On desktop this becomes the same edge-to-edge grid
                    as belts (see media query). ── */
                 .hk-vgroup-track { display: flex; flex-direction: column; gap: 36px; padding: ${BELT_LOGO_D / 2 + 4}px 16px 8px 16px; }
-                .hk-vgroup-track:first-of-type { padding-top: ${BELT_LOGO_D / 2 + 4}px; margin-top: 0; }
+                .hk-vgroup-track:first-of-type { padding-top: 0; margin-top: 0; }
                 .hk-vgroup-item { width: 100%; }
 
                 /* ── Zoom overlay — z-index above the app's bottom nav bar (App.tsx uses
@@ -681,7 +725,7 @@ const Home: React.FC = () => {
 
                     .hk-cat-nav-desktop-only { display: flex; }
 
-                    .hk-cat-scroll { padding: 30px 40px !important; gap: 40px !important; }
+                    .hk-cat-scroll { padding: 30px 40px !important; gap: 120px !important; }
                     .hk-cat-ring { width: 92px !important; height: 92px !important; }
                     .hk-cat-story { width: 104px !important; }
                     .hk-cat-label { font-size: 13px !important; max-width: 104px !important; }
@@ -691,7 +735,7 @@ const Home: React.FC = () => {
                        same 3-column grid here instead of a mismatched 4-column one. */
                     .hk-belt-track, .hk-vgroup-track {
                         display: grid; grid-template-columns: repeat(3, 1fr);
-                        gap: 32px; overflow-x: visible; padding: 32px 32px 8px; max-width: 1500px; margin: 0 auto;
+                        gap: 64px; overflow-x: visible; padding: 32px 32px 8px; max-width: 1500px; margin: 0 auto;
                     }
                     .hk-belt-item { width: auto; scroll-snap-align: none; }
                     .hk-vgroup-item { width: auto; }
@@ -792,7 +836,7 @@ const Home: React.FC = () => {
                 {/* ── Categories — sticky so it stays put while the business list scrolls ── */}
                 {categories.length > 0 && (
                     <div className="hk-cat-sticky" style={{
-                        background: categoriesBg, borderBottom: `1px solid ${darkMode ? '#0a0a0a' : '#f3f4f6'}`,
+                        background: categoriesBg, borderBottom: `1px solid ${activeCatColor.ring}`,
                     }}>
                         <div className="hk-cat-bar-row">
                             <button
@@ -806,16 +850,14 @@ const Home: React.FC = () => {
                             <div
                                 ref={catScrollRef}
                                 className="hk-cat-scroll"
-                                style={{
-                                    gap: catRowActive ? 28 : 14,
-                                }}
                             >
                                 <CategoryStory
                                     label="All"
                                     active={selectedCategory === undefined}
-                                    colors={DEFAULT_CAT_COLOR}
+                                    colors={ALL_CAT_COLOR}
                                     onClick={() => handleCategoryChange(undefined)}
-                                    size={selectedCategory === undefined ? 78 : 70}
+                                    size={70}
+                                    darkMode={darkMode}
                                 />
                                 {categories.map((c, idx) => (
                                     <CategoryStory
@@ -825,7 +867,8 @@ const Home: React.FC = () => {
                                         colors={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]}
                                         onClick={() => handleCategoryChange(c.id)}
                                         imageUrl={c.image_url || null}
-                                        size={selectedCategory === c.id ? 78 : 70}
+                                        size={70}
+                                        darkMode={darkMode}
                                     />
                                 ))}
                             </div>
