@@ -393,7 +393,10 @@ type BarMode = 'none' | 'search' | 'location';
 
 const Home: React.FC = () => {
     const [categories, setCategories] = useState<any[]>([]);
-    const [loading, setLoading] = useState(false);
+    // Starts true (not false) so the very first paint — before the mount
+    // effect below has even run — shows the spinner instead of a flash of
+    // "No businesses found" against an empty initial list.
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [loadingMore, setLoadingMore] = useState(false);
     const [barMode, setBarMode] = useState<BarMode>('none');
