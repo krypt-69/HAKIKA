@@ -190,13 +190,38 @@ const NavItem: React.FC<{ to: string; icon: React.ReactNode; label: string; acti
 
 /* ── Nav bar ──────────────────────────────────────────
    White background on both mobile and desktop, with a
-   subtle top border/shadow. Icons are green throughout. */
+   subtle top border/shadow. Icons are green throughout.
+   Hides smoothly when scrolling down, reappears when
+   scrolling up — like most modern mobile app chrome. */
 const BottomNav: React.FC = () => {
     const location = useLocation();
     const isActive = (path: string) => location.pathname === path;
+    const [hidden, setHidden] = React.useState(false);
+    const lastYRef = React.useRef(0);
+
+    React.useEffect(() => {
+        let ticking = false;
+        const onScroll = () => {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(() => {
+                const y = window.scrollY;
+                const diff = y - lastYRef.current;
+                // Only react to a deliberate scroll (avoids jitter from tiny
+                // wobbles) and never hide while still near the very top.
+                if (Math.abs(diff) > 6) {
+                    setHidden(diff > 0 && y > 40);
+                    lastYRef.current = y;
+                }
+                ticking = false;
+            });
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
     return (
-        <div className="hk-navbar">
+        <div className={`hk-navbar${hidden ? ' hk-navbar--hidden' : ''}`}>
             <div className="hk-navbar-inner">
                 <div className="hk-nav-group-left">
                     <NavItem to="/" icon={<HomeIcon />} label="Home" active={isActive('/')} />
@@ -234,7 +259,11 @@ const App: React.FC = () => (
                 border-top: 2px solid #b8860b;
                 box-shadow: 0 -1px 6px rgba(0,0,0,0.04);
                 z-index: 1000;
+                transition: transform 0.3s ease;
+                transform: translateY(0);
             }
+            /* Mobile: nav sits at the bottom, so hiding slides it straight down. */
+            .hk-navbar--hidden { transform: translateY(100%); }
             .hk-navbar-inner {
                 display: flex;
             }
@@ -258,7 +287,17 @@ const App: React.FC = () => (
                wider screen — bigger icons, bigger text, taller bar,
                more breathing room between items. ── */
             @media (min-width: 860px) {
-                .hk-app-shell { padding-bottom: 0; padding-top: 76px; }
+                /* padding-top must cover the navbar's real rendered height:
+                   .hk-navbar padding (14+14=28) + .hk-nav-pill padding (8+8=16)
+                   + icon (26) + pill gap (5) + label (~24 incl. its own
+                   padding/line-height) + underline row (4) + border (2)
+                   ≈ 105px. The previous 76px under-reserved this, which is
+                   why content (search/location on the Home page) rendered
+                   too high and got covered by the fixed nav. */
+                .hk-app-shell { padding-bottom: 0; padding-top: 112px; }
+
+                /* Desktop: nav sits at the top, so hiding slides it up instead. */
+                .hk-navbar--hidden { transform: translateY(-100%); }
 
                 .hk-navbar {
                     position: fixed;

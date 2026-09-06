@@ -11,6 +11,8 @@ import { Order } from '../types/order';
 import type { DeliveryTrip } from '../services/tripBuilder';
 import { reconcileTripWithActiveOrders, advanceTripAfterStopCompleted } from '../services/tripBuilder';
 import { useOrders } from '../hooks/useOrders';
+import { loadActiveTrip, saveActiveTrip, clearActiveTrip } from '../services/navigationPersistence';
+import { getDarkMode } from '../mapbox/init';
 import { calculateRouteProgress, type RouteProgress } from '../services/routeProgress';
 import { orderToDestination, stopToDestination, type NavigationDestination } from '../services/navigationDestination';
 
@@ -80,12 +82,24 @@ const NavigationScreen: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { refetch: refetchOrders } = useOrders();
-  const order = (location.state as any)?.order as Order | undefined;
-  const trip = (location.state as any)?.trip as DeliveryTrip | undefined;
+  const stateOrder = (location.state as any)?.order as Order | undefined;
+  const stateTrip = (location.state as any)?.trip as DeliveryTrip | undefined;
+
+  const { data: currentOrders = [], isLoading: ordersLoading } = useOrders();
+
+  // Fallback for single-order nav: recover from URL param + orders cache after refresh
+  const order = stateOrder ?? (orderId ? currentOrders.find((o: any) => o.id === orderId) : undefined);
+
+  // Fallback for trip nav: recover from sessionStorage after refresh
+  const [rehydratedTrip, setRehydratedTrip] = useState<DeliveryTrip | null>(null);
+  useEffect(() => {
+    if (!stateTrip && !orderId) {
+      setRehydratedTrip(loadActiveTrip());
+    }
+  }, [stateTrip, orderId]);
+  const trip = stateTrip ?? rehydratedTrip ?? undefined;
 
   const [currentStopIndex, setCurrentStopIndex] = useState(0);
-
-  const { data: currentOrders = [] } = useOrders();
 
   const [reconciledTrip, setReconciledTrip] = useState<DeliveryTrip | null>(null);
   const [currentStopInvalidated, setCurrentStopInvalidated] = useState(false);
@@ -98,6 +112,10 @@ const NavigationScreen: React.FC = () => {
   }, [trip, currentOrders]);
 
   const effectiveTrip = reconciledTrip || trip;
+
+  useEffect(() => {
+    if (effectiveTrip) saveActiveTrip(effectiveTrip);
+  }, [effectiveTrip]);
   const [navigationTarget, setNavigationTarget] = useState<NavigationDestination | null>(null);
   const [hasArrived, setHasArrived] = useState(false);
   useEffect(() => { setNavigationTarget(null); setHasArrived(false); }, [order?.id, effectiveTrip?.id]);
@@ -554,6 +572,7 @@ const NavigationScreen: React.FC = () => {
       <div style={{ flex: 3, minHeight: 0, position: 'relative' }}>
         {riderLocation && (
         <NavigationMap
+          key={getDarkMode() ? 'dark' : 'light'}
           riderLocation={riderLocation}
           riderHeading={riderHeading}
           riderSpeed={riderSpeed}
@@ -657,7 +676,7 @@ const NavigationScreen: React.FC = () => {
 
           {display && display.items.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {display.items.slice(0, 3).map((item) => (
+              {display.items.slice(0, 3).map((item: any) => (
                 <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div
                     style={{

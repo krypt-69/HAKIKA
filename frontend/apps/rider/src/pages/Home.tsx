@@ -10,6 +10,8 @@ import { useOrders } from '../hooks/useOrders';
 import { buildTrip } from '../services/tripBuilder';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { offlineQueue } from '../services/offlineQueue';
+import { saveTripSelection, clearTripSelection, saveActiveTrip, loadTripSelection } from '../services/navigationPersistence';
+import { getDarkMode, setDarkMode } from '../mapbox/init';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import SyncStatus from '../components/SyncStatus';
 import { useAuth, authenticatedFetch } from '@hakika/auth';
@@ -26,8 +28,8 @@ const Home: React.FC = () => {
   const [paymentPopupOrderId, setPaymentPopupOrderId] = useState<string | null>(null);
   const lastPaymentPopupOrderId = useRef<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [isSelectingForTrip, setIsSelectingForTrip] = useState(false);
-  const [tripOrderIds, setTripOrderIds] = useState<string[]>([]);
+  const [isSelectingForTrip, setIsSelectingForTrip] = useState(() => loadTripSelection().isSelecting);
+  const [tripOrderIds, setTripOrderIds] = useState<string[]>(() => loadTripSelection().orderIds);
   const [tripMessage, setTripMessage] = useState('');
 
   useWebSocket((event: any) => {
@@ -63,6 +65,7 @@ const Home: React.FC = () => {
         setGpsLat(pos.coords.latitude);
         setGpsLon(pos.coords.longitude);
         setError('');
+        refetchOrders();
       },
       () => {
         setGpsLat(null);
@@ -73,11 +76,17 @@ const Home: React.FC = () => {
     );
   };
   const [travelMode, setTravelMode] = useState<'driving' | 'two_wheeled'>('driving');
+  const [isDarkMode, setIsDarkMode] = useState(() => getDarkMode());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
 
 
 
+
+  // Persist trip selection state
+  useEffect(() => {
+    saveTripSelection(tripOrderIds, isSelectingForTrip);
+  }, [tripOrderIds, isSelectingForTrip]);
 
   // Load pending sync order IDs from the offline queue
   useEffect(() => {
@@ -159,6 +168,8 @@ const Home: React.FC = () => {
 
     try {
       const trip = await buildTrip(selectedOrders, memoizedRiderLocation);
+      saveActiveTrip(trip);
+      clearTripSelection();
       navigate('/trip-preview', { state: { trip, orders: selectedOrders } });
     } catch (err: any) {
       setTripMessage(err.message || 'Failed to build trip.');
@@ -169,6 +180,7 @@ const Home: React.FC = () => {
     setIsSelectingForTrip(false);
     setTripOrderIds([]);
     setTripMessage('');
+    clearTripSelection();
   };
 
   const handleNavigateToOrder = (order: Order) => {
@@ -194,6 +206,15 @@ const Home: React.FC = () => {
     const mode = travelMode === 'two_wheeled' ? 'bicycling' : 'driving';
     const url = `https://www.google.com/maps/dir/?api=1&origin=${pLat},${pLon}&destination=${dLat},${dLon}&travelmode=${mode}`;
     window.open(url, '_blank');
+  };
+
+  const toggleDarkMode = () => {
+    const next = !isDarkMode;
+    setIsDarkMode(next);
+    setDarkMode(next);
+    // Reload map by remounting OverviewMap — use a key or simply force a refresh
+    setMessage(next ? 'Dark mode enabled' : 'Light mode enabled');
+    setTimeout(() => setMessage(''), 2000);
   };
 
   const toggleTravelMode = () => {
@@ -288,7 +309,7 @@ const Home: React.FC = () => {
         <div style={{ display: 'flex', gap: 8 }}>
           {activeOrders.length > 0 && (
             <button
-              onClick={() => { setIsSelectingForTrip(prev => !prev); setTripOrderIds([]); setTripMessage(''); }}
+              onClick={() => { setIsSelectingForTrip((prev: boolean) => !prev); setTripOrderIds([]); setTripMessage(''); }}
               style={{
                 padding: '6px 12px',
                 backgroundColor: isSelectingForTrip ? '#f59e0b' : '#6b7280',
@@ -340,14 +361,20 @@ const Home: React.FC = () => {
             )}
           </div>
         </div>
-        <button onClick={toggleTravelMode} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', background: travelMode === 'driving' ? '#4f46e5' : '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
-          {travelMode === 'driving' ? '🚗 Car Mode' : '🛵 Boda Mode'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={toggleDarkMode} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', background: isDarkMode ? '#111827' : '#fbbf24', color: isDarkMode ? '#fff' : '#000', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+            {isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}
+          </button>
+          <button onClick={toggleTravelMode} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', background: travelMode === 'driving' ? '#4f46e5' : '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+            {travelMode === 'driving' ? '🚗 Car Mode' : '🛵 Boda Mode'}
+          </button>
+        </div>
       </div>
 
       {memoizedRiderLocation || activeOrders.length > 0 ? (
         <div style={{ height: '45vh', marginBottom: 16 }}>
           <OverviewMap
+            key={isDarkMode ? 'dark' : 'light'}
             orders={activeOrders}
             riderLocation={memoizedRiderLocation}
             radiusKm={30}

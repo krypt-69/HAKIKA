@@ -328,7 +328,7 @@ const NavigationMap: React.FC<Props> = ({
       { lat: riderLocation[1], lon: riderLocation[0] }
     );
 
-    const shouldShowRealRider = riderDistanceFromBusiness <= selectedRadius || expandedForRider;
+    const shouldShowRealRider = navigationPhase === 'active' || riderDistanceFromBusiness <= selectedRadius || expandedForRider;
     const effectiveRadius = expandedForRider ? riderDistanceFromBusiness : selectedRadius;
 
     if (shouldShowRealRider) {

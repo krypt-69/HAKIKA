@@ -1,4 +1,5 @@
 import mapboxgl from 'mapbox-gl';
+import { getDarkMode } from './init';
 
 export function createRiderMarker(): mapboxgl.Marker {
   return new mapboxgl.Marker({ color: '#2563eb' });
@@ -51,7 +52,8 @@ export function createRiderArrowMarker(heading?: number | null): mapboxgl.Marker
 
   const path = document.createElementNS(NS, 'path');
   path.setAttribute('d', 'M12 2 L22 20 L12 16 L2 20 Z');
-  path.setAttribute('fill', '#1e3a8a');
+  const dark = getDarkMode();
+  path.setAttribute('fill', dark ? '#16a34a' : '#b45309');
   path.setAttribute('stroke', '#ffffff');
   path.setAttribute('stroke-width', '1.5');
   path.setAttribute('stroke-linejoin', 'round');

@@ -142,6 +142,13 @@ const CategorySpinner: React.FC<{ size?: number; color?: string }> = ({ size = 4
     );
 };
 
+const MenuLinesSvg = ({ color = '#374151' }: { color?: string }) =>
+    React.createElement('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 2.4, strokeLinecap: 'round', strokeLinejoin: 'round' },
+        React.createElement('line', { x1: 4, y1: 7, x2: 20, y2: 7 }),
+        React.createElement('line', { x1: 4, y1: 12, x2: 20, y2: 12 }),
+        React.createElement('line', { x1: 4, y1: 17, x2: 20, y2: 17 })
+    );
+
 const ChevronUpSvg = () =>
     React.createElement('svg', { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' },
         React.createElement('polyline', { points: '18 15 12 9 6 15' })
@@ -360,16 +367,16 @@ const BizShelf: React.FC<{ items: BusinessCard[]; gpsEnabled: boolean; label: st
     );
 };
 
-/* ── Category stories (Instagram-style, squircle + bright gold ring) ──
+/* ── Category stories (Instagram-style, circular + bright gold ring) ──
    Every avatar shares the same bright gold ring and handwritten label
    style now (previously each had its own per-category ring color). */
 const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor; onClick: () => void; imageUrl?: string | null; size: number; darkMode: boolean }> = ({ label, active, colors, onClick, imageUrl, size, darkMode }) => (
     <button onClick={onClick} className="hk-cat-story" style={{ width: size + 10 }}>
         <div className="hk-cat-ring" style={{
-            width: size, height: size, borderRadius: '30%', padding: 3,
-            background: '#B8860B',
+            width: size, height: size, borderRadius: '50%', padding: 0,
+            background: 'transparent',
         }}>
-            <div style={{ width: '100%', height: '100%', borderRadius: '26%', background: colors.light, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff', overflow: 'hidden' }}>
+            <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: colors.light, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff', overflow: 'hidden' }}>
                 {imageUrl ? (
                     <img src={imageUrl} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
@@ -377,7 +384,7 @@ const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor
                 )}
             </div>
         </div>
-        <span className="hk-cat-label" style={{ fontFamily: '"Caveat", cursive', fontWeight: 700, color: '#D4AF37', background: darkMode ? '#333' : '#6b7280', padding: '2px 10px 4px', borderRadius: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: size + 24 }}>{label}</span>
+        <span className="hk-cat-label" style={{ fontFamily: 'inherit', fontWeight: 700, color: colors.strong, background: darkMode ? '#2a2a2a' : '#e5e7eb', letterSpacing: '0.02em', padding: '3px 10px 3px', borderRadius: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: size + 24 }}>{label}</span>
     </button>
 );
 
@@ -390,6 +397,9 @@ const Home: React.FC = () => {
     const [error, setError] = useState('');
     const [loadingMore, setLoadingMore] = useState(false);
     const [barMode, setBarMode] = useState<BarMode>('none');
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [catBarHidden, setCatBarHidden] = useState(false);
+    const catBarLastY = useRef(0);
     const [gpsLoading, setGpsLoading] = useState(false);
     const [darkMode, setDarkMode] = useState(false); // default light
     const sentinelRef = useRef<HTMLDivElement>(null);
@@ -456,9 +466,49 @@ const Home: React.FC = () => {
     };
 
     useEffect(() => {
+        // The browser's own "restore scroll position on reload" feature doesn't know
+        // about our sticky category bar's height, so on a hard refresh it can leave
+        // the page scrolled to a spot where the first card sits half-hidden behind
+        // it. We already have our own, more accurate anchor-based restore system, so
+        // take full manual control of scroll restoration and stop the browser from
+        // fighting it.
+        if ('scrollRestoration' in window.history) {
+            window.history.scrollRestoration = 'manual';
+        }
         api.categories().then(setCategories).catch(() => {});
-        if (allBusinesses.length === 0) { fetchBusinesses(); }
-        else { restoredRef.current = false; setLoading(false); }
+        if (allBusinesses.length === 0) {
+            setLoading(true);
+            window.scrollTo(0, 0);
+            // Try to get the user's location automatically on first load, so the
+            // very first results already come sorted/filtered by distance without
+            // the person having to tap "Location" themselves. If it's unavailable,
+            // denied, or times out, fall back to showing businesses without it —
+            // never block the page on this.
+            if (navigator.geolocation) {
+                setGpsLoading(true);
+                navigator.geolocation.getCurrentPosition(
+                    pos => {
+                        const loc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                        setLocation(loc);
+                        setGpsEnabled(true);
+                        setLocationEnabled(true);
+                        setGpsLoading(false);
+                        fetchBusinesses(loc.lat, loc.lon, selectedCategory, radiusMeters, searchText);
+                    },
+                    () => {
+                        setGpsLoading(false);
+                        fetchBusinesses();
+                    },
+                    { timeout: 8000 }
+                );
+            } else {
+                fetchBusinesses();
+            }
+        } else {
+            restoredRef.current = false;
+            setLoading(false);
+            if (!scrollAnchorId) window.scrollTo(0, 0);
+        }
     }, []);
 
     // "All" stays the actual default filter, but visually starts just off the
@@ -476,6 +526,28 @@ const Home: React.FC = () => {
         const gap = parseFloat(getComputedStyle(row).columnGap || '0') || 0;
         row.scrollTo({ left: allItem.offsetWidth + gap, behavior: 'auto' });
     }, [categories]);
+
+    // Hide the category bar smoothly on scroll-down, bring it back on scroll-up
+    // (same behavior as the app's nav bar). Only matters where it's actually
+    // sticky — CSS keeps this a no-op on desktop, where it's static in flow.
+    useEffect(() => {
+        let ticking = false;
+        const onScroll = () => {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(() => {
+                const y = window.scrollY;
+                const diff = y - catBarLastY.current;
+                if (Math.abs(diff) > 6) {
+                    setCatBarHidden(diff > 0 && y > 80);
+                    catBarLastY.current = y;
+                }
+                ticking = false;
+            });
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
     // Continuously track which business card is nearest the top of the viewport
     // and save it as we go. This must happen WHILE the page is still visible —
@@ -618,14 +690,6 @@ const Home: React.FC = () => {
     };
 
     const iconBtnStyle: React.CSSProperties = { width: 38, height: 38, background: '#16a34a', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 };
-    const locationBtnStyle = (activeFilled: boolean): React.CSSProperties => ({
-        display: 'flex', alignItems: 'center', gap: 5,
-        background: gpsLoading ? '#e5e7eb' : activeFilled ? '#16a34a' : darkMode ? '#2a2a2a' : '#f0fdf4',
-        border: gpsLoading ? '1px solid #d1d5db' : activeFilled ? '1px solid #16a34a' : darkMode ? '1px solid #444' : '1px solid #bbf7d0',
-        borderRadius: 8, padding: '9px 12px', cursor: gpsLoading ? 'default' : 'pointer', fontSize: 12, fontWeight: 700,
-        color: gpsLoading ? '#9ca3af' : activeFilled ? '#fff' : darkMode ? '#e5e7eb' : '#16a34a',
-        whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0,
-    });
 
     const activeCatIdx = categories.findIndex(c => c.id === selectedCategory);
     const activeCatColor = selectedCategory === undefined
@@ -634,14 +698,6 @@ const Home: React.FC = () => {
 
     return (
         <div style={{ background: mainBg, minHeight: '100vh', color: textColor, position: 'relative' }}>
-            {/* Page-wide faint watermark — mobile only; hidden on desktop entirely
-                (see .hk-watermark media query below). */}
-            <div className="hk-watermark" style={{
-                position: 'fixed', inset: 0, backgroundImage: 'url(/customer/logo.png)',
-                backgroundSize: 'cover', backgroundPosition: 'center',
-                opacity: darkMode ? 0.05 : 0.1, zIndex: 0, pointerEvents: 'none',
-            }} />
-
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap');
                 @keyframes spin { to { transform: rotate(360deg); } }
@@ -652,11 +708,47 @@ const Home: React.FC = () => {
                 .hk-radius-scroll { -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
                 .hk-radius-scroll > button { scroll-snap-align: start; }
 
+                /* ── Slim topbar: hamburger menu (left), location badge (center), search chip (right) ── */
+                .hk-topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; }
+
+                .hk-menu-btn {
+                    width: 38px; height: 38px; border-radius: 10px; border: none; cursor: pointer;
+                    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+                    background: transparent;
+                }
+                .hk-menu-backdrop { position: fixed; inset: 0; z-index: 29; background: transparent; }
+                .hk-menu-dropdown {
+                    position: absolute; top: 44px; left: 0; z-index: 30; min-width: 150px;
+                    border-radius: 12px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+                }
+                .hk-menu-item {
+                    display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+                    background: transparent; border: none; cursor: pointer; border-radius: 8px;
+                    padding: 9px 10px; font-size: 13px; font-weight: 600; font-family: inherit;
+                }
+                .hk-menu-item:hover { background: rgba(0,0,0,0.06); }
+
+                .hk-location-badge {
+                    display: flex; align-items: center; gap: 8px; background: transparent; border: none;
+                    cursor: pointer; font-family: inherit; padding: 2px 4px; flex-shrink: 0;
+                }
+                .hk-location-ring {
+                    width: 38px; height: 38px; border-radius: 50%; border: 3px solid #FFD700;
+                    background: #FCF3D2; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+                }
+                .hk-location-label { font-family: "Caveat", cursive; font-weight: 700; font-size: 18px; white-space: nowrap; }
+
+                .hk-search-chip {
+                    display: flex; align-items: center; gap: 6px; border: none; cursor: pointer;
+                    border-radius: 10px; padding: 9px 16px; flex-shrink: 0;
+                    font-family: "Caveat", cursive; font-weight: 700; font-size: 18px; color: #D4AF37;
+                }
+
                 /* ── Category avatars: squircle + unique ring, zoom + spread when active ── */
                 .hk-cat-scroll { display: flex; align-items: flex-start; overflow-x: auto; padding: 14px 16px; gap: 42px; scrollbar-width: none; transition: gap 0.25s ease, justify-content 0.25s ease; scroll-behavior: smooth; }
                 .hk-cat-story { display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; border: none; cursor: pointer; flex-shrink: 0; font-family: inherit; padding: 0; }
                 .hk-cat-ring { display: flex; align-items: center; justify-content: center; transition: transform 0.25s ease, background 0.25s ease; }
-                .hk-cat-label { font-size: 11px; }
+                .hk-cat-label { font-size: 15px; }
 
                 .hk-cat-nav-btn {
                     width: 30px; height: 30px; border-radius: 50%; border: none; cursor: pointer;
@@ -673,7 +765,8 @@ const Home: React.FC = () => {
                    On desktop the app's top nav bar sits at the very top of the
                    viewport, so this needs to sit below it instead of underneath it —
                    see the desktop override further down. */
-                .hk-cat-sticky { position: sticky; top: 0; z-index: 20; }
+                .hk-cat-sticky { position: sticky; top: 0; z-index: 20; border-top: 2px solid #D4AF37; transition: transform 0.3s ease; transform: translateY(0); }
+                .hk-cat-sticky--hidden { transform: translateY(-100%); }
 
                 /* ── Business card shelf: mobile = horizontal belt, desktop = grid ── */
                 .hk-biz-card-link { text-decoration: none; color: inherit; display: block; }
@@ -706,7 +799,7 @@ const Home: React.FC = () => {
                    between cards. On desktop this becomes the same edge-to-edge grid
                    as belts (see media query). ── */
                 .hk-vgroup-track { display: flex; flex-direction: column; gap: 36px; padding: ${BELT_LOGO_D / 2 + 4}px 16px 8px 16px; }
-                .hk-vgroup-track:first-of-type { padding-top: 0; margin-top: 0; }
+                .hk-vgroup-track:first-of-type { padding-top: ${BELT_LOGO_D / 2}px; margin-top: 0; }
                 .hk-vgroup-item { width: 100%; }
 
                 /* ── Zoom overlay — z-index above the app's bottom nav bar (App.tsx uses
@@ -715,20 +808,16 @@ const Home: React.FC = () => {
                 .hk-zoom-box { border-radius: 18px; padding: 28px 24px 22px; width: 100%; max-width: 320px; text-align: center; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: zoomIn 0.18s ease-out; }
 
                 @media (min-width: 860px) {
-                    /* Watermark is mobile-only */
-                    .hk-watermark { display: none; }
-
-                    /* App.tsx's top nav (.hk-navbar) is ~64px tall at desktop widths and
-                       sits fixed at the very top of the viewport — push the sticky
-                       category bar down so the nav doesn't cover it. */
-                    .hk-cat-sticky { position: static; top: auto; }
+                    /* Category bar isn't sticky on desktop — it just flows normally
+                       below the app's fixed top nav (App.tsx's .hk-navbar). */
+                    .hk-cat-sticky { position: static; top: auto; transform: none !important; }
 
                     .hk-cat-nav-desktop-only { display: flex; }
 
                     .hk-cat-scroll { padding: 30px 40px !important; gap: 120px !important; }
                     .hk-cat-ring { width: 92px !important; height: 92px !important; }
                     .hk-cat-story { width: 104px !important; }
-                    .hk-cat-label { font-size: 13px !important; max-width: 104px !important; }
+                    .hk-cat-label { font-size: 19px !important; max-width: 130px !important; padding: 3px 14px 5px !important; }
 
                     /* Uniform 3-per-row on desktop for BOTH group types, matching the
                        vertical group's sizing — belts (4 on mobile) collapse to the
@@ -751,91 +840,93 @@ const Home: React.FC = () => {
             `}</style>
 
             <div style={{ position: 'relative', zIndex: 1 }}>
-                {/* ── Header ── */}
-                <div style={{ borderBottom: `1px solid ${headerBorder}`, background: headerBg }}>
-                    <div className="hk-container" style={{ paddingTop: 8, paddingBottom: 8 }}>
-                        {/* First row: buttons at the very top */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                            <button onClick={() => window.open(Config.RIDER_BASE, '_blank', 'noopener,noreferrer')} style={{ display: 'flex', alignItems: 'center', gap: 5, background: darkMode ? '#2a2a2a' : '#f0fdf4', border: darkMode ? 'none' : '1.5px solid #bbf7d0', borderRadius: 8, padding: '6px 11px', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#16a34a', fontFamily: 'inherit' }}>
-                                <BikeSvg size={14} />Rider App
+                {/* ── Header: slim single row — menu (left), location (center), search (right) ── */}
+                <div style={{ borderBottom: `1px solid ${headerBorder}`, background: headerBg, position: 'relative' }}>
+                    <div className="hk-container hk-topbar">
+                        <div style={{ position: 'relative' }}>
+                            <button className="hk-menu-btn" onClick={() => setMenuOpen(v => !v)} aria-label="Menu">
+                                <MenuLinesSvg color={darkMode ? '#e5e7eb' : '#374151'} />
                             </button>
-
-                            <button onClick={() => window.open(Config.BUSINESS_BASE, '_blank', 'noopener,noreferrer')} style={{ display: 'flex', alignItems: 'center', gap: 5, background: darkMode ? '#2a2a2a' : '#f0fdf4', border: darkMode ? 'none' : '1.5px solid #bbf7d0', borderRadius: 8, padding: '6px 11px', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#16a34a', fontFamily: 'inherit' }}>
-                                <ShopSvg size={14} />Dashboard
-                            </button>
-
-                            <button onClick={toggleDarkMode} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: darkMode ? '#2a2a2a' : '#f0fdf4', border: darkMode ? 'none' : '1.5px solid #bbf7d0', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                {darkMode ? <SunSvg size={18} color="#16a34a" /> : <MoonSvg size={18} color="#16a34a" />}
-                            </button>
-                        </div>
-
-                        {/* row 2: location / search toggle */}
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            {barMode === 'search' ? (
+                            {menuOpen && (
                                 <>
-                                    <div style={{ flex: 1, background: inputBg, borderRadius: 8, display: 'flex', alignItems: 'center', paddingLeft: 12, border: `1px solid ${inputBorder}` }}>
-                                        <SearchSvg color={darkMode ? '#6b7280' : '#9ca3af'} />
-                                        <input
-                                            autoFocus
-                                            value={searchText}
-                                            onChange={e => setSearchText(e.target.value)}
-                                            onKeyDown={e => { if (e.key === 'Enter') runSearch(); }}
-                                            placeholder="Search businesses..."
-                                            style={{ flex: 1, border: 'none', outline: 'none', padding: '10px 10px', fontSize: 13, background: 'transparent', color: inputText }}
-                                        />
+                                    <div className="hk-menu-backdrop" onClick={() => setMenuOpen(false)} />
+                                    <div className="hk-menu-dropdown" style={{ background: darkMode ? '#1a1a1a' : '#fff', border: `1px solid ${darkMode ? '#333' : '#e5e7eb'}` }}>
+                                        <button className="hk-menu-item" onClick={() => { setMenuOpen(false); window.open(Config.BUSINESS_BASE, '_blank', 'noopener,noreferrer'); }} style={{ color: darkMode ? '#e5e7eb' : '#374151' }}>
+                                            <ShopSvg size={16} /> Dashboard
+                                        </button>
+                                        <button className="hk-menu-item" onClick={() => { setMenuOpen(false); window.open(Config.RIDER_BASE, '_blank', 'noopener,noreferrer'); }} style={{ color: darkMode ? '#e5e7eb' : '#374151' }}>
+                                            <BikeSvg size={16} /> Rider App
+                                        </button>
+                                        <button className="hk-menu-item" onClick={() => { setMenuOpen(false); toggleDarkMode(); }} style={{ color: darkMode ? '#e5e7eb' : '#374151' }}>
+                                            {darkMode ? <SunSvg size={16} color="#16a34a" /> : <MoonSvg size={16} color="#16a34a" />} Mode
+                                        </button>
                                     </div>
-                                    <button onClick={runSearch} style={iconBtnStyle}><SearchSvg color="#fff" size={15} /></button>
-                                </>
-                            ) : barMode === 'location' ? (
-                                <>
-                                    <button onClick={() => setBarMode('none')} style={locationBtnStyle(true)}>
-                                        {gpsLoading ? <SpinnerSvg /> : <LocationSvg size={12} color="#fff" />}{gpsLoading ? 'Locating...' : 'Location'}
-                                    </button>
-                                    <div className="hk-radius-scroll" style={{ flex: 1, display: 'flex', gap: 6, overflowX: 'auto' }}>
-                                        {RADIUS_OPTIONS.map(r => (
-                                            <button
-                                                key={r.value}
-                                                onClick={() => { setRadiusMeters(r.value); if (location) fetchBusinesses(location.lat, location.lon, selectedCategory, r.value, searchText); }}
-                                                style={{
-                                                    flexShrink: 0, padding: '9px 13px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap', fontFamily: 'inherit',
-                                                    background: radiusMeters === r.value ? r.strong : (darkMode ? '#2a2a2a' : r.light),
-                                                    color: radiusMeters === r.value ? '#fff' : (darkMode ? '#e5e7eb' : r.strong),
-                                                }}
-                                            >{r.label}</button>
-                                        ))}
-                                        <button onClick={clearLocation} style={{ flexShrink: 0, background: 'transparent', border: darkMode ? '1px solid #444' : '1px solid #d1d5db', borderRadius: 8, padding: '9px 10px', fontSize: 11, fontWeight: 600, color: darkMode ? '#9ca3af' : '#6b7280', cursor: 'pointer', fontFamily: 'inherit' }}>Clear</button>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <button onClick={openLocationMode} disabled={gpsLoading} style={locationBtnStyle(false)}>
-                                        {gpsLoading ? <SpinnerSvg /> : <LocationSvg size={12} color={darkMode ? '#e5e7eb' : '#16a34a'} />}{gpsLoading ? 'Locating...' : 'Location'}
-                                    </button>
-                                    <div style={{ flex: 1 }} />
-                                    <button onClick={() => setBarMode('search')} style={iconBtnStyle}><SearchSvg color="#fff" size={15} /></button>
                                 </>
                             )}
                         </div>
 
-                        {/* row 3: the button that "went down" */}
-                        {barMode === 'search' && (
-                            <div style={{ marginTop: 8 }}>
-                                <button onClick={openLocationMode} disabled={gpsLoading} style={locationBtnStyle(false)}>
-                                    {gpsLoading ? <SpinnerSvg /> : <LocationSvg size={12} color={darkMode ? '#e5e7eb' : '#16a34a'} />}{gpsLoading ? 'Locating...' : 'Location'}
-                                </button>
-                            </div>
-                        )}
-                        {barMode === 'location' && (
-                            <div style={{ marginTop: 8 }}>
-                                <button onClick={() => setBarMode('search')} style={iconBtnStyle}><SearchSvg color="#fff" size={15} /></button>
-                            </div>
-                        )}
+                        <button
+                            className="hk-location-badge"
+                            onClick={() => { if (barMode === 'location') { setBarMode('none'); } else { openLocationMode(); } }}
+                            disabled={gpsLoading}
+                        >
+                            <span className="hk-location-ring" style={{ borderColor: locationEnabled ? '#16a34a' : '#FFD700' }}>
+                                {gpsLoading ? <SpinnerSvg /> : <LocationSvg size={16} color="#4b5563" />}
+                            </span>
+                            <span className="hk-location-label" style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>
+                                {gpsLoading ? 'Locating…' : 'Location'}
+                            </span>
+                        </button>
+
+                        <button className="hk-search-chip" onClick={() => setBarMode(barMode === 'search' ? 'none' : 'search')} style={{ background: darkMode ? '#333' : '#6b7280' }}>
+                            <SearchSvg color="#D4AF37" size={15} />
+                            <span>Search</span>
+                        </button>
                     </div>
+
+                    {/* Expanded panels — search input or location radius picker,
+                        opened by tapping the search chip / location badge above. */}
+                    {barMode === 'search' && (
+                        <div className="hk-container" style={{ paddingBottom: 10 }}>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <div style={{ flex: 1, background: inputBg, borderRadius: 8, display: 'flex', alignItems: 'center', paddingLeft: 12, border: `1px solid ${inputBorder}` }}>
+                                    <SearchSvg color={darkMode ? '#6b7280' : '#9ca3af'} />
+                                    <input
+                                        autoFocus
+                                        value={searchText}
+                                        onChange={e => setSearchText(e.target.value)}
+                                        onKeyDown={e => { if (e.key === 'Enter') runSearch(); }}
+                                        placeholder="Search businesses..."
+                                        style={{ flex: 1, border: 'none', outline: 'none', padding: '10px 10px', fontSize: 13, background: 'transparent', color: inputText }}
+                                    />
+                                </div>
+                                <button onClick={runSearch} style={iconBtnStyle}><SearchSvg color="#fff" size={15} /></button>
+                            </div>
+                        </div>
+                    )}
+                    {barMode === 'location' && (
+                        <div className="hk-container" style={{ paddingBottom: 10 }}>
+                            <div className="hk-radius-scroll" style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
+                                {RADIUS_OPTIONS.map(r => (
+                                    <button
+                                        key={r.value}
+                                        onClick={() => { setRadiusMeters(r.value); if (location) fetchBusinesses(location.lat, location.lon, selectedCategory, r.value, searchText); }}
+                                        style={{
+                                            flexShrink: 0, padding: '9px 13px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap', fontFamily: 'inherit',
+                                            background: radiusMeters === r.value ? r.strong : (darkMode ? '#2a2a2a' : r.light),
+                                            color: radiusMeters === r.value ? '#fff' : (darkMode ? '#e5e7eb' : r.strong),
+                                        }}
+                                    >{r.label}</button>
+                                ))}
+                                <button onClick={clearLocation} style={{ flexShrink: 0, background: 'transparent', border: darkMode ? '1px solid #444' : '1px solid #d1d5db', borderRadius: 8, padding: '9px 10px', fontSize: 11, fontWeight: 600, color: darkMode ? '#9ca3af' : '#6b7280', cursor: 'pointer', fontFamily: 'inherit' }}>Clear</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* ── Categories — sticky so it stays put while the business list scrolls ── */}
                 {categories.length > 0 && (
-                    <div className="hk-cat-sticky" style={{
+                    <div className={`hk-cat-sticky${catBarHidden ? ' hk-cat-sticky--hidden' : ''}`} style={{
                         background: categoriesBg, borderBottom: `1px solid ${activeCatColor.ring}`,
                     }}>
                         <div className="hk-cat-bar-row">
@@ -885,9 +976,23 @@ const Home: React.FC = () => {
                 )}
 
                 {error && <div className="hk-container" style={{ marginTop: 10, padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#dc2626', fontSize: 12 }}>{error}</div>}
-                {loading && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', gap: 8, color: mutedText, fontSize: 13 }}><SpinnerSvg />Finding shops near you…</div>}
 
-                {!loading && (
+                {gpsLoading && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', gap: 10, color: mutedText, fontSize: 13, textAlign: 'center' }}>
+                        <LocationSvg size={22} color="#16a34a" />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <SpinnerSvg />
+                            <span>Getting your location…</span>
+                        </div>
+                        <span style={{ fontSize: 11.5, color: mutedText, maxWidth: 260 }}>
+                            This can take a moment — we're calculating nearby shops for you, please hang on.
+                        </span>
+                    </div>
+                )}
+
+                {!gpsLoading && loading && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', gap: 8, color: mutedText, fontSize: 13 }}><SpinnerSvg />Finding shops near you…</div>}
+
+                {!gpsLoading && !loading && (
                     <div style={{ paddingBottom: 24 }}>
                         {allBusinesses.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '48px 20px', color: mutedText }}><div style={{ fontSize: 15, fontWeight: 600, color: textColor, marginBottom: 6 }}>No businesses found</div><div style={{ fontSize: 12 }}>Try adjusting your location or search terms</div></div>

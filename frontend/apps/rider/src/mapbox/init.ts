@@ -23,15 +23,35 @@ const KEEP_LAYER_ID_SUBSTRINGS = [
   'admin'
 ];
 
+const DARK_STYLE = 'mapbox://styles/mapbox/dark-v11';
+const LIGHT_STYLE = 'mapbox://styles/mapbox/streets-v12';
+const DARK_MODE_KEY = 'hakika-rider-dark-mode';
+
+export function getDarkMode(): boolean {
+  try {
+    const raw = localStorage.getItem(DARK_MODE_KEY);
+    return raw ? JSON.parse(raw) : true; // default dark
+  } catch {
+    return true;
+  }
+}
+
+export function setDarkMode(enabled: boolean) {
+  try {
+    localStorage.setItem(DARK_MODE_KEY, JSON.stringify(enabled));
+  } catch {}
+}
+
 export function createCleanMap(
   container: HTMLElement,
   center: [number, number],
   zoom = 15,
   pitch = 0
 ): mapboxgl.Map {
+  const dark = getDarkMode();
   const map = new mapboxgl.Map({
     container,
-    style: 'mapbox://styles/mapbox/streets-v12',
+    style: dark ? DARK_STYLE : LIGHT_STYLE,
     center,
     zoom,
     pitch,
