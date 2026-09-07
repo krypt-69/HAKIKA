@@ -7,6 +7,8 @@ from geoalchemy2.shape import to_shape
 from app.models.business import Business
 from app.models.location import Location
 from app.models.category import Category
+from app.models.product import Product
+from app.models.product_image import ProductImage
 from app.models.operating_hours import OperatingHours
 from app.repositories.category_repository import CategoryRepository
 from fastapi import HTTPException
@@ -256,6 +258,98 @@ class DiscoveryService:
             for h in hours_bulk.scalars().all():
                 hours_map.setdefault(h.business_id, []).append(h)
 
+        # Batch-load snippet configurations and selected products for page businesses
+        biz_ids = [b.id for b in business_rows]
+        snippet_map = {}
+        snippet_product_map = {}
+        if biz_ids:
+            from app.models.business_home_snippet import BusinessHomeSnippet
+            from app.models.business_home_snippet_product import BusinessHomeSnippetProduct
+            snippet_result = await self.db.execute(
+                select(BusinessHomeSnippet).where(BusinessHomeSnippet.business_id.in_(biz_ids))
+            )
+            snippets = snippet_result.scalars().all()
+            for s in snippets:
+                snippet_map[s.business_id] = s
+
+            if snippets:
+                snippet_ids = [s.id for s in snippets]
+                prod_assoc_result = await self.db.execute(
+                    select(BusinessHomeSnippetProduct)
+                    .where(BusinessHomeSnippetProduct.snippet_id.in_(snippet_ids))
+                    .order_by(BusinessHomeSnippetProduct.position)
+                )
+                for assoc in prod_assoc_result.scalars().all():
+                    snippet_product_map.setdefault(assoc.snippet_id, []).append(assoc)
+
+        # Determine display product ids per business
+        snippet_biz_ids = set(snippet_map.keys())
+        no_snippet_biz_ids = [b.id for b in business_rows if b.id not in snippet_biz_ids]
+
+        default_map = {}
+        if no_snippet_biz_ids:
+            from sqlalchemy import text
+            id_list = ', '.join([f"'{str(bid)}'" for bid in no_snippet_biz_ids])
+            ranked_sql = text(f"""
+                WITH ranked AS (
+                    SELECT p.id, p.business_id,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY p.business_id
+                               ORDER BY p.created_at ASC, p.id ASC
+                           ) AS rn
+                    FROM products p
+                    WHERE p.deleted_at IS NULL
+                      AND p.is_available = true
+                      AND (
+                          p.track_inventory = false
+                          OR p.stock_quantity > 0
+                      )
+                      AND p.business_id IN ({id_list})
+                )
+                SELECT id, business_id FROM ranked WHERE rn <= 4
+            """)
+            result = await self.db.execute(ranked_sql)
+            for row in result.fetchall():
+                default_map.setdefault(row.business_id, []).append(row.id)
+
+        display_product_ids = []
+        for b in business_rows:
+            snippet = snippet_map.get(b.id)
+            if snippet:
+                assoc_list = snippet_product_map.get(snippet.id, [])
+                ids = [a.product_id for a in assoc_list]
+            else:
+                ids = default_map.get(b.id, [])
+            display_product_ids.extend(ids)
+
+        # Batch load product info + primary image for all display ids
+        product_info_map = {}
+        if display_product_ids:
+            prod_result = await self.db.execute(
+                select(Product).where(Product.id.in_(display_product_ids))
+            )
+            prod_map = {p.id: p for p in prod_result.scalars().all()}
+
+            from app.models.product_image import ProductImage
+            img_result = await self.db.execute(
+                select(ProductImage).where(
+                    ProductImage.product_id.in_(display_product_ids),
+                    ProductImage.position == 1,
+                )
+            )
+            img_map = {}
+            for img in img_result.scalars().all():
+                img_map[img.product_id] = img.id
+
+            for pid in display_product_ids:
+                p = prod_map.get(pid)
+                if p:
+                    product_info_map[pid] = {
+                        "id": p.id,
+                        "name": p.name,
+                        "image_url": f"/api/v1/product/{img_map.get(pid)}" if pid in img_map else None,
+                    }
+
         businesses = []
         for business, distance in rows:
             location = loc_map.get(business.id)
@@ -274,6 +368,23 @@ class DiscoveryService:
                 "is_closed": h.is_closed
             } for h in hours]
 
+            # snippet data
+            snippet_title = None
+            snippet_products = []
+            snippet = snippet_map.get(business.id)
+            if snippet:
+                assoc_list = snippet_product_map.get(snippet.id, [])
+                selected_ids = [a.product_id for a in assoc_list]
+                displayable = [pid for pid in selected_ids if pid in product_info_map]
+                if displayable:
+                    snippet_title = snippet.title or "Take a look at what we offer"
+                    snippet_products = [product_info_map[pid] for pid in displayable]
+            else:
+                displayable_default = [pid for pid in default_map.get(business.id, []) if pid in product_info_map]
+                if displayable_default:
+                    snippet_title = "Take a look at what we offer"
+                    snippet_products = [product_info_map[pid] for pid in displayable_default]
+
             businesses.append({
                 "id": str(business.id),
                 "name": business.name,
@@ -288,6 +399,8 @@ class DiscoveryService:
                 "address_text": address_text,
                 "cover_url": f"/api/v1/businesses/{business.id}/cover" if business.cover_data else None,
                 "operating_hours": hours_list,
+                "snippet_title": snippet_title,
+                "snippet_products": snippet_products,
             })
 
         return {"businesses": businesses, "next_cursor": next_cursor}

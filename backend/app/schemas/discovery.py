@@ -9,6 +9,11 @@ class CategoryResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class SnippetProductInfo(BaseModel):
+    id: uuid.UUID
+    name: str
+    image_url: Optional[str] = None
+
 class DiscoveredBusiness(BaseModel):
     id: str
     name: str
@@ -23,6 +28,8 @@ class DiscoveredBusiness(BaseModel):
     address_text: Optional[str] = None
     cover_url: Optional[str] = None
     operating_hours: list = []
+    snippet_title: Optional[str] = None
+    snippet_products: list[SnippetProductInfo] = []
 
 class ProductInfo(BaseModel):
     id: uuid.UUID

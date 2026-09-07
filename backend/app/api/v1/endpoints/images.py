@@ -74,8 +74,8 @@ async def upload_product_image(product_id: str, file: UploadFile = File(...),
     if not business or business.owner_id != current_user.id:
         raise HTTPException(403)
     count = (await db.execute(select(func.count(ProductImage.id)).where(ProductImage.product_id == product.id))).scalar()
-    if count >= 3:
-        raise HTTPException(400, "Maximum 3 images per product")
+    if count >= 5:
+        raise HTTPException(400, "Maximum 5 images per product")
     data = validate_and_process(file, max_dim=1200, max_bytes=200_000)
     positions = (await db.execute(select(ProductImage.position).where(ProductImage.product_id == product.id))).scalars().all()
     next_pos = 1

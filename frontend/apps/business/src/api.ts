@@ -112,6 +112,12 @@ export const api = {
     delete: (id: string) => request(`/products/${id}`, { method: 'DELETE' }),
   },
   categories: () => request<any[]>('/categories'),
+  productCategories: () => request<any[]>('/product-categories'),
+  homeSnippet: {
+    get: (businessId: string) => request<any>(`/businesses/${businessId}/home-snippet`),
+    update: (businessId: string, data: any) =>
+      request<any>(`/businesses/${businessId}/home-snippet`, { method: 'PUT', body: JSON.stringify(data) }),
+  },
   orders: {
     listBusiness: () => request<any[]>('/orders/business/my'),
     accept: (id: string) => request(`/orders/${id}/accept`, { method: 'PUT' }),

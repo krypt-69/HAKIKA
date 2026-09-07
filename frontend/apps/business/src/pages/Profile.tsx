@@ -54,6 +54,11 @@ const Profile: React.FC = () => {
     const logoInputRef = useRef<HTMLInputElement>(null);
     const coverInputRef = useRef<HTMLInputElement>(null);
     const [collectPaymentBeforeDelivery, setCollectPaymentBeforeDelivery] = useState(false);
+    const [snippetTitle, setSnippetTitle] = useState('');
+    const [snippetProductIds, setSnippetProductIds] = useState<string[]>([]);
+    const [products, setProducts] = useState<any[]>([]);
+    const [snippetError, setSnippetError] = useState('');
+    const [snippetSaving, setSnippetSaving] = useState(false);
 
     useEffect(() => {
         if (!businessId) return;
@@ -82,6 +87,15 @@ const Profile: React.FC = () => {
                 setOperatingHours(fullHours);
                 setCollectPaymentBeforeDelivery(data.collect_payment_before_delivery || false);
                 setLoading(false);
+                // fetch snippet and products
+                Promise.all([
+                    api.homeSnippet.get(businessId),
+                    api.products.listByBusiness(businessId),
+                ]).then(([snip, prods]) => {
+                    setSnippetTitle(snip.title || 'Take a look at what we offer');
+                    setSnippetProductIds((snip.products || []).map((p: any) => p.product_id));
+                    setProducts(prods || []);
+                }).catch(() => {});
             })
             .catch(err => {
                 setError(err.message);
@@ -242,6 +256,68 @@ const Profile: React.FC = () => {
                                     {pm.paybill_short_code ? ` · ${pm.paybill_short_code}` : ''} · ****{pm.last_four_digits}
                                 </p>
                             ))}
+                        </div>
+
+                        <div className="info-card info-card-wide">
+                            <h3 className="card-heading">Home Snippet</h3>
+                            <p className="info-sub" style={{ marginBottom: 12 }}>Products shown on the customer discovery page.</p>
+                            <input
+                              className="text-input"
+                              value={snippetTitle}
+                              onChange={e => setSnippetTitle(e.target.value)}
+                              placeholder="Take a look at what we offer"
+                              style={{ marginBottom: 12 }}
+                            />
+                            <div style={{ maxHeight: 160, overflowY: 'auto', marginBottom: 12 }}>
+                                {products.map((p: any) => {
+                                    const checked = snippetProductIds.includes(p.id);
+                                    return (
+                                        <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => {
+                                                    let next = [...snippetProductIds];
+                                                    if (checked) next = next.filter(x => x !== p.id);
+                                                    else {
+                                                        if (next.length >= 5) {
+                                                            setSnippetError('Maximum 5 products allowed');
+                                                            return;
+                                                        }
+                                                        next.push(p.id);
+                                                    }
+                                                    setSnippetProductIds(next);
+                                                    setSnippetError('');
+                                                }}
+                                            />
+                                            <span>{p.name}</span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                            {snippetError && <p style={{ color: RED, marginBottom: 8 }}>{snippetError}</p>}
+                            <button
+                              className="edit-btn"
+                              onClick={async () => {
+                                  if (!businessId) return;
+                                  setSnippetSaving(true);
+                                  try {
+                                      const payload = {
+                                          title: snippetTitle,
+                                          products: snippetProductIds.map((pid, idx) => ({ product_id: pid, position: idx + 1 })),
+                                      };
+                                      await api.homeSnippet.update(businessId, payload);
+                                      setSnippetError('');
+                                  } catch (err: any) {
+                                      setSnippetError(err.message || 'Failed to save snippet');
+                                  } finally {
+                                      setSnippetSaving(false);
+                                  }
+                              }}
+                              disabled={snippetSaving}
+                            >
+                                {snippetSaving ? 'Saving...' : 'Save Snippet'}
+                            </button>
                         </div>
 
                         <div className="info-card info-card-wide">

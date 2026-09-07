@@ -8,8 +8,22 @@ class ProductRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(self, business_id: uuid.UUID, name: str, description: str | None,
-                     original_price: float, discount_price: float | None, image_url: str | None) -> Product:
+    async def create(
+        self,
+        business_id: uuid.UUID,
+        name: str,
+        description: str | None,
+        original_price: float,
+        discount_price: float | None,
+        image_url: str | None,
+        currency: str = 'KES',
+        selling_unit: str = 'Piece',
+        track_inventory: bool = False,
+        stock_quantity: int | None = None,
+        min_order_quantity: int = 1,
+        max_order_quantity: int | None = None,
+        category_id: int | None = None,
+    ) -> Product:
         product = Product(
             business_id=business_id,
             name=name,
@@ -17,7 +31,14 @@ class ProductRepository:
             original_price=original_price,
             discount_price=discount_price,
             image_url=image_url,
-            is_available=True
+            is_available=True,
+            currency=currency,
+            selling_unit=selling_unit,
+            track_inventory=track_inventory,
+            stock_quantity=stock_quantity,
+            min_order_quantity=min_order_quantity,
+            max_order_quantity=max_order_quantity,
+            category_id=category_id,
         )
         self.db.add(product)
         await self.db.commit()

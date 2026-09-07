@@ -48,8 +48,62 @@ class OrderRepository:
             )
             self.db.add(order_item)
 
+        # Restore inventory for tracked products in this order
+        from app.models.order import OrderItem
+        item_result = await self.db.execute(
+            select(OrderItem).where(OrderItem.order_id == order.id)
+        )
+        for item in item_result.scalars().all():
+            if item.product_id is not None:
+                await self.db.execute(
+                    text("""
+                        UPDATE products
+                        SET stock_quantity = stock_quantity + :qty
+                        WHERE id = :pid
+                          AND track_inventory = true
+                    """),
+                    {"qty": item.quantity, "pid": item.product_id}
+                )
+
         await self.db.commit()
         await self.db.refresh(order)
+        return order
+
+    async def create_order_with_items_no_commit(
+        self,
+        customer_id: uuid.UUID,
+        business_id: uuid.UUID,
+        snapshot_items: list[dict],
+        delivery_coordinates: tuple[float, float],
+        subtotal: float,
+        delivery_fee: float,
+        total_amount: float
+    ) -> Order:
+        order_number = await self.generate_order_number()
+        order = Order(
+            order_number=order_number,
+            customer_id=customer_id,
+            business_id=business_id,
+            status=OrderStatus.waiting_acceptance,
+            subtotal=subtotal,
+            delivery_fee=delivery_fee,
+            total_amount=total_amount,
+            delivery_coordinates=f'SRID=4326;POINT({delivery_coordinates[1]} {delivery_coordinates[0]})',
+        )
+        self.db.add(order)
+        await self.db.flush()
+
+        for item in snapshot_items:
+            order_item = OrderItem(
+                order_id=order.id,
+                product_name=item['product_name'],
+                unit_price=item['unit_price'],
+                quantity=item['quantity'],
+                product_id=item['product_id'],
+                primary_thumbnail_url=item.get('thumbnail_url')
+            )
+            self.db.add(order_item)
+
         return order
 
     async def get_by_id(self, order_id: uuid.UUID) -> Order | None:
@@ -115,6 +169,23 @@ class OrderRepository:
             from app.repositories.order_notification_repository import OrderNotificationRepository
             on_repo = OrderNotificationRepository(self.db)
             await on_repo.add_or_increment(order.customer_id, order.id)
+
+        # Restore inventory for tracked products in this order
+        from app.models.order import OrderItem
+        item_result = await self.db.execute(
+            select(OrderItem).where(OrderItem.order_id == order.id)
+        )
+        for item in item_result.scalars().all():
+            if item.product_id is not None:
+                await self.db.execute(
+                    text("""
+                        UPDATE products
+                        SET stock_quantity = stock_quantity + :qty
+                        WHERE id = :pid
+                          AND track_inventory = true
+                    """),
+                    {"qty": item.quantity, "pid": item.product_id}
+                )
 
         await self.db.commit()
         await self.db.refresh(order)

@@ -11,6 +11,8 @@ export interface BusinessCard {
   location: { lat: number; lon: number } | null;
   address_text: string | null;
   cover_url: string;
+  snippet_title?: string | null;
+  snippet_products?: { id: string; name: string; image_url?: string | null }[];
   operating_hours: {
     day_of_week: number;
     opens_at: string | null;

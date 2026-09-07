@@ -27,6 +27,11 @@ interface Product {
   original_price: number;
   discount_price: number | null;
   is_available: boolean;
+  selling_unit: string;
+  track_inventory: boolean;
+  stock_quantity: number | null;
+  min_order_quantity: number;
+  max_order_quantity: number | null;
   images: ProductImage[];
 }
 
@@ -36,6 +41,7 @@ const BLACK = '#111111';
 
 const Products: React.FC = () => {
   const { businessId } = useAuth();
+  const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -68,6 +74,7 @@ const Products: React.FC = () => {
 
   useEffect(() => {
     fetchProducts();
+    api.productCategories().then(setCategories).catch(() => {});
   }, [businessId]);
 
   const filteredProducts = useMemo(() => {
@@ -109,6 +116,11 @@ const Products: React.FC = () => {
         original_price: Number(formData.original_price),
         discount_price: formData.discount_price ? Number(formData.discount_price) : null,
         is_available: formData.is_available,
+        selling_unit: formData.selling_unit,
+        track_inventory: formData.track_inventory,
+        stock_quantity: formData.track_inventory ? Number(formData.stock_quantity || 0) : null,
+        min_order_quantity: Number(formData.min_order_quantity || 1),
+        max_order_quantity: formData.max_order_quantity ? Number(formData.max_order_quantity) : null,
       };
 
       let productId: string;
@@ -272,14 +284,22 @@ const Products: React.FC = () => {
         size="md"
       >
         <ProductForm
+          categories={categories}
           initialData={
             editingProduct
               ? {
                   name: editingProduct.name,
                   description: editingProduct.description || '',
+                  category_id: '',
+                  currency: 'KES',
                   original_price: String(editingProduct.original_price),
                   discount_price: editingProduct.discount_price ? String(editingProduct.discount_price) : '',
                   is_available: editingProduct.is_available,
+                  selling_unit: editingProduct.selling_unit || 'Piece',
+                  track_inventory: editingProduct.track_inventory || false,
+                  stock_quantity: editingProduct.stock_quantity !== null ? String(editingProduct.stock_quantity) : '',
+                  min_order_quantity: String(editingProduct.min_order_quantity || 1),
+                  max_order_quantity: editingProduct.max_order_quantity !== null ? String(editingProduct.max_order_quantity) : '',
                 }
               : undefined
           }

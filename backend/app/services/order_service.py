@@ -73,20 +73,43 @@ class OrderService:
             product = products[item.product_id]
             if not product.is_available or product.deleted_at is not None:
                 raise HTTPException(status_code=400, detail=f"Product {product.name} is not available")
+
+            qty = item.quantity
+            if qty < product.min_order_quantity:
+                raise HTTPException(status_code=400, detail=f"Minimum order quantity for {product.name} is {product.min_order_quantity}")
+            if product.max_order_quantity is not None and qty > product.max_order_quantity:
+                raise HTTPException(status_code=400, detail=f"Maximum order quantity for {product.name} is {product.max_order_quantity}")
+
+            if product.track_inventory:
+                product_name = product.name
+                result = await self.db.execute(
+                    text("""
+                        UPDATE products
+                        SET stock_quantity = stock_quantity - :qty
+                        WHERE id = :pid
+                          AND track_inventory = true
+                          AND stock_quantity >= :qty
+                    """),
+                    {"qty": qty, "pid": product.id}
+                )
+                if result.rowcount == 0:
+                    await self.db.rollback()
+                    raise HTTPException(status_code=400, detail=f"Insufficient stock for {product_name}")
+
             price = float(product.discount_price if product.discount_price and product.discount_price < product.original_price else product.original_price)
             snapshot_items.append({
                 'product_id': product.id,
                 'product_name': product.name,
                 'unit_price': price,
-                'quantity': item.quantity,
+                'quantity': qty,
                 'thumbnail_url': thumbnails.get(product.id)
             })
-            subtotal += price * item.quantity
+            subtotal += price * qty
 
         delivery_fee = 0.0
         total = subtotal + delivery_fee
 
-        order = await self.order_repo.create_order_with_items(
+        order = await self.order_repo.create_order_with_items_no_commit(
             customer_id=customer.id,
             business_id=data.business_id,
             snapshot_items=snapshot_items,
@@ -95,6 +118,9 @@ class OrderService:
             delivery_fee=delivery_fee,
             total_amount=total
         )
+        await self.db.commit()
+        await self.db.refresh(order)
+
         order_items = await self.order_repo.get_order_items(order.id)
         resp = self._to_response(order, order_items)
         return await self._enrich_order_response(order, resp)

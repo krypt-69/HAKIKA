@@ -15,6 +15,11 @@ interface Product {
   original_price: number;
   discount_price: number | null;
   is_available: boolean;
+  selling_unit: string;
+  track_inventory: boolean;
+  stock_quantity: number | null;
+  min_order_quantity: number;
+  max_order_quantity: number | null;
   images: ProductImage[];
 }
 
@@ -108,7 +113,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         {/* Pricing */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '12px' }}>
           <span style={{ fontSize: '1.125rem', fontWeight: 700, color: '#111111' }}>
-            KES {finalPrice.toFixed(0)}
+            KES {finalPrice.toFixed(0)}{product.selling_unit ? ` / ${product.selling_unit}` : ''}
           </span>
           {hasDiscount && (
             <span style={{ fontSize: '0.875rem', color: '#9ca3af', textDecoration: 'line-through' }}>
@@ -122,6 +127,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
             {product.is_available ? 'Available' : 'Unavailable'}
           </span>
+          {product.track_inventory && product.stock_quantity !== null && (
+            <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+              Stock: {product.stock_quantity}
+            </span>
+          )}
+          {product.min_order_quantity > 1 && (
+            <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+              Min order: {product.min_order_quantity}
+            </span>
+          )}
           <button
             onClick={() => onToggleAvailability(product.id, product.is_available)}
             disabled={isToggling}

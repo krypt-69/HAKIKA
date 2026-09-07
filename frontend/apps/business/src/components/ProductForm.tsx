@@ -5,13 +5,21 @@ import { Image as ImageIcon, X as XIcon, Upload } from 'lucide-react';
 interface ProductFormData {
   name: string;
   description: string;
+  category_id: string;
+  currency: string;
   original_price: string;
   discount_price: string;
   is_available: boolean;
+  selling_unit: string;
+  track_inventory: boolean;
+  stock_quantity: string;
+  min_order_quantity: string;
+  max_order_quantity: string;
 }
 
 interface ProductFormProps {
   initialData?: ProductFormData;
+  categories?: { id: number; name: string }[];
   onSubmit: (data: ProductFormData, imageFiles?: File[]) => void;
   onCancel: () => void;
   isLoading?: boolean;
@@ -20,6 +28,7 @@ interface ProductFormProps {
 
 export const ProductForm: React.FC<ProductFormProps> = ({
   initialData,
+  categories = [],
   onSubmit,
   onCancel,
   isLoading = false,
@@ -28,9 +37,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     description: '',
+    category_id: '',
+    currency: 'KES',
     original_price: '',
     discount_price: '',
     is_available: true,
+    selling_unit: 'Piece',
+    track_inventory: false,
+    stock_quantity: '',
+    min_order_quantity: '1',
+    max_order_quantity: '',
   });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -40,9 +56,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       setFormData({
         name: initialData.name || '',
         description: initialData.description || '',
+        category_id: initialData.category_id || '',
+        currency: initialData.currency || 'KES',
         original_price: initialData.original_price || '',
         discount_price: initialData.discount_price || '',
         is_available: initialData.is_available !== undefined ? initialData.is_available : true,
+        selling_unit: initialData.selling_unit || 'Piece',
+        track_inventory: initialData.track_inventory !== undefined ? initialData.track_inventory : false,
+        stock_quantity: initialData.stock_quantity || '',
+        min_order_quantity: initialData.min_order_quantity || '1',
+        max_order_quantity: initialData.max_order_quantity || '',
       });
     }
   }, [initialData]);
@@ -166,6 +189,99 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             </span>
           </label>
         </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '4px' }}>
+            Category
+          </label>
+          <select
+            value={formData.category_id || ''}
+            onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+            style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
+          >
+            <option value="">Select category (optional)</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '140px' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '4px' }}>
+              Currency
+            </label>
+            <input type="text" value={formData.currency || 'KES'} disabled style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem', background: '#f9fafb' }} />
+          </div>
+          <div style={{ flex: 1, minWidth: '140px' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '4px' }}>
+              Selling Unit
+            </label>
+            <select
+              value={formData.selling_unit}
+              onChange={(e) => setFormData({ ...formData, selling_unit: e.target.value })}
+              style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
+            >
+              {['Piece','Kg','Gram','Litre','Millilitre','Metre','Pair','Set','Pack','Other'].map(u => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={formData.track_inventory}
+              onChange={(e) => setFormData({ ...formData, track_inventory: e.target.checked })}
+              style={{ width: '18px', height: '18px', accentColor: '#16a34a' }}
+            />
+            <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#111111' }}>
+              Track inventory
+            </span>
+          </label>
+          {formData.track_inventory && (
+            <input
+              type="number"
+              min="0"
+              value={formData.stock_quantity}
+              onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
+              placeholder="Available quantity"
+              style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem', marginTop: '8px' }}
+            />
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '120px' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '4px' }}>
+              Minimum Order Quantity
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={formData.min_order_quantity}
+              onChange={(e) => setFormData({ ...formData, min_order_quantity: e.target.value })}
+              style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: '120px' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '4px' }}>
+              Maximum Quantity Per Order
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={formData.max_order_quantity}
+              onChange={(e) => setFormData({ ...formData, max_order_quantity: e.target.value })}
+              placeholder="Unlimited"
+              style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
+            />
+          </div>
+        </div>
+
+        {formData.selling_unit === '' && null}
 
         {/* Multi-image upload */}
         <div>

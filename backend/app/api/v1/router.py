@@ -21,6 +21,10 @@ api_router.include_router(images.router, tags=["images"])
 api_router.include_router(credit.router, tags=["credit"])
 
 from app.api.v1.endpoints import notifications
+from app.api.v1.endpoints import product_categories
+from app.api.v1.endpoints import home_snippet
 from app.api.v1.endpoints.business_riders import router as business_riders_router
 api_router.include_router(notifications.router, tags=["notifications"])
+api_router.include_router(product_categories.router, tags=["product_categories"])
+api_router.include_router(home_snippet.router, tags=["home_snippet"])
 api_router.include_router(business_riders_router, tags=["business_riders"])
