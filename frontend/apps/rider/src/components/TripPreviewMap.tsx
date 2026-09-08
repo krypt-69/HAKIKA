@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { createCleanMap } from '../mapbox/init';
+import { createRiderMarker } from '../mapbox/markers';
 import type { TripStop } from '../services/tripBuilder';
 
 interface Props {
@@ -12,17 +13,12 @@ interface Props {
 const TripPreviewMap: React.FC<Props> = ({ riderLocation, stops, routeGeometry }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const riderMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const routeReadyRef = useRef(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
-
-    const map = createCleanMap(
-      containerRef.current,
-      [riderLocation.lon, riderLocation.lat],
-      11,
-      0
-    );
+    const map = createCleanMap(containerRef.current, [riderLocation.lon, riderLocation.lat], 11, 0);
     mapRef.current = map;
     routeReadyRef.current = false;
 
@@ -35,21 +31,21 @@ const TripPreviewMap: React.FC<Props> = ({ riderLocation, stops, routeGeometry }
       const bounds = new mapboxgl.LngLatBounds();
       bounds.extend([riderLocation.lon, riderLocation.lat]);
 
-      const seenCoords = new Map<string, number>();
+      // Rider marker — was missing before, only used for bounds calc.
+      riderMarkerRef.current?.remove();
+      riderMarkerRef.current = createRiderMarker()
+        .setLngLat([riderLocation.lon, riderLocation.lat])
+        .addTo(map);
 
+      const seenCoords = new Map<string, number>();
       stops.forEach((stop, index) => {
         const baseLngLat: [number, number] = [stop.location.lon, stop.location.lat];
         const key = `${stop.location.lat.toFixed(5)},${stop.location.lon.toFixed(5)}`;
         const count = (seenCoords.get(key) || 0) + 1;
         seenCoords.set(key, count);
-
-        // Small offset for overlapping markers
         const offsetLat = (count - 1) * 0.00025;
         const offsetLon = (count - 1) * 0.00025;
-        const markerLngLat: [number, number] = [
-          baseLngLat[0] + offsetLon,
-          baseLngLat[1] + offsetLat,
-        ];
+        const markerLngLat: [number, number] = [baseLngLat[0] + offsetLon, baseLngLat[1] + offsetLat];
 
         const el = document.createElement('div');
         el.style.width = '24px';
@@ -65,11 +61,9 @@ const TripPreviewMap: React.FC<Props> = ({ riderLocation, stops, routeGeometry }
         el.style.border = '2px solid #fff';
         el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.3)';
         el.textContent = String(index + 1);
-
         new mapboxgl.Marker({ element: el, anchor: 'center' })
           .setLngLat(markerLngLat)
           .addTo(map);
-
         bounds.extend([stop.location.lon, stop.location.lat]);
       });
 
@@ -77,22 +71,14 @@ const TripPreviewMap: React.FC<Props> = ({ riderLocation, stops, routeGeometry }
         if (map.getSource('trip-route')) {
           (map.getSource('trip-route') as mapboxgl.GeoJSONSource).setData(routeGeometry);
         } else {
-          map.addSource('trip-route', {
-            type: 'geojson',
-            data: routeGeometry,
-          });
+          map.addSource('trip-route', { type: 'geojson', data: routeGeometry });
         }
-
         if (!map.getLayer('trip-route-layer')) {
           map.addLayer({
             id: 'trip-route-layer',
             type: 'line',
             source: 'trip-route',
-            paint: {
-              'line-color': '#9ca3af',
-              'line-width': 4,
-              'line-opacity': 0.8,
-            },
+            paint: { 'line-color': '#9ca3af', 'line-width': 4, 'line-opacity': 0.8 },
           });
         }
       }

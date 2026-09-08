@@ -83,6 +83,14 @@ const RADIUS_OPTIONS = [
     { value: 20000, label: '20 km', light: '#ffedd5', strong: '#c2410c' },
 ];
 
+const hexToRgba = (hex: string, alpha: number): string => {
+    const clean = hex.replace('#', '');
+    const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean;
+    const bigint = parseInt(full, 16);
+    const r = (bigint >> 16) & 255, g = (bigint >> 8) & 255, b = bigint & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 /* ── SVGs ───────────────────────────────────────────── */
 const SearchSvg = ({ color = '#9ca3af', size = 15 }: { color?: string; size?: number }) =>
     React.createElement('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' },
@@ -216,10 +224,17 @@ const LogoImage: React.FC<{ id: string; logoUrl?: string | null; alt: string; st
     );
 };
 
-/* ── Zoom overlay (logo click) ─────────────────────────────────── */
+/* ── Zoom overlay (logo click) ───────────────────────────────────
+   Mobile: centered modal, as before.
+   Desktop (see .hk-zoom-box media query): the box becomes 50% of the
+   viewport width, anchored to the very top so it touches the nav, and
+   the logo inside grows to fill three-quarters of the box. */
 const BizZoomOverlay: React.FC<{ biz: BusinessCard; open: boolean; statusLabel: string; catColor: CatColor; onClose: () => void }> = ({ biz, open, statusLabel, catColor, onClose }) => {
     return (
-        <div onClick={onClose} className="hk-zoom-overlay">
+        <div
+            onClick={onClose}
+            className="hk-zoom-overlay"
+        >
             <div onClick={e => e.stopPropagation()} className="hk-zoom-box" style={{ background: catColor.light }}>
                 <button onClick={onClose} style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(0,0,0,0.08)', border: 'none', borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 }}>
                     <XSvg color={catColor.strong} size={15} />
@@ -249,7 +264,11 @@ const BizZoomOverlay: React.FC<{ biz: BusinessCard; open: boolean; statusLabel: 
     );
 };
 
-/* ── Business card (NO product snippets inside) ───────────────── */
+/* ── Business card ──────────────────────────────────────────────
+   One unified card style used everywhere — mobile belts and the
+   desktop grid alike. Product snippets are NOT rendered inside this
+   card — see ProductSnippetGrid, which is a separate sibling block
+   only used in the vertical layout (never in belts). */
 const BELT_LOGO_D = 76;
 
 const BizCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: CatColor; darkMode: boolean }> = ({ biz, gpsEnabled, catColor, darkMode }) => {
@@ -281,7 +300,7 @@ const BizCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: CatC
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setZoomed(true); }}
                             role="button"
                             aria-label={`View ${biz.name} details`}
-                            style={{ position: 'absolute', left: 10, top: -(BELT_LOGO_D / 2), width: BELT_LOGO_D, height: BELT_LOGO_D, borderRadius: '50%', border: `3px solid ${catColor.ring}`, boxShadow: '0 2px 6px rgba(0,0,0,0.15)', overflow: 'hidden', background: '#fff', cursor: 'zoom-in' }}
+                            style={{ position: 'absolute', left: 10, top: -10, width: BELT_LOGO_D, height: BELT_LOGO_D, borderRadius: '50%', border: `3px solid ${catColor.ring}`, boxShadow: '0 2px 6px rgba(0,0,0,0.15)', overflow: 'hidden', background: '#fff', cursor: 'zoom-in' }}
                         >
                             <LogoImage id={biz.id} logoUrl={biz.logo_url} alt={biz.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
@@ -310,33 +329,38 @@ const BizCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: CatC
     );
 };
 
-/* ── Product snippet grid (separate component, below business card) ── */
 const ShopMoreArrowSvg = ({ color = '#fff', size = 14 }: { color?: string; size?: number }) =>
     React.createElement('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' },
         React.createElement('line', { x1: 5, y1: 12, x2: 19, y2: 12 }),
         React.createElement('polyline', { points: '13 6 19 12 13 18' })
     );
 
+/* ── Product snippet grid ─────────────────────────────────────────
+   A separate block, sitting BELOW a business card (same width), shown
+   only in the vertical layout — never inside belts. Renders like the
+   reference screenshot: a title row, then a 2-column grid of big
+   product photos with their name underneath each. */
 const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; darkMode: boolean }> = ({ biz, catColor, darkMode }) => {
     if (!biz.snippet_title || !biz.snippet_products || biz.snippet_products.length === 0) return null;
     const bizPath = `/business/${biz.slug ?? biz.id}`;
     return (
-        <div style={{ marginTop: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '0 2px 10px' }}>
+        <div style={{ marginTop: 26, marginBottom: 26 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '0 2px 14px' }}>
                 <span style={{
-                    fontSize: 17,
+                    fontSize: 15,
                     fontWeight: 800,
                     color: darkMode ? '#f3f4f6' : '#111827',
-                    fontFamily: 'Georgia, serif',
-                    letterSpacing: '-0.01em',
+                    fontFamily: 'inherit',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
                 }}>{biz.snippet_title}</span>
                 <span style={{ flex: 1, height: 1, background: darkMode ? '#262626' : '#e5e7eb' }} />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
                 {biz.snippet_products.slice(0, 4).map(p => (
                     <Link key={p.id} to={bizPath} style={{ textDecoration: 'none', display: 'block' }}>
-                        <div style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: 14, overflow: 'hidden', background: catColor.light }}>
+                        <div style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: 0, overflow: 'hidden', background: catColor.light }}>
                             {p.image_url ? (
                                 <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                             ) : (
@@ -345,17 +369,18 @@ const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; dark
                                 </div>
                             )}
                         </div>
-                        <div style={{ marginTop: 7, fontSize: 13, fontWeight: 600, color: darkMode ? '#e5e7eb' : '#374151', lineHeight: 1.3 }}>{p.name}</div>
+                        <div style={{ marginTop: 9, fontSize: 12.5, fontWeight: 500, color: darkMode ? '#d1d5db' : '#4b5563', lineHeight: 1.4, letterSpacing: '0.01em' }}>{p.name}</div>
                     </Link>
                 ))}
             </div>
 
-            <Link to={bizPath} style={{ textDecoration: 'none', display: 'flex', justifyContent: 'center', marginTop: 14 }}>
+            <Link to={bizPath} style={{ textDecoration: 'none', display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
                 <span style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
-                    background: catColor.strong, color: '#fff',
-                    fontSize: 12.5, fontWeight: 700,
-                    padding: '8px 16px', borderRadius: 999,
+                    background: '#000', color: '#fff',
+                    fontSize: 12, fontWeight: 700,
+                    letterSpacing: '0.03em',
+                    padding: '9px 18px', borderRadius: 2,
                 }}>
                     Shop more
                     <ShopMoreArrowSvg color="#fff" size={13} />
@@ -365,7 +390,15 @@ const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; dark
     );
 };
 
-/* ── Business shelf (NO product snippets in belts) ─────────────── */
+/* ── Business shelf ───────────────────────────────────────────────
+   The SAME markup renders two different layouts purely via CSS:
+     - Mobile: a horizontally-scrolling belt where each card is sized
+       so one full card plus a quarter of the next is visible at once.
+     - Desktop (≥860px): the track switches to a wrapping grid, so
+       businesses fill the page like a proper storefront instead of
+       a single scrolling strip.
+   Belts intentionally never render ProductSnippetGrid — only the
+   plain business card — per the vertical-only requirement. */
 const BizShelf: React.FC<{ items: BusinessCard[]; gpsEnabled: boolean; label: string; categoryColorMap: Record<string, CatColor>; darkMode: boolean }> = ({ items, gpsEnabled, label, categoryColorMap, darkMode }) => {
     const beltRef = useRef<HTMLDivElement>(null);
     if (items.length === 0) return null;
@@ -381,6 +414,9 @@ const BizShelf: React.FC<{ items: BusinessCard[]; gpsEnabled: boolean; label: st
                     </div>
                 ))}
             </div>
+            {/* Footer label — identical styling to the header label above, so the
+                shelf reads as bookended by matching handwritten gold pills.
+                Clicking it scrolls the belt back to its start. */}
             <div style={{ padding: '0 16px', textAlign: 'center' }}>
                 <button
                     onClick={() => beltRef.current?.scrollTo({ left: 0, behavior: 'smooth' })}
@@ -395,7 +431,9 @@ const BizShelf: React.FC<{ items: BusinessCard[]; gpsEnabled: boolean; label: st
     );
 };
 
-/* ── Category stories ───────────────────────────────────────────── */
+/* ── Category stories (Instagram-style, circular + bright gold ring) ──
+   Every avatar shares the same bright gold ring and handwritten label
+   style now (previously each had its own per-category ring color). */
 const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor; onClick: () => void; imageUrl?: string | null; size: number; darkMode: boolean }> = ({ label, active, colors, onClick, imageUrl, size, darkMode }) => (
     <button onClick={onClick} className="hk-cat-story" style={{ width: size + 10 }}>
         <div className="hk-cat-ring" style={{
@@ -419,6 +457,9 @@ type BarMode = 'none' | 'search' | 'location';
 
 const Home: React.FC = () => {
     const [categories, setCategories] = useState<any[]>([]);
+    // Starts true (not false) so the very first paint — before the mount
+    // effect below has even run — shows the spinner instead of a flash of
+    // "No businesses found" against an empty initial list.
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [loadingMore, setLoadingMore] = useState(false);
@@ -426,12 +467,19 @@ const Home: React.FC = () => {
     const [menuOpen, setMenuOpen] = useState(false);
     const [catBarHidden, setCatBarHidden] = useState(false);
     const catBarLastY = useRef(0);
+    // Only start reacting to scroll for the hide/show behavior once the person
+    // has made a genuine scroll gesture (wheel or touch). Without this, our own
+    // programmatic scrolling on load (scrollTo, scroll-anchor restoration) fires
+    // real 'scroll' events that would otherwise be misread as "the user scrolled
+    // down", hiding the bar immediately after load with no actual interaction.
     const userScrolledRef = useRef(false);
     const [gpsLoading, setGpsLoading] = useState(false);
-    const [darkMode, setDarkMode] = useState(false);
+    const [darkMode, setDarkMode] = useState(false); // default light
     const sentinelRef = useRef<HTMLDivElement>(null);
     const catScrollRef = useRef<HTMLDivElement>(null);
     const requestIdRef = useRef(0);
+    // Guards against re-running the restore-scroll effect more than once per mount
+    // (e.g. if allBusinesses updates again later from pagination).
     const restoredRef = useRef(false);
 
     const {
@@ -466,10 +514,18 @@ const Home: React.FC = () => {
         finally { setLoading(false); setLoadingMore(false); }
     };
 
+    /** Finds whichever business card is currently nearest the top of the viewport.
+     *  Uses the smallest absolute distance to the top edge, which is stable regardless
+     *  of exact scroll offset — unlike a raw pixel value, this survives layout changes
+     *  (spacing tweaks, image loads, different screen sizes) between visits. */
     const findTopmostVisibleBusinessId = (): string | null => {
-        const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-business-id]'));
+        const cards = Array.from(
+            document.querySelectorAll<HTMLElement>('[data-business-id]')
+        );
+
         let bestId: string | null = null;
         let bestDistance = Infinity;
+
         for (const el of cards) {
             const rect = el.getBoundingClientRect();
             const distance = Math.abs(rect.top);
@@ -478,10 +534,12 @@ const Home: React.FC = () => {
                 bestId = el.getAttribute('data-business-id');
             }
         }
+
         return bestId;
     };
 
-    // Track user scroll gesture
+    // Track a genuine user scroll gesture (wheel or touch) so the nav/category
+    // hide-on-scroll logic never fires from our own programmatic scrolling.
     useEffect(() => {
         const markInteracted = () => { userScrolledRef.current = true; };
         window.addEventListener('wheel', markInteracted, { passive: true, once: true });
@@ -492,8 +550,13 @@ const Home: React.FC = () => {
         };
     }, []);
 
-    // Initial load - wait for GPS before fetching to avoid "No businesses found" flash
     useEffect(() => {
+        // The browser's own "restore scroll position on reload" feature doesn't know
+        // about our sticky category bar's height, so on a hard refresh it can leave
+        // the page scrolled to a spot where the first card sits half-hidden behind
+        // it. We already have our own, more accurate anchor-based restore system, so
+        // take full manual control of scroll restoration and stop the browser from
+        // fighting it.
         if ('scrollRestoration' in window.history) {
             window.history.scrollRestoration = 'manual';
         }
@@ -501,6 +564,14 @@ const Home: React.FC = () => {
         if (allBusinesses.length === 0) {
             setLoading(true);
             window.scrollTo(0, 0);
+            // Wait for the location attempt to settle (success, denial, or timeout)
+            // before making a single, final fetch — never fetch twice. Fetching
+            // immediately without location first (then refetching once GPS
+            // resolves) could legitimately return few/zero results on that first
+            // pass, flashing a real "No businesses found" message right before the
+            // real, location-aware results replaced it. One fetch, after we know
+            // whether we have coordinates or not, means every result the person
+            // sees is already the final one.
             if (navigator.geolocation) {
                 setGpsLoading(true);
                 navigator.geolocation.getCurrentPosition(
@@ -509,6 +580,10 @@ const Home: React.FC = () => {
                         setLocation(loc);
                         setGpsEnabled(true);
                         setLocationEnabled(true);
+                        // Trigger the fetch (which flips `loading` true as its very
+                        // first synchronous statement) BEFORE flipping gpsLoading
+                        // false, so there's never a moment where both are false
+                        // with an empty business list still on screen.
                         fetchBusinesses(loc.lat, loc.lon, selectedCategory, radiusMeters, searchText);
                         setGpsLoading(false);
                     },
@@ -528,7 +603,9 @@ const Home: React.FC = () => {
         }
     }, []);
 
-    // Initial category scroll
+    // "All" stays the actual default filter, but visually starts just off the
+    // left edge — the first real (image-having) category is what's visible at
+    // first sight. A small scroll-left reveals "All" again when wanted.
     const initialCatScrollDone = useRef(false);
     useEffect(() => {
         if (initialCatScrollDone.current) return;
@@ -542,7 +619,11 @@ const Home: React.FC = () => {
         row.scrollTo({ left: allItem.offsetWidth + gap, behavior: 'auto' });
     }, [categories]);
 
-    // Hide/show category bar on user scroll only
+    // Hide the category bar smoothly on scroll-down, bring it back on scroll-up
+    // (same behavior as the app's nav bar). Only matters where it's actually
+    // sticky — CSS keeps this a no-op on desktop, where it's static in flow.
+    // Gated on userScrolledRef so it never fires from our own programmatic
+    // scrolling on load (see the effect above that sets that flag).
     useEffect(() => {
         let ticking = false;
         const onScroll = () => {
@@ -564,7 +645,11 @@ const Home: React.FC = () => {
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
-    // Track topmost visible business for scroll restoration
+    // Continuously track which business card is nearest the top of the viewport
+    // and save it as we go. This must happen WHILE the page is still visible —
+    // saving it in an unmount cleanup is too late, because by the time a useEffect
+    // cleanup runs, React has already removed the DOM nodes, so querying
+    // [data-business-id] there finds nothing and silently resets the anchor to null.
     useEffect(() => {
         let rafId: number | null = null;
         const onScroll = () => {
@@ -583,7 +668,8 @@ const Home: React.FC = () => {
         };
     }, [allBusinesses]);
 
-    // Restore scroll position
+    // Restore scroll by finding the previously-saved anchor card and scrolling it
+    // back into view, once businesses are loaded and rendered.
     useLayoutEffect(() => {
         if (allBusinesses.length > 0 && !loading && !restoredRef.current && scrollAnchorId) {
             const el = document.querySelector<HTMLElement>(`[data-business-id="${scrollAnchorId}"]`);
@@ -594,7 +680,6 @@ const Home: React.FC = () => {
         }
     }, [allBusinesses, loading, scrollAnchorId]);
 
-    // Infinite scroll
     useEffect(() => {
         if (!sentinelRef.current) return;
         const observer = new IntersectionObserver(
@@ -648,6 +733,8 @@ const Home: React.FC = () => {
     const toggleDarkMode = () => setDarkMode(prev => !prev);
 
     const mainBg = darkMode ? '#0a0a0a' : '#f9fafb';
+    // Semi-transparent so the page-wide watermark logo shows faintly through
+    // the header too, exactly as before, instead of the header hiding it.
     const headerBg = darkMode ? 'rgba(18,18,18,0.94)' : 'rgba(255,255,255,0.94)';
     const headerBorder = darkMode ? '#0a0a0a' : '#f3f4f6';
     const textColor = darkMode ? '#e5e7eb' : '#111827';
@@ -669,9 +756,7 @@ const Home: React.FC = () => {
                         const catColor = categoryColorMap[biz.category_name] || DEFAULT_CAT_COLOR;
                         return (
                             <div key={biz.id} className="hk-vgroup-item">
-                                {/* Business card */}
                                 <BizCard biz={biz} gpsEnabled={gpsEnabled} catColor={catColor} darkMode={darkMode} />
-                                {/* Product snippets BELOW the business card, same width */}
                                 <ProductSnippetGrid biz={biz} catColor={catColor} darkMode={darkMode} />
                             </div>
                         );
@@ -681,7 +766,6 @@ const Home: React.FC = () => {
             i += 3;
             const beltSlice = allBusinesses.slice(i, i + 4);
             if (beltSlice.length > 0) {
-                // Belts only show business cards, NO product snippets
                 sections.push(<BizShelf key={`b-${groupIndex}`} items={beltSlice} gpsEnabled={gpsEnabled} label="Nearby shops" categoryColorMap={categoryColorMap} darkMode={darkMode} />);
                 i += 4;
             }
@@ -727,7 +811,7 @@ const Home: React.FC = () => {
                 .hk-radius-scroll { -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
                 .hk-radius-scroll > button { scroll-snap-align: start; }
 
-                /* ── Slim topbar ── */
+                /* ── Slim topbar: hamburger menu (left), location badge (center), search chip (right) ── */
                 .hk-topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; }
 
                 .hk-menu-btn {
@@ -763,7 +847,7 @@ const Home: React.FC = () => {
                     font-family: "Caveat", cursive; font-weight: 700; font-size: 18px; color: #D4AF37;
                 }
 
-                /* ── Category avatars ── */
+                /* ── Category avatars: squircle + unique ring, zoom + spread when active ── */
                 .hk-cat-scroll { display: flex; align-items: flex-start; overflow-x: auto; padding: 14px 16px; gap: 42px; scrollbar-width: none; transition: gap 0.25s ease, justify-content 0.25s ease; scroll-behavior: smooth; }
                 .hk-cat-story { display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; border: none; cursor: pointer; flex-shrink: 0; font-family: inherit; padding: 0; }
                 .hk-cat-ring { display: flex; align-items: center; justify-content: center; transition: transform 0.25s ease, background 0.25s ease; }
@@ -776,13 +860,18 @@ const Home: React.FC = () => {
                 }
                 .hk-cat-nav-btn:hover { background: rgba(0,0,0,0.12); }
                 .hk-cat-bar-row { display: flex; align-items: stretch; }
+                /* Scroll-nav chevrons are desktop-only — on mobile the row scrolls
+                   fine via native touch swipe, and the buttons would just crowd it. */
                 .hk-cat-nav-desktop-only { display: none; }
 
-                /* Sticky category bar */
+                /* Sticky category bar. top:0 on mobile (nav is at the bottom there).
+                   On desktop the app's top nav bar sits at the very top of the
+                   viewport, so this needs to sit below it instead of underneath it —
+                   see the desktop override further down. */
                 .hk-cat-sticky { position: sticky; top: 0; z-index: 20; border-top: 2px solid #D4AF37; transition: transform 0.3s ease; transform: translateY(0); }
                 .hk-cat-sticky--hidden { transform: translateY(-100%); }
 
-                /* ── Business card ── */
+                /* ── Business card shelf: mobile = horizontal belt, desktop = grid ── */
                 .hk-biz-card-link { text-decoration: none; color: inherit; display: block; }
                 .hk-biz-name { font-size: 13px; margin-bottom: 1px; }
                 .hk-biz-cat { font-size: 10px; }
@@ -794,6 +883,9 @@ const Home: React.FC = () => {
                     padding: ${BELT_LOGO_D / 2 + 4}px 16px 8px 16px;
                     scrollbar-width: none; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
                 }
+                /* start (not center) alignment so the first card sits flush under the
+                   section label, and the last card lands fully visible at the end of
+                   the scroll instead of being force-centered with odd overhang. */
                 .hk-belt-item { flex-shrink: 0; width: min(82vw, 360px); scroll-snap-align: start; }
 
                 .hk-belt-footer {
@@ -805,23 +897,34 @@ const Home: React.FC = () => {
                 }
                 .hk-belt-footer svg { flex-shrink: 0; }
 
-                /* ── Vertical group ── */
+                /* ── Vertical group: stacked list on mobile, no gap above the very first
+                   group (sits right under the sticky category bar), bigger spacing
+                   between cards. On desktop this becomes the same edge-to-edge grid
+                   as belts (see media query). ── */
                 .hk-vgroup-track { display: flex; flex-direction: column; gap: 36px; padding: ${BELT_LOGO_D / 2 + 4}px 16px 8px 16px; }
                 .hk-vgroup-track:first-of-type { padding-top: ${BELT_LOGO_D / 2}px; margin-top: 0; }
                 .hk-vgroup-item { width: 100%; }
 
-                /* ── Zoom overlay ── */
+                /* ── Zoom overlay — z-index above the app's bottom nav bar (App.tsx uses
+                   z-index:1000 for .hk-navbar), so the modal isn't hidden underneath it. ── */
                 .hk-zoom-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.72); z-index: 1100; display: flex; align-items: center; justify-content: center; padding: 24px; }
                 .hk-zoom-box { border-radius: 18px; padding: 28px 24px 22px; width: 100%; max-width: 320px; text-align: center; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: zoomIn 0.18s ease-out; }
 
                 @media (min-width: 860px) {
+                    /* Category bar isn't sticky on desktop — it just flows normally
+                       below the app's fixed top nav (App.tsx's .hk-navbar). */
                     .hk-cat-sticky { position: static; top: auto; transform: none !important; }
+
                     .hk-cat-nav-desktop-only { display: flex; }
+
                     .hk-cat-scroll { padding: 30px 40px !important; gap: 120px !important; }
                     .hk-cat-ring { width: 92px !important; height: 92px !important; }
                     .hk-cat-story { width: 104px !important; }
                     .hk-cat-label { font-size: 19px !important; max-width: 130px !important; padding: 3px 14px 5px !important; }
 
+                    /* Uniform 3-per-row on desktop for BOTH group types, matching the
+                       vertical group's sizing — belts (4 on mobile) collapse to the
+                       same 3-column grid here instead of a mismatched 4-column one. */
                     .hk-belt-track, .hk-vgroup-track {
                         display: grid; grid-template-columns: repeat(3, 1fr);
                         gap: 64px; overflow-x: visible; padding: 32px 32px 8px; max-width: 1500px; margin: 0 auto;
@@ -833,13 +936,14 @@ const Home: React.FC = () => {
                     .hk-biz-trust { font-size: 12px; }
                     .hk-biz-addr, .hk-biz-dist { font-size: 12px; }
 
+                    /* Logo-zoom box: 50% of viewport width, top edge touches the nav */
                     .hk-zoom-overlay { align-items: flex-start; }
                     .hk-zoom-box { width: 50vw; max-width: 640px; margin-top: 0; }
                 }
             `}</style>
 
             <div style={{ position: 'relative', zIndex: 1 }}>
-                {/* ── Header ── */}
+                {/* ── Header: slim single row — menu (left), location (center), search (right) ── */}
                 <div style={{ borderBottom: `1px solid ${headerBorder}`, background: headerBg, position: 'relative' }}>
                     <div className="hk-container hk-topbar">
                         <div style={{ position: 'relative' }}>
@@ -883,6 +987,8 @@ const Home: React.FC = () => {
                         </button>
                     </div>
 
+                    {/* Expanded panels — search input or location radius picker,
+                        opened by tapping the search chip / location badge above. */}
                     {barMode === 'search' && (
                         <div className="hk-container" style={{ paddingBottom: 10 }}>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -921,7 +1027,7 @@ const Home: React.FC = () => {
                     )}
                 </div>
 
-                {/* ── Categories ── */}
+                {/* ── Categories — sticky so it stays put while the business list scrolls ── */}
                 {categories.length > 0 && (
                     <div className={`hk-cat-sticky${catBarHidden ? ' hk-cat-sticky--hidden' : ''}`} style={{
                         background: categoriesBg, borderBottom: `1px solid ${activeCatColor.ring}`,

@@ -127,8 +127,31 @@ class BusinessService:
         except KeyError:
             trial_volume = 0.0
         from decimal import Decimal
+        from datetime import datetime, timedelta
+        from app.models.credit_allocation import CreditAllocation
+
         business.credit_balance += Decimal(str(trial_credit))
         business.remaining_credit_volume += Decimal(str(trial_volume))
+
+        # Trial expiry duration
+        try:
+            trial_expiry_days = int(await policy_service.get(PaymentPolicyKey.TRIAL_EXPIRY_DAYS, cast=float))
+        except KeyError:
+            trial_expiry_days = 30
+
+        if trial_credit > 0 or trial_volume > 0:
+            now = datetime.utcnow()
+            allocation = CreditAllocation(
+                business_id=business.id,
+                type="trial",
+                original_credit=trial_credit,
+                remaining_credit=trial_credit,
+                original_volume=trial_volume,
+                remaining_volume=trial_volume,
+                granted_at=now,
+                expires_at=now + timedelta(days=trial_expiry_days),
+            )
+            self.business_repo.db.add(allocation)
 
     async def get_my_businesses(self, user: User) -> list[BusinessResponse]:
         businesses = await self.business_repo.get_by_owner(user.id)

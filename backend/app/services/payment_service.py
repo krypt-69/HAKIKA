@@ -171,6 +171,16 @@ class PaymentService:
         if locked_payment is None:
             raise ValueError("Payment not found")
 
+        from datetime import datetime
+        from app.repositories.credit_allocation_repository import CreditAllocationRepository
+        alloc_repo = CreditAllocationRepository(self.payment_repo.db)
+        valid_credit, valid_volume = await alloc_repo.get_valid_totals_for_business(
+            business.id, datetime.utcnow()
+        )
+        # Update cached aggregates from non-expired allocations
+        business.credit_balance = Decimal(str(valid_credit))
+        business.remaining_credit_volume = Decimal(str(valid_volume))
+
         current_credit = Decimal(str(business.credit_balance))
         current_volume = Decimal(str(business.remaining_credit_volume))
         order_amount = Decimal(str(payment.amount))
@@ -180,6 +190,14 @@ class PaymentService:
         # Update business credit
         business.credit_balance = (current_credit - deduction).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         business.remaining_credit_volume = (current_volume - order_amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+        # Synchronize allocations to prevent spent credit resurrection
+        await alloc_repo.deduct_from_valid_allocations(
+            business.id,
+            credit_deduction=float(deduction),
+            volume_deduction=float(order_amount),
+            now=datetime.utcnow(),
+        )
 
         # Payment status non-commit
         await self.payment_repo.set_status_noncommit(locked_payment, PaymentStatus.verified)

@@ -6,4 +6,5 @@ class PaymentPolicyKey(StrEnum):
     TRIAL_ENABLED = "trial_enabled"
     TRIAL_CREDIT = "trial_credit"
     TRIAL_VOLUME = "trial_volume"
+    TRIAL_EXPIRY_DAYS = "trial_expiry_days"
     DEDUCTION_STAGE = "deduction_stage"

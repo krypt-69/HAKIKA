@@ -4,7 +4,7 @@ from app.repositories.business_repository import BusinessRepository
 from app.repositories.trust_event_repository import TrustEventRepository
 from app.models.user import User
 from app.models.order import OrderStatus
-from app.models.business import PaymentModel
+from app.models.business import Business, PaymentModel
 from app.services.fee_calculator import calculate_processing_fee
 from app.services.order_events import publish_order_update
 from app.core.exceptions import HakikaHTTPException
@@ -143,7 +143,27 @@ class OrderService:
             )
 
         if business.payment_model == PaymentModel.credit:
-            if business.remaining_credit_volume < float(order.total_amount):
+            from datetime import datetime
+            from sqlalchemy import select
+            from app.repositories.credit_allocation_repository import CreditAllocationRepository
+            # Lock business row to serialize acceptance checks against allocation consumption/expiry
+            locked_biz_result = await self.db.execute(
+                select(Business)
+                .where(Business.id == business.id)
+                .with_for_update()
+            )
+            business = locked_biz_result.scalar_one()
+            alloc_repo = CreditAllocationRepository(self.db)
+            valid_credit, valid_volume = await alloc_repo.get_valid_totals_for_business(
+                business.id, datetime.utcnow()
+            )
+            # Update cached aggregates lazily from valid allocations
+            if Decimal(str(business.credit_balance)) != Decimal(str(valid_credit)):
+                business.credit_balance = Decimal(str(valid_credit))
+            if Decimal(str(business.remaining_credit_volume)) != Decimal(str(valid_volume)):
+                business.remaining_credit_volume = Decimal(str(valid_volume))
+
+            if float(valid_volume) < float(order.total_amount):
                 raise HakikaHTTPException(
                     status_code=409,
                     detail="Insufficient credit volume to accept this order.",

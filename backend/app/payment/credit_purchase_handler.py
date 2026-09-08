@@ -1,11 +1,12 @@
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.merchant_credit_order import MerchantCreditOrderStatus
+from app.models.merchant_credit_order import MerchantCreditOrder, MerchantCreditOrderStatus
 from app.models.credit_transaction import CreditTransactionType, CreditTransactionDirection, CreditTransactionStatus
 from app.repositories.merchant_credit_order_repository import MerchantCreditOrderRepository
 from app.repositories.credit_transaction_repository import CreditTransactionRepository
 from app.repositories.business_repository import BusinessRepository
 import uuid
+from app.models.credit_allocation import CreditAllocation
 
 class CreditPurchaseHandler:
     def __init__(self, db: AsyncSession):
@@ -60,6 +61,17 @@ class CreditPurchaseHandler:
         if order.status == MerchantCreditOrderStatus.completed:
             return {"status": "already_completed", "order": order}
 
+        # Lock the merchant credit order row for update to protect against concurrent completion
+        from sqlalchemy import select
+        result = await self.db.execute(
+            select(MerchantCreditOrder).where(MerchantCreditOrder.id == merchant_credit_order_id).with_for_update()
+        )
+        order = result.scalar_one_or_none()
+        if not order:
+            return {"status": "not_found"}
+        if order.status == MerchantCreditOrderStatus.completed:
+            return {"status": "already_completed", "order": order}
+
         # Update order
         await self.mco_repo.update_status(order, MerchantCreditOrderStatus.completed, provider_reference)
 
@@ -78,6 +90,23 @@ class CreditPurchaseHandler:
             plan = await plan_repo.get_by_id(order.credit_plan_id)
             if plan and plan.credit_volume > 0:
                 business.remaining_credit_volume += plan.credit_volume
+
+            # Create CreditAllocation for this purchase
+            from datetime import datetime, timedelta
+            allocation = CreditAllocation(
+                business_id=order.business_id,
+                merchant_credit_order_id=order.id,
+                credit_plan_id=order.credit_plan_id,
+                type="paid",
+                original_credit=order.credit_received,
+                remaining_credit=order.credit_received,
+                original_volume=plan.credit_volume if plan else 0,
+                remaining_volume=plan.credit_volume if plan else 0,
+                granted_at=datetime.utcnow(),
+                expires_at=datetime.utcnow() + timedelta(days=30),
+            )
+            self.db.add(allocation)
+
             await self.db.commit()
             await self.db.refresh(business)
 

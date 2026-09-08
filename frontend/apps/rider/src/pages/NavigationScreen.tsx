@@ -525,6 +525,7 @@ const NavigationScreen: React.FC = () => {
     } else {
       // Final stop completed
       setReconciledTrip(prev => prev ? { ...prev, status: 'completed' } : prev);
+      clearActiveTrip();
       setNavigationPhase('overview');
       setActiveRoute(null);
       setActiveRouteData(null);
@@ -617,7 +618,7 @@ const NavigationScreen: React.FC = () => {
           <div
             style={{
               position: 'absolute',
-              top: 80,
+              top: 16,
               left: '50%',
               transform: 'translateX(-50%)',
               backgroundColor: '#111827',

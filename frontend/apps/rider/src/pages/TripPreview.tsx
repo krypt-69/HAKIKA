@@ -218,6 +218,20 @@ const TripPreview: React.FC = () => {
         })}
       </div>
 
+      {/* Rider position card */}
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 12, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>
+          🏍️
+        </div>
+        <div>
+          <strong style={{ fontSize: 14 }}>Your position</strong>
+          <div style={{ fontSize: 13, color: '#4b5563' }}>
+            {riderLocation.lat.toFixed(4)}, {riderLocation.lon.toFixed(4)}
+            {gpsWarning ? ' · using last known location' : ' · live GPS'}
+          </div>
+        </div>
+      </div>
+
       <button
         onClick={() => navigate('/navigate-trip', { state: { trip } })}
         style={{

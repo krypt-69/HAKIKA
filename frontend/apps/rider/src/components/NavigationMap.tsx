@@ -20,52 +20,23 @@ interface Props {
   order?: Order | null;
 }
 
-function offsetPoint(lat: number, lon: number, km: number, bearingDeg: number) {
-  const R = 6371;
-  const d = km / R;
-  const brng = (bearingDeg * Math.PI) / 180;
-  const lat1 = (lat * Math.PI) / 180;
-  const lon1 = (lon * Math.PI) / 180;
-  const lat2 = Math.asin(
-    Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng)
-  );
-  const lon2 =
-    lon1 +
-    Math.atan2(
-      Math.sin(brng) * Math.sin(d) * Math.cos(lat1),
-      Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
-    );
-  return { lat: (lat2 * 180) / Math.PI, lon: (lon2 * 180) / Math.PI };
-}
-
-function bearingTo(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
-  const lat1 = (a.lat * Math.PI) / 180;
-  const lat2 = (b.lat * Math.PI) / 180;
-  const dLon = ((b.lon - a.lon) * Math.PI) / 180;
-  const y = Math.sin(dLon) * Math.cos(lat2);
-  const x =
-    Math.cos(lat1) * Math.sin(lat2) -
-    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-  return (Math.atan2(y, x) * 180) / Math.PI;
-}
-
 function makeRadiusPolygon(lat: number, lon: number, radiusKm: number): any {
+  const R = 6371;
   const coords: number[][] = [];
   for (let i = 0; i <= 360; i += 15) {
-    const p = offsetPoint(lat, lon, radiusKm, i);
-    coords.push([p.lon, p.lat]);
+    const d = radiusKm / R;
+    const brng = (i * Math.PI) / 180;
+    const lat1 = (lat * Math.PI) / 180;
+    const lon1 = (lon * Math.PI) / 180;
+    const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
+    const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+    coords.push([(lon2 * 180) / Math.PI, (lat2 * 180) / Math.PI]);
   }
   coords.push(coords[0]);
-  return {
-    type: 'Feature',
-    properties: {},
-    geometry: { type: 'Polygon', coordinates: [coords] },
-  };
+  return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [coords] } };
 }
 
-const NICE_RADIUS_VALUES = [
-  0.1, 0.2, 0.25, 0.5, 0.75, 1, 2, 3, 5, 10, 15, 20, 30, 50, 75, 100, 150, 200, 300, 500
-];
+const NICE_RADIUS_VALUES = [0.1, 0.2, 0.25, 0.5, 0.75, 1, 2, 3, 5, 10, 15, 20, 30, 50, 75, 100, 150, 200, 300, 500];
 
 function generateRadiusOptions(actualDistanceKm: number): number[] {
   if (actualDistanceKm <= 0) return [0.1];
@@ -74,9 +45,7 @@ function generateRadiusOptions(actualDistanceKm: number): number[] {
     return [step, step * 2, step * 3, actualDistanceKm];
   }
   let options = NICE_RADIUS_VALUES.filter((v) => v <= actualDistanceKm);
-  if (options[options.length - 1] !== actualDistanceKm) {
-    options.push(actualDistanceKm);
-  }
+  if (options[options.length - 1] !== actualDistanceKm) options.push(actualDistanceKm);
   options = Array.from(new Set(options)).sort((a, b) => a - b);
   if (options.length > 5) options = options.slice(-5);
   return options;
@@ -101,7 +70,7 @@ const NavigationMap: React.FC<Props> = ({
   const businessMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const customerMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const riderMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const riderEdgeMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const riderMarkerKindRef = useRef<'dot' | 'arrow' | null>(null);
   const radiusSourceIdsRef = useRef<string[]>([]);
   const radiusLayerIdsRef = useRef<string[]>([]);
   const routeSourceIdsRef = useRef<string[]>([]);
@@ -110,126 +79,104 @@ const NavigationMap: React.FC<Props> = ({
   const [mapReady, setMapReady] = useState(false);
   const forceFitRef = useRef(false);
   const hadRouteRef = useRef(false);
-  const activeRouteRef = useRef<GeoJSON.LineString | null>(null);
-  const referenceRouteRef = useRef<GeoJSON.LineString | null>(null);
   const [isFollowing, setIsFollowing] = useState(true);
   const cameraBearingRef = useRef<number | null>(null);
   const programmaticMoveRef = useRef(false);
+
+  // Always-current refs so effects that don't list riderLocation as a dep
+  // (to avoid re-triggering on every GPS tick) can still read the latest value.
+  const riderLocationRef = useRef(riderLocation);
+  const riderHeadingRef = useRef(riderHeading);
+  useEffect(() => {
+    riderLocationRef.current = riderLocation;
+    riderHeadingRef.current = riderHeading;
+  }, [riderLocation, riderHeading]);
 
   function lerpAngle(from: number, to: number, alpha: number): number {
     const diff = ((to - from + 540) % 360) - 180;
     return (from + diff * alpha + 360) % 360;
   }
+
   const [showArriveButton, setShowArriveButton] = useState(false);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; html: string } | null>(null);
-  const [tooltipKey, setTooltipKey] = useState<string | null>(null);
   const tooltipKeyRef = useRef<string | null>(null);
-  const [expandedForRider, setExpandedForRider] = useState(false);
+  const [tooltipKey, setTooltipKey] = useState<string | null>(null);
 
-  const businessToCustomerKm = useMemo(() => {
-    return haversineKm(
-      { lat: businessLocation[1], lon: businessLocation[0] },
-      { lat: customerLocation[1], lon: customerLocation[0] }
-    );
-  }, [businessLocation, customerLocation]);
+  // Use primitive numbers, not array references, so memoization/effects are stable
+  const [bLon, bLat] = businessLocation;
+  const [cLon, cLat] = customerLocation;
+  const [rLon, rLat] = riderLocation;
 
-  const radiusOptions = useMemo(
-    () => generateRadiusOptions(businessToCustomerKm),
-    [businessToCustomerKm]
+  const businessToCustomerKm = useMemo(
+    () => haversineKm({ lat: bLat, lon: bLon }, { lat: cLat, lon: cLon }),
+    [bLat, bLon, cLat, cLon]
   );
 
+  const riderToBusinessKm = useMemo(
+    () => haversineKm({ lat: bLat, lon: bLon }, { lat: rLat, lon: rLon }),
+    [bLat, bLon, rLat, rLon]
+  );
+
+  const radiusOptions = useMemo(() => generateRadiusOptions(businessToCustomerKm), [businessToCustomerKm]);
   const [selectedRadius, setSelectedRadius] = useState<number>(
     radiusOptions.length >= 2 ? radiusOptions[radiusOptions.length - 2] : radiusOptions[0]
   );
 
   useEffect(() => {
-    if (selectedRadius > businessToCustomerKm) {
+    if (selectedRadius > businessToCustomerKm && businessToCustomerKm > 0) {
       setSelectedRadius(businessToCustomerKm);
     }
   }, [businessToCustomerKm]);
 
+  // ---- Map init (once) ----
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    map.current = createCleanMap(
-      mapContainer.current,
-      [businessLocation[0], businessLocation[1]],
-      11,
-      0
-    );
+    map.current = createCleanMap(mapContainer.current, [bLon, bLat], 11, 0);
 
-    const handleMapReady = () => {
-      if (map.current && !map.current.isStyleLoaded()) {
-        // Wait until style is truly loaded
-        map.current.once('idle', handleMapReady);
     map.current.on('movestart', (e: any) => {
       if (!programmaticMoveRef.current && e.originalEvent) {
         setIsFollowing(false);
       }
     });
+
+    const handleMapReady = () => {
+      if (map.current && !map.current.isStyleLoaded()) {
+        map.current.once('idle', handleMapReady);
         return;
       }
       mapReadyRef.current = true;
       setMapReady(true);
       forceFitRef.current = true;
-      renderMap();
     };
 
     map.current.once('idle', handleMapReady);
     map.current.on('load', () => {
       if (!mapReadyRef.current) {
         mapReadyRef.current = true;
-        renderMap();
+        setMapReady(true);
+        forceFitRef.current = true;
       }
     });
-    setTimeout(() => {
-      if (!mapReadyRef.current && map.current?.isStyleLoaded()) {
-        handleMapReady();
-      }
+    const t = setTimeout(() => {
+      if (!mapReadyRef.current && map.current?.isStyleLoaded()) handleMapReady();
     }, 1500);
 
     return () => {
+      clearTimeout(t);
       map.current?.remove();
       map.current = null;
       mapReadyRef.current = false;
       setMapReady(false);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (mapReady && activeRoute) {
-        renderMap();
-    }
-  }, [mapReady, activeRoute]);
-
-  useEffect(() => {
-    activeRouteRef.current = activeRoute;
-    referenceRouteRef.current = referenceRoute;
-    if (activeRoute && !hadRouteRef.current) {
-      forceFitRef.current = true;
-    }
-    hadRouteRef.current = !!activeRoute;
-    if (mapReadyRef.current) renderMap();
-  }, [
-    businessLocation,
-    customerLocation,
-    selectedRadius,
-    activeRoute,
-    referenceRoute,
-    riderLocation,
-    isNavigating,
-    expandedForRider,
-  ]);
 
   function clearRadius() {
     const m = map.current;
     if (!m) return;
-    radiusLayerIdsRef.current.forEach((id) => {
-      if (m.getLayer(id)) m.removeLayer(id);
-    });
-    radiusSourceIdsRef.current.forEach((id) => {
-      if (m.getSource(id)) m.removeSource(id);
-    });
+    radiusLayerIdsRef.current.forEach((id) => { if (m.getLayer(id)) m.removeLayer(id); });
+    radiusSourceIdsRef.current.forEach((id) => { if (m.getSource(id)) m.removeSource(id); });
     radiusLayerIdsRef.current = [];
     radiusSourceIdsRef.current = [];
   }
@@ -237,25 +184,10 @@ const NavigationMap: React.FC<Props> = ({
   function clearRoutes() {
     const m = map.current;
     if (!m) return;
-    routeLayerIdsRef.current.forEach((id) => {
-      if (m.getLayer(id)) m.removeLayer(id);
-    });
-    routeSourceIdsRef.current.forEach((id) => {
-      if (m.getSource(id)) m.removeSource(id);
-    });
+    routeLayerIdsRef.current.forEach((id) => { if (m.getLayer(id)) m.removeLayer(id); });
+    routeSourceIdsRef.current.forEach((id) => { if (m.getSource(id)) m.removeSource(id); });
     routeLayerIdsRef.current = [];
     routeSourceIdsRef.current = [];
-  }
-
-  function clearMarkers() {
-    businessMarkerRef.current?.remove();
-    businessMarkerRef.current = null;
-    customerMarkerRef.current?.remove();
-    customerMarkerRef.current = null;
-    riderMarkerRef.current?.remove();
-    riderMarkerRef.current = null;
-    riderEdgeMarkerRef.current?.remove();
-    riderEdgeMarkerRef.current = null;
   }
 
   function showTooltipAt(lngLat: [number, number], html: string, key: string) {
@@ -281,10 +213,7 @@ const NavigationMap: React.FC<Props> = ({
   function buildOrderTooltip() {
     const phone = order?.customer_phone || 'No phone';
     const items = order?.items || [];
-    const itemRows = items
-      .slice(0, 4)
-      .map((item) => `<div>${item.product_name} × ${item.quantity}</div>`)
-      .join('');
+    const itemRows = items.slice(0, 4).map((item) => `<div>${item.product_name} × ${item.quantity}</div>`).join('');
     const more = items.length > 4 ? `<div>+ ${items.length - 4} more</div>` : '';
     return `<div style="font-size:13px;line-height:1.4">
       <strong>${order?.order_number || ''}</strong><br/>
@@ -298,104 +227,38 @@ const NavigationMap: React.FC<Props> = ({
     return `<div style="font-size:13px;line-height:1.4"><strong>Me</strong></div>`;
   }
 
-  function renderMap() {
+  // ---- STATIC layer: business/customer markers, radius circle, routes, bounds-fit.
+  // Deliberately does NOT depend on riderLocation/riderHeading (only on the ref via forceFit),
+  // so GPS ticks never trigger a full teardown/rebuild -> no more blinking.
+  useEffect(() => {
     const m = map.current;
     if (!m || !mapReadyRef.current || !m.isStyleLoaded()) return;
 
     clearRadius();
     clearRoutes();
-    clearMarkers();
 
-    // Business marker
-    businessMarkerRef.current = createBusinessMarker()
-      .setLngLat(businessLocation)
-      .addTo(m);
+    businessMarkerRef.current?.remove();
+    businessMarkerRef.current = createBusinessMarker().setLngLat(businessLocation).addTo(m);
     businessMarkerRef.current.getElement().addEventListener('click', () => {
       showTooltipAt(businessLocation, buildBusinessTooltip(), 'business');
     });
 
-    // Customer marker
-    customerMarkerRef.current = createCustomerMarker()
-      .setLngLat(customerLocation)
-      .addTo(m);
+    customerMarkerRef.current?.remove();
+    customerMarkerRef.current = createCustomerMarker().setLngLat(customerLocation).addTo(m);
     customerMarkerRef.current.getElement().addEventListener('click', () => {
       showTooltipAt(customerLocation, buildOrderTooltip(), 'customer');
     });
 
-    // Rider marker or edge indicator
-    const riderDistanceFromBusiness = haversineKm(
-      { lat: businessLocation[1], lon: businessLocation[0] },
-      { lat: riderLocation[1], lon: riderLocation[0] }
-    );
-
-    const shouldShowRealRider = navigationPhase === 'active' || riderDistanceFromBusiness <= selectedRadius || expandedForRider;
-    const effectiveRadius = expandedForRider ? riderDistanceFromBusiness : selectedRadius;
-
-    if (shouldShowRealRider) {
-      riderMarkerRef.current =
-        navigationPhase === 'active'
-          ? createRiderArrowMarker(riderHeading)
-          : createRiderMarker();
-      riderMarkerRef.current
-        .setLngLat(riderLocation)
-        .addTo(m);
-      riderMarkerRef.current.getElement().addEventListener('click', () => {
-        showTooltipAt(riderLocation, buildRiderTooltip(), 'rider');
-      });
-    } else {
-      const bearing = bearingTo(
-        { lat: businessLocation[1], lon: businessLocation[0] },
-        { lat: riderLocation[1], lon: riderLocation[0] }
-      );
-      const edge = offsetPoint(
-        businessLocation[1],
-        businessLocation[0],
-        selectedRadius,
-        bearing
-      );
-      const el = document.createElement('div');
-      el.style.width = '14px';
-      el.style.height = '14px';
-      el.style.borderRadius = '50%';
-      el.style.backgroundColor = '#2563eb';
-      el.style.border = '2px solid #fff';
-      el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.3)';
-      riderEdgeMarkerRef.current = new mapboxgl.Marker({ element: el, anchor: 'center' })
-        .setLngLat([edge.lon, edge.lat])
-        .addTo(m);
-      riderEdgeMarkerRef.current.getElement().addEventListener('click', () => {
-        setExpandedForRider(true);
-        forceFitRef.current = true;
-        showTooltipAt([edge.lon, edge.lat], buildRiderTooltip(), 'rider-edge');
-      });
-    }
-
-    // Radius circle (only show in overview/pre-start; hide during active navigation)
-    if (navigationPhase !== 'active') {
-      const sourceId = `delivery-radius`;
+    // Radius circle: informational only now, hidden during active nav
+    if (navigationPhase !== 'active' && selectedRadius > 0) {
+      const sourceId = 'delivery-radius';
       const fillId = `${sourceId}-fill`;
       const lineId = `${sourceId}-line`;
-
-      m.addSource(sourceId, {
-        type: 'geojson',
-        data: makeRadiusPolygon(businessLocation[1], businessLocation[0], effectiveRadius),
-      });
+      m.addSource(sourceId, { type: 'geojson', data: makeRadiusPolygon(bLat, bLon, selectedRadius) });
+      m.addLayer({ id: fillId, type: 'fill', source: sourceId, paint: { 'fill-color': '#2563eb', 'fill-opacity': 0.04 } });
       m.addLayer({
-        id: fillId,
-        type: 'fill',
-        source: sourceId,
-        paint: { 'fill-color': '#2563eb', 'fill-opacity': 0.04 },
-      });
-      m.addLayer({
-        id: lineId,
-        type: 'line',
-        source: sourceId,
-        paint: {
-          'line-color': '#2563eb',
-          'line-width': 1,
-          'line-opacity': 0.25,
-          'line-dasharray': [1, 1],
-        },
+        id: lineId, type: 'line', source: sourceId,
+        paint: { 'line-color': '#2563eb', 'line-width': 1, 'line-opacity': 0.25, 'line-dasharray': [1, 1] },
       });
       radiusSourceIdsRef.current.push(sourceId);
       radiusLayerIdsRef.current.push(fillId, lineId);
@@ -406,32 +269,19 @@ const NavigationMap: React.FC<Props> = ({
       const layerId = 'trip-full-route-layer';
       m.addSource(sourceId, { type: 'geojson', data: tripRouteGeometry });
       m.addLayer({
-        id: layerId,
-        type: 'line',
-        source: sourceId,
-        paint: {
-          'line-color': '#9ca3af',
-          'line-width': 3,
-          'line-opacity': 0.45,
-          'line-dasharray': [2, 2],
-        },
+        id: layerId, type: 'line', source: sourceId,
+        paint: { 'line-color': '#9ca3af', 'line-width': 3, 'line-opacity': 0.45, 'line-dasharray': [2, 2] },
       });
       routeSourceIdsRef.current.push(sourceId);
       routeLayerIdsRef.current.push(layerId);
     }
 
-    const currentActiveRoute = activeRouteRef.current;
-    const currentReferenceRoute = referenceRouteRef.current;
-
-    // Active route
-    if (currentActiveRoute) {
+    if (activeRoute) {
       const sourceId = 'active-route';
       const layerId = 'active-route-layer';
-      m.addSource(sourceId, { type: 'geojson', data: currentActiveRoute });
+      m.addSource(sourceId, { type: 'geojson', data: activeRoute });
       m.addLayer({
-        id: layerId,
-        type: 'line',
-        source: sourceId,
+        id: layerId, type: 'line', source: sourceId,
         paint: {
           'line-color': '#2563eb',
           'line-width': navigationPhase === 'active' ? 6 : 5,
@@ -440,17 +290,18 @@ const NavigationMap: React.FC<Props> = ({
       });
       routeSourceIdsRef.current.push(sourceId);
       routeLayerIdsRef.current.push(layerId);
+      if (!hadRouteRef.current) forceFitRef.current = true;
+      hadRouteRef.current = true;
+    } else {
+      hadRouteRef.current = false;
     }
 
-    // Reference route
-    if (currentReferenceRoute) {
+    if (referenceRoute) {
       const sourceId = 'reference-route';
       const layerId = 'reference-route-layer';
-      m.addSource(sourceId, { type: 'geojson', data: currentReferenceRoute });
+      m.addSource(sourceId, { type: 'geojson', data: referenceRoute });
       m.addLayer({
-        id: layerId,
-        type: 'line',
-        source: sourceId,
+        id: layerId, type: 'line', source: sourceId,
         paint: {
           'line-color': '#f97316',
           'line-width': navigationPhase === 'active' ? 1.5 : 3,
@@ -462,47 +313,73 @@ const NavigationMap: React.FC<Props> = ({
       routeLayerIdsRef.current.push(layerId);
     }
 
-    // Fit bounds only when explicitly required to avoid jumps on GPS updates
-    if (forceFitRef.current) {
+    // Bounds-fit: business+customer+rider together, unless the rider is far
+    // outside the business<->customer pair, in which case fit business+rider only.
+    if (forceFitRef.current && navigationPhase !== 'active') {
       forceFitRef.current = false;
+      const rLoc = riderLocationRef.current;
+      const riderIsFar = businessToCustomerKm > 0 && riderToBusinessKm > businessToCustomerKm * 2.5;
+
       const bounds = new mapboxgl.LngLatBounds();
       bounds.extend(businessLocation);
-      bounds.extend(customerLocation);
-      if (shouldShowRealRider) bounds.extend(riderLocation);
+      if (riderIsFar) {
+        bounds.extend(rLoc);
+      } else {
+        bounds.extend(customerLocation);
+        bounds.extend(rLoc);
+      }
       if (!bounds.isEmpty()) {
-        m.fitBounds(bounds, { padding: 80, maxZoom: 15, duration: 0 });
+        m.fitBounds(bounds, { padding: 80, maxZoom: 15, duration: 300 });
       }
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, bLat, bLon, cLat, cLon, selectedRadius, activeRoute, referenceRoute, tripRouteGeometry, navigationPhase, businessToCustomerKm, riderToBusinessKm]);
 
-  // Camera behavior during active navigation
+  // ---- Rider marker: created once, then just moved. This is what makes
+  // movement smooth instead of snapping (markers.ts adds a CSS transition).
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !mapReadyRef.current) return;
+    const kind: 'dot' | 'arrow' = navigationPhase === 'active' ? 'arrow' : 'dot';
+    if (riderMarkerKindRef.current !== kind) {
+      riderMarkerRef.current?.remove();
+      riderMarkerRef.current = kind === 'arrow' ? createRiderArrowMarker(riderHeadingRef.current) : createRiderMarker();
+      riderMarkerRef.current.setLngLat(riderLocationRef.current).addTo(m);
+      riderMarkerRef.current.getElement().addEventListener('click', () => {
+        showTooltipAt(riderLocationRef.current, buildRiderTooltip(), 'rider');
+      });
+      riderMarkerKindRef.current = kind;
+    }
+  }, [mapReady, navigationPhase]);
+
+  // Rider marker position/rotation update — fires every GPS tick, but only
+  // calls setLngLat/setRotation on the existing marker (no recreate, no flicker).
+  useEffect(() => {
+    if (riderMarkerRef.current) {
+      riderMarkerRef.current.setLngLat(riderLocation);
+      if (navigationPhase === 'active' && typeof riderHeading === 'number' && !Number.isNaN(riderHeading)) {
+        riderMarkerRef.current.setRotation(riderHeading);
+      }
+    }
+  }, [riderLocation, riderHeading, navigationPhase]);
+
+  // ---- Camera follow during active navigation ----
   useEffect(() => {
     if (navigationPhase === 'active' && map.current) {
-      // Determine if heading should drive bearing
       if (!isFollowing) return;
 
       let nextBearing: number | null = null;
-
       if (riderSpeed === null) {
-        // speed unavailable: use heading if available
-        if (typeof riderHeading === 'number' && !Number.isNaN(riderHeading)) {
-          nextBearing = riderHeading;
-        }
+        if (typeof riderHeading === 'number' && !Number.isNaN(riderHeading)) nextBearing = riderHeading;
       } else if (riderSpeed >= 1.5) {
-        // speed sufficient: trust heading
-        if (typeof riderHeading === 'number' && !Number.isNaN(riderHeading)) {
-          nextBearing = riderHeading;
-        }
+        if (typeof riderHeading === 'number' && !Number.isNaN(riderHeading)) nextBearing = riderHeading;
       } else {
-        // slow/stationary: retain previous bearing
         nextBearing = cameraBearingRef.current;
       }
 
-            if (nextBearing !== null) {
+      if (nextBearing !== null) {
         cameraBearingRef.current =
-          cameraBearingRef.current === null
-            ? nextBearing
-            : lerpAngle(cameraBearingRef.current, nextBearing, 0.3);
+          cameraBearingRef.current === null ? nextBearing : lerpAngle(cameraBearingRef.current, nextBearing, 0.3);
       }
 
       programmaticMoveRef.current = true;
@@ -524,6 +401,7 @@ const NavigationMap: React.FC<Props> = ({
       cameraBearingRef.current = null;
     }
   }, [navigationPhase]);
+
   const handleRecenter = () => {
     if (!map.current || isFollowing) return;
     setIsFollowing(true);
@@ -541,12 +419,9 @@ const NavigationMap: React.FC<Props> = ({
   };
 
   useEffect(() => {
-    const dist = Math.sqrt(
-      Math.pow(riderLocation[0] - customerLocation[0], 2) +
-      Math.pow(riderLocation[1] - customerLocation[1], 2)
-    );
+    const dist = Math.sqrt(Math.pow(rLon - cLon, 2) + Math.pow(rLat - cLat, 2));
     setShowArriveButton(dist < 0.001);
-  }, [riderLocation, customerLocation]);
+  }, [rLon, rLat, cLon, cLat]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -556,17 +431,9 @@ const NavigationMap: React.FC<Props> = ({
         <button
           onClick={handleRecenter}
           style={{
-            position: 'absolute',
-            bottom: 24,
-            right: 16,
-            padding: '10px 16px',
-            backgroundColor: '#1e40af',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            fontWeight: 700,
-            zIndex: 10,
-            cursor: 'pointer',
+            position: 'absolute', bottom: 24, right: 16, padding: '10px 16px',
+            backgroundColor: '#1e40af', color: '#fff', border: 'none', borderRadius: 8,
+            fontWeight: 700, zIndex: 10, cursor: 'pointer',
           }}
         >
           Re-center
@@ -576,20 +443,10 @@ const NavigationMap: React.FC<Props> = ({
       {tooltip && (
         <div
           style={{
-            position: 'absolute',
-            left: tooltip.x,
-            top: tooltip.y,
-            transform: 'translate(-50%, -100%)',
-            backgroundColor: '#ffffff',
-            padding: '8px 12px',
-            borderRadius: 8,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
-            fontSize: 13,
-            fontWeight: 500,
-            zIndex: 1000,
-            pointerEvents: 'none',
-            maxWidth: 220,
-            opacity: 1,
+            position: 'absolute', left: tooltip.x, top: tooltip.y, transform: 'translate(-50%, -100%)',
+            backgroundColor: '#ffffff', padding: '8px 12px', borderRadius: 8,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.18)', fontSize: 13, fontWeight: 500,
+            zIndex: 1000, pointerEvents: 'none', maxWidth: 220, opacity: 1,
           }}
           dangerouslySetInnerHTML={{ __html: tooltip.html }}
         />
@@ -598,62 +455,35 @@ const NavigationMap: React.FC<Props> = ({
       {navigationPhase !== 'active' && (
         <div
           style={{
-            position: 'absolute',
-            top: 12,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            gap: 4,
-            backgroundColor: '#ffffff',
-            borderRadius: 8,
-            padding: 4,
-            boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
-            zIndex: 10,
+            position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+            display: 'flex', gap: 4, backgroundColor: '#ffffff', borderRadius: 8, padding: 4,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.2)', zIndex: 10,
           }}
         >
-        {radiusOptions.map((r) => (
-          <button
-            key={r}
-            onClick={() => {
-              setSelectedRadius(r);
-              setExpandedForRider(false);
-              forceFitRef.current = true;
-            }}
-            style={{
-              padding: '6px 10px',
-              border: 'none',
-              borderRadius: 6,
-              backgroundColor: selectedRadius === r ? '#2563eb' : 'transparent',
-              color: selectedRadius === r ? '#ffffff' : '#1f2937',
-              fontWeight: 600,
-              fontSize: 12,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {r} km
-          </button>
-        ))}
-      </div>
+          {radiusOptions.map((r) => (
+            <button
+              key={r}
+              onClick={() => setSelectedRadius(r)}
+              style={{
+                padding: '6px 10px', border: 'none', borderRadius: 6,
+                backgroundColor: selectedRadius === r ? '#2563eb' : 'transparent',
+                color: selectedRadius === r ? '#ffffff' : '#1f2937',
+                fontWeight: 600, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >
+              {r} km
+            </button>
+          ))}
+        </div>
       )}
 
       {showArriveButton && (
         <button
           onClick={onArrived}
           style={{
-            position: 'absolute',
-            bottom: 32,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            padding: '16px 32px',
-            backgroundColor: '#10b981',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 12,
-            fontWeight: 700,
-            fontSize: 16,
-            zIndex: 10,
-            cursor: 'pointer',
+            position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)',
+            padding: '16px 32px', backgroundColor: '#10b981', color: '#fff', border: 'none',
+            borderRadius: 12, fontWeight: 700, fontSize: 16, zIndex: 10, cursor: 'pointer',
           }}
         >
           Arrived at Customer
