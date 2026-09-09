@@ -9,3 +9,11 @@ interface ImportMetaEnv {
   readonly VITE_RIDER_BASE?: string;
   readonly VITE_ADMIN_BASE?: string;
 }
+
+declare module 'virtual:pwa-register' {
+  export interface RegisterSWOptions {
+    onNeedRefresh?: (updateSW: () => Promise<void>) => void;
+    onOfflineReady?: () => void;
+  }
+  export function registerSW(options?: RegisterSWOptions): (() => void) | undefined;
+}

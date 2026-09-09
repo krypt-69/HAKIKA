@@ -1,6 +1,8 @@
 import React from 'react';
 import { haversineKm } from '../utils/distance';
 import { Order } from '../types/order';
+import { PhoneIcon, CameraIcon, NavigateIcon, CheckCircleIcon, ChevronRightIcon } from './icons';
+import { color, radius, shadow } from '../styles/tokens';
 
 interface Props {
   order: Order;
@@ -41,145 +43,295 @@ const OrderCard: React.FC<Props> = ({
   const deliveryLon = cleanCoord(order.delivery_location?.lon);
 
   const pickupDistance =
-    pickupLat && pickupLon
-      ? haversineKm(riderLocation, { lat: pickupLat, lon: pickupLon })
-      : null;
+    pickupLat && pickupLon ? haversineKm(riderLocation, { lat: pickupLat, lon: pickupLon }) : null;
   const deliveryDistance =
     pickupLat && pickupLon && deliveryLat && deliveryLon
       ? haversineKm({ lat: pickupLat, lon: pickupLon }, { lat: deliveryLat, lon: deliveryLon })
       : null;
   const totalTrip =
-    pickupDistance !== null && deliveryDistance !== null
-      ? pickupDistance + deliveryDistance
-      : null;
+    pickupDistance !== null && deliveryDistance !== null ? pickupDistance + deliveryDistance : null;
+
+  const isArrived = order.status === 'arrived';
 
   return (
     <div
       onClick={() => onSelect?.(order.id)}
       style={{
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        border: isSelected ? '3px solid #2563eb' : '2px solid #2563eb',
-        padding: 16,
-        marginBottom: 16,
+        background: color.surface,
+        borderRadius: radius.lg,
+        border: `1px solid ${isSelected ? color.amber : color.border}`,
+        boxShadow: isSelected ? `0 0 0 3px ${color.amberSoft}` : shadow.card,
+        padding: 0,
+        marginBottom: 14,
         cursor: onSelect ? 'pointer' : 'default',
+        overflow: 'hidden',
+        transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+      {/* Header strip */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '14px 16px 12px',
+          borderBottom: `1px solid ${color.border}`,
+        }}
+      >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#2563eb' }}>Invoice Ref</span>
-            {isPendingSync && (
-              <span style={{ backgroundColor: '#f59e0b', color: '#fff', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
-                Pending sync
-              </span>
-            )}
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: color.inkFaint, marginBottom: 2 }}>
+            {order.order_number}
           </div>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#111827' }}>{order.order_number}</h3>
+          {isPendingSync && (
+            <span
+              style={{
+                display: 'inline-block',
+                background: color.amberSoft,
+                color: color.amberDark,
+                padding: '2px 8px',
+                borderRadius: radius.pill,
+                fontSize: 10.5,
+                fontWeight: 650,
+                marginTop: 2,
+              }}
+            >
+              Pending sync
+            </span>
+          )}
         </div>
-        <span style={{
-          backgroundColor: order.status === 'arrived' ? '#d1fae5' : '#dbeafe',
-          color: order.status === 'arrived' ? '#065f46' : '#1e40af',
-          padding: '4px 10px', borderRadius: 9999, fontSize: 12, fontWeight: 700, textTransform: 'capitalize'
-        }}>
+        <span
+          style={{
+            background: isArrived ? color.successSoft : color.infoSoft,
+            color: isArrived ? color.success : color.info,
+            padding: '4px 10px',
+            borderRadius: radius.pill,
+            fontSize: 11.5,
+            fontWeight: 650,
+            textTransform: 'capitalize',
+          }}
+        >
           {order.status.replace(/_/g, ' ')}
         </span>
       </div>
 
-      {order.business_name && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderTop: '1px solid #f3f4f6' }}>
-          {order.business_logo && (
-            <img src={order.business_logo} alt="Logo" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 6 }} />
-          )}
-          <div>
-            <span style={{ fontSize: 11, color: '#9ca3af', display: 'block' }}>Pickup Point</span>
-            <span style={{ fontWeight: 700, color: '#1f2937', fontSize: 14 }}>
-              {order.business_name}
+      {/* Route summary */}
+      <div style={{ padding: '14px 16px' }}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {/* vertical route line */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 3 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: color.success, flexShrink: 0 }} />
+            <span style={{ width: 2, flex: 1, background: color.border, margin: '3px 0', minHeight: 22 }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: color.danger, flexShrink: 0 }} />
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+              {order.business_logo && (
+                <img
+                  src={order.business_logo}
+                  alt=""
+                  style={{ width: 22, height: 22, borderRadius: 5, objectFit: 'cover', flexShrink: 0 }}
+                />
+              )}
+              <span style={{ fontSize: 14.5, fontWeight: 650, color: color.ink }}>
+                {order.business_name || 'Pickup point'}
+              </span>
               {pickupDistance !== null && (
-                <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 8 }}>
-                  {pickupDistance.toFixed(1)} km away
+                <span style={{ fontSize: 12, color: color.inkFaint, marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' }}>
+                  {pickupDistance.toFixed(1)} km
                 </span>
               )}
-            </span>
+            </div>
+            <div style={{ height: 18 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14.5, fontWeight: 650, color: color.ink }}>
+                {order.customer_name || 'Delivery address'}
+              </span>
+              {deliveryDistance !== null && (
+                <span style={{ fontSize: 12, color: color.inkFaint, marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' }}>
+                  {deliveryDistance.toFixed(1)} km
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      )}
 
-      {deliveryDistance !== null && (
-        <div style={{ padding: '4px 0', borderTop: '1px solid #f3f4f6' }}>
-          <span style={{ fontSize: 12, color: '#6b7280' }}>
-            Delivery: {deliveryDistance.toFixed(1)} km from pickup
-          </span>
-        </div>
-      )}
-
-      {totalTrip !== null && (
-        <div style={{ padding: '4px 0', borderTop: '1px solid #f3f4f6', marginBottom: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
-            Total trip: {totalTrip.toFixed(1)} km
-          </span>
-        </div>
-      )}
-
-      <div style={{ backgroundColor: '#f9fafb', padding: 12, borderRadius: 8, margin: '8px 0' }}>
-        {order.items.map((item) => (
-          <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0' }}>
-            {item.thumbnail_url && (
-              <img src={item.thumbnail_url} alt="Item" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />
-            )}
-            <span style={{ fontSize: 14, color: '#4b5563', fontWeight: 500 }}>
-              {item.product_name} <strong style={{ color: '#111827' }}>×{item.quantity}</strong>
+        {totalTrip !== null && (
+          <div
+            style={{
+              marginTop: 10,
+              paddingTop: 10,
+              borderTop: `1px solid ${color.border}`,
+              fontSize: 12.5,
+              color: color.inkMuted,
+              display: 'flex',
+              justifyContent: 'space-between',
+            }}
+          >
+            <span>Total route</span>
+            <span style={{ fontWeight: 650, color: color.ink, fontVariantNumeric: 'tabular-nums' }}>
+              {totalTrip.toFixed(1)} km
             </span>
           </div>
-        ))}
+        )}
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 12 }}>
+      {/* Items */}
+      <div style={{ padding: '0 16px 14px' }}>
+        <div style={{ background: color.surfaceMuted, borderRadius: radius.md, padding: 10 }}>
+          {order.items.map((item) => (
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 2px' }}>
+              {item.thumbnail_url ? (
+                <img src={item.thumbnail_url} alt="" style={{ width: 30, height: 30, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 30, height: 30, borderRadius: 6, background: color.border, flexShrink: 0 }} />
+              )}
+              <span style={{ fontSize: 13.5, color: color.inkMuted, fontWeight: 500 }}>
+                {item.product_name} <strong style={{ color: color.ink, fontWeight: 650 }}>\u00d7{item.quantity}</strong>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Recipient + payout */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '0 16px 14px',
+        }}
+      >
         <div>
-          <span style={{ fontSize: 11, color: '#9ca3af', display: 'block' }}>Recipient</span>
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>
-            {order.customer_name || 'Anonymous Recipient'}
-          </span>
+          <div style={{ fontSize: 11, color: color.inkFaint, marginBottom: 2 }}>Recipient</div>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: color.inkMuted }}>
+            {order.customer_name || 'Anonymous recipient'}
+          </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <span style={{ fontSize: 11, color: '#9ca3af', display: 'block' }}>Total Payout Amount</span>
-          <span style={{ fontSize: 16, fontWeight: 800, color: '#111827' }}>KES {order.total_amount}</span>
+          <div style={{ fontSize: 11, color: color.inkFaint, marginBottom: 2 }}>Payout</div>
+          <div style={{ fontSize: 16.5, fontWeight: 700, color: color.ink, fontVariantNumeric: 'tabular-nums' }}>
+            KES {order.total_amount}
+          </div>
         </div>
       </div>
 
       {order.customer_phone && (
-        <p style={{ margin: '0 0 16px 0', fontSize: 13, color: '#4b5563' }}>
-          📞 <strong>Contact:</strong> {order.customer_phone}
-        </p>
+        <div style={{ padding: '0 16px 14px' }}>
+          <a
+            href={`tel:${order.customer_phone}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 13,
+              color: color.inkMuted,
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            <PhoneIcon size={14} color={color.inkFaint} />
+            {order.customer_phone}
+          </a>
+        </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, flexDirection: 'column', marginTop: 12 }}>
+      {/* Actions */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 16px 16px' }}>
         <button
-          onClick={(e) => { e.stopPropagation(); onNavigate(order); }}
-          style={{ width: '100%', padding: '12px', backgroundColor: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onNavigate(order);
+          }}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            padding: '13px',
+            background: color.amber,
+            color: color.ink,
+            border: 'none',
+            borderRadius: radius.md,
+            fontWeight: 700,
+            fontSize: 14.5,
+            cursor: 'pointer',
+          }}
         >
-          🧭 Start Navigation
+          <NavigateIcon size={16} color={color.ink} />
+          Start navigation
         </button>
 
         {order.status === 'out_for_delivery' && onArrive && (
           <button
-            onClick={(e) => { e.stopPropagation(); onArrive(order.id); }}
-            style={{ width: '100%', padding: '14px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onArrive(order.id);
+            }}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: '13px',
+              background: color.ink,
+              color: color.surface,
+              border: 'none',
+              borderRadius: radius.md,
+              fontWeight: 650,
+              fontSize: 14,
+              cursor: 'pointer',
+            }}
           >
-            Mark as Arrived at Target Destination
+            <CheckCircleIcon size={16} color={color.surface} />
+            Mark as arrived
           </button>
         )}
 
-        {order.status === 'arrived' && onTakePhoto && (
-          <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 12, marginTop: 4 }}>
-            <p style={{ color: '#059669', fontSize: 13, fontWeight: 600, margin: '0 0 8px 0', textAlign: 'center' }}>
-              🎉 Standing by for Drop-off Verification Photo...
-            </p>
-            <button
-              onClick={(e) => { e.stopPropagation(); onTakePhoto(); }}
-              style={{ width: '100%', padding: '12px', backgroundColor: '#6366f1', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}
+        {isArrived && onTakePhoto && (
+          <div style={{ borderTop: `1px solid ${color.border}`, paddingTop: 12, marginTop: 2 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                color: color.success,
+                fontSize: 13,
+                fontWeight: 600,
+                marginBottom: 10,
+                justifyContent: 'center',
+              }}
             >
-              📷 Capture Proof of Delivery Photo
+              <CheckCircleIcon size={15} color={color.success} />
+              Waiting for proof of delivery
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onTakePhoto();
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '12px',
+                background: color.surfaceMuted,
+                color: color.ink,
+                border: `1px solid ${color.border}`,
+                borderRadius: radius.md,
+                fontWeight: 650,
+                fontSize: 13.5,
+                cursor: 'pointer',
+              }}
+            >
+              <CameraIcon size={16} color={color.ink} />
+              Capture delivery photo
             </button>
             {fileInputRef && (
               <input

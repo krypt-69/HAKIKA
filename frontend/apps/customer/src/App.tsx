@@ -1,4 +1,6 @@
 import { Config } from "@hakika/config";
+import { registerSW } from 'virtual:pwa-register'
+import UpdatePrompt from './components/UpdatePrompt';
 import React from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate, useParams } from 'react-router-dom';
 import Home from './pages/Home';
@@ -239,7 +241,19 @@ const LegacyBusinessRedirect = () => {
   return <Navigate to={`/business/${slug}`} replace />;
 };
 
-const App: React.FC = () => (
+const App: React.FC = () => {
+  const [needRefresh, setNeedRefresh] = React.useState<(() => Promise<void>) | null>(null);
+
+  React.useEffect(() => {
+    const unregister = registerSW({
+      onNeedRefresh: (updateSW) => {
+        setNeedRefresh(() => updateSW);
+      },
+    });
+    return () => unregister?.();
+  }, []);
+
+  return (
     <BrowserRouter basename="/customer">
       <CustomerFeedProvider>
         <OrdersProvider>
@@ -338,6 +352,7 @@ const App: React.FC = () => (
             }
         `}</style>
         <div className="hk-app-shell">
+            
             <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/b/:slug" element={<LegacyBusinessRedirect />} />
@@ -348,11 +363,13 @@ const App: React.FC = () => (
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/receipt/:id" element={<Receipt />} />
             </Routes>
+            <UpdatePrompt needRefresh={needRefresh} setNeedRefresh={setNeedRefresh} />
             <BottomNav />
         </div>
         </OrdersProvider>
       </CustomerFeedProvider>
     </BrowserRouter>
-);
+  );
+};
 
 export default App;

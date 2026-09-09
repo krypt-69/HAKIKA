@@ -283,7 +283,7 @@ const BizCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: CatC
     return (
         <>
             <Link to={bizPath} data-business-id={biz.id} className="hk-biz-card-link">
-                <div style={{ borderRadius: 12, overflow: 'visible', boxShadow: darkMode ? '0 1px 6px rgba(0,0,0,0.6)' : '0 1px 6px rgba(0,0,0,0.07)', border: `1px solid ${catColor.ring}` }}>
+                <div style={{ borderRadius: 12, overflow: 'visible', boxShadow: darkMode ? '0 1px 6px rgba(0,0,0,0.6)' : '0 1px 6px rgba(0,0,0,0.07)', border: `1px solid ${darkMode ? '#333' : '#e5e7eb'}` }}>
                     <div style={{ width: '100%', aspectRatio: '1 / 1', position: 'relative', background: cardBg, overflow: 'hidden', borderRadius: '12px 12px 0 0' }}>
                         <CoverImage src={biz.cover_url} alt={biz.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                         {open && <span style={{ position: 'absolute', top: 6, right: 6, background: '#16a34a', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 4, padding: '2px 6px' }}>Open</span>}
@@ -291,35 +291,39 @@ const BizCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: CatC
 
                     <div style={{
                         position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
                         background: darkMode ? pageBg : catColor.light,
                         borderRadius: '0 0 12px 12px',
-                        paddingTop: 8, paddingBottom: 8, paddingLeft: BELT_LOGO_D + 16, paddingRight: 10,
-                        minHeight: BELT_LOGO_D / 2
+                        paddingLeft: BELT_LOGO_D + 12, paddingRight: 10,
+                        height: BELT_LOGO_D
                     }}>
                         <div
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setZoomed(true); }}
                             role="button"
                             aria-label={`View ${biz.name} details`}
-                            style={{ position: 'absolute', left: 10, top: -10, width: BELT_LOGO_D, height: BELT_LOGO_D, borderRadius: '50%', border: `3px solid ${catColor.ring}`, boxShadow: '0 2px 6px rgba(0,0,0,0.15)', overflow: 'hidden', background: '#fff', cursor: 'zoom-in' }}
+                            style={{ position: 'absolute', left: 0, top: 0, width: BELT_LOGO_D, height: BELT_LOGO_D, borderRadius: '50%', border: `3px solid ${catColor.ring}`, boxShadow: '0 2px 6px rgba(0,0,0,0.15)', overflow: 'hidden', background: '#fff', cursor: 'zoom-in' }}
                         >
                             <LogoImage id={biz.id} logoUrl={biz.logo_url} alt={biz.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
-                        <div className="hk-biz-name" style={{ fontWeight: 800, color: catColor.strong, fontFamily: 'Georgia, serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{biz.name}</div>
-                        <div className="hk-biz-cat" style={{ fontWeight: 700, color: catColor.strong, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 3 }}>{biz.category_name}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <StarSvg color="#facc15" size={11} /><StarSvg color="#facc15" size={11} /><StarSvg color="#facc15" size={11} />
-                                <span className="hk-biz-trust" style={{ color: darkMode ? '#d1d5db' : '#374151', fontWeight: 800, marginLeft: 2 }}>{biz.trust_score?.toFixed(0)}</span>
-                            </span>
-                            {biz.address_text && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: 3, minWidth: 0 }}>
-                                    <LocationSvg color="#16a34a" size={10} />
-                                    <span className="hk-biz-addr" style={{ fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{biz.address_text}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minWidth: 0 }}>
+                            <div className="hk-biz-name" style={{ fontWeight: 800, color: catColor.strong, fontFamily: 'Georgia, serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{biz.name}</div>
+                            <div className="hk-biz-cat" style={{ fontWeight: 700, color: catColor.strong, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 3 }}>{biz.category_name}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <StarSvg color="#facc15" size={11} /><StarSvg color="#facc15" size={11} /><StarSvg color="#facc15" size={11} />
+                                    <span className="hk-biz-trust" style={{ color: darkMode ? '#d1d5db' : '#374151', fontWeight: 800, marginLeft: 2 }}>{biz.trust_score?.toFixed(0)}</span>
                                 </span>
-                            )}
-                            {gpsEnabled && biz.distance_meters ? (
-                                <span className="hk-biz-dist" style={{ color: '#16a34a', fontWeight: 700, whiteSpace: 'nowrap' }}>{(biz.distance_meters / 1000).toFixed(1)}km</span>
-                            ) : null}
+                                {biz.address_text && (
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 3, minWidth: 0 }}>
+                                        <LocationSvg color="#16a34a" size={10} />
+                                        <span className="hk-biz-addr" style={{ fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{biz.address_text}</span>
+                                    </span>
+                                )}
+                                {gpsEnabled && biz.distance_meters ? (
+                                    <span className="hk-biz-dist" style={{ color: '#16a34a', fontWeight: 700, whiteSpace: 'nowrap' }}>{(biz.distance_meters / 1000).toFixed(1)}km</span>
+                                ) : null}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -345,18 +349,6 @@ const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; dark
     const bizPath = `/business/${biz.slug ?? biz.id}`;
     return (
         <div style={{ marginTop: 26, marginBottom: 26 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '0 2px 14px' }}>
-                <span style={{
-                    fontSize: 15,
-                    fontWeight: 800,
-                    color: darkMode ? '#f3f4f6' : '#111827',
-                    fontFamily: 'inherit',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                }}>{biz.snippet_title}</span>
-                <span style={{ flex: 1, height: 1, background: darkMode ? '#262626' : '#e5e7eb' }} />
-            </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
                 {biz.snippet_products.slice(0, 4).map(p => (
                     <Link key={p.id} to={bizPath} style={{ textDecoration: 'none', display: 'block' }}>
@@ -374,16 +366,27 @@ const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; dark
                 ))}
             </div>
 
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '14px 2px 0' }}>
+                <span style={{
+                    fontSize: 15,
+                    fontWeight: 800,
+                    color: darkMode ? '#f3f4f6' : '#111827',
+                    fontFamily: 'inherit',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                }}>{biz.snippet_title}</span>
+                <span style={{ flex: 1, height: 1, background: darkMode ? '#262626' : '#e5e7eb' }} />
+            </div>
+
             <Link to={bizPath} style={{ textDecoration: 'none', display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
                 <span style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
-                    background: '#000', color: '#fff',
+                    color: '#000',
                     fontSize: 12, fontWeight: 700,
                     letterSpacing: '0.03em',
-                    padding: '9px 18px', borderRadius: 2,
                 }}>
                     Shop more
-                    <ShopMoreArrowSvg color="#fff" size={13} />
+                    <ShopMoreArrowSvg color="#000" size={13} />
                 </span>
             </Link>
         </div>
@@ -794,11 +797,6 @@ const Home: React.FC = () => {
 
     const iconBtnStyle: React.CSSProperties = { width: 38, height: 38, background: '#16a34a', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 };
 
-    const activeCatIdx = categories.findIndex(c => c.id === selectedCategory);
-    const activeCatColor = selectedCategory === undefined
-        ? ALL_CAT_COLOR
-        : (activeCatIdx >= 0 ? CATEGORY_COLORS[activeCatIdx % CATEGORY_COLORS.length] : DEFAULT_CAT_COLOR);
-
     return (
         <div style={{ background: mainBg, minHeight: '100vh', color: textColor, position: 'relative' }}>
             <style>{`
@@ -868,7 +866,7 @@ const Home: React.FC = () => {
                    On desktop the app's top nav bar sits at the very top of the
                    viewport, so this needs to sit below it instead of underneath it —
                    see the desktop override further down. */
-                .hk-cat-sticky { position: sticky; top: 0; z-index: 20; border-top: 2px solid #D4AF37; transition: transform 0.3s ease; transform: translateY(0); }
+                .hk-cat-sticky { position: sticky; top: 0; z-index: 20; border-top: 2px solid #d1d5db; transition: transform 0.3s ease; transform: translateY(0); }
                 .hk-cat-sticky--hidden { transform: translateY(-100%); }
 
                 /* ── Business card shelf: mobile = horizontal belt, desktop = grid ── */
@@ -1030,7 +1028,7 @@ const Home: React.FC = () => {
                 {/* ── Categories — sticky so it stays put while the business list scrolls ── */}
                 {categories.length > 0 && (
                     <div className={`hk-cat-sticky${catBarHidden ? ' hk-cat-sticky--hidden' : ''}`} style={{
-                        background: categoriesBg, borderBottom: `1px solid ${activeCatColor.ring}`,
+                        background: categoriesBg,
                     }}>
                         <div className="hk-cat-bar-row">
                             <button
