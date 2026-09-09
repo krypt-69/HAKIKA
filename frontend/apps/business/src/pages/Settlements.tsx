@@ -4,6 +4,122 @@ import { useAuth } from '../AuthContext';
 import { api } from '../api';
 import { Card, Button, LoadingSpinner, ErrorState, EmptyState, SectionHeader } from '../components';
 
+// ==================================================================
+// Design tokens
+// A ledger built for merchants checking money on a phone between
+// customers — deep ink for the balance, a single considered green
+// for "money in", warm gold for "in motion", brick for "needs you".
+// ==================================================================
+const tokens = {
+  ink: '#101827',
+  inkSoft: '#5B6472',
+  paper: '#F6F5F1',
+  paperRaised: '#FFFFFF',
+  hairline: '#E4E1D8',
+  emerald: '#0E7A53',
+  emeraldSoft: '#E4F1EA',
+  gold: '#B4791F',
+  goldSoft: '#F6ECD9',
+  brick: '#B4402A',
+  brickSoft: '#F6E5E0',
+};
+
+const fontImport = `
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap');
+`;
+
+// -------------------- helpers --------------------
+const formatKES = (value: number, decimals: number = 2) =>
+  value.toLocaleString('en-KE', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' });
+
+const statusTone: Record<string, { fg: string; bg: string; label: string }> = {
+  completed: { fg: tokens.emerald, bg: tokens.emeraldSoft, label: 'Completed' },
+  success: { fg: tokens.emerald, bg: tokens.emeraldSoft, label: 'Completed' },
+  paid: { fg: tokens.emerald, bg: tokens.emeraldSoft, label: 'Paid' },
+  pending: { fg: tokens.gold, bg: tokens.goldSoft, label: 'Pending' },
+  processing: { fg: tokens.gold, bg: tokens.goldSoft, label: 'Processing' },
+  failed: { fg: tokens.brick, bg: tokens.brickSoft, label: 'Failed' },
+  cancelled: { fg: tokens.brick, bg: tokens.brickSoft, label: 'Cancelled' },
+};
+
+const Status: React.FC<{ status: string }> = ({ status }) => {
+  const tone = statusTone[status?.toLowerCase()] || { fg: tokens.inkSoft, bg: '#EEEDE7', label: status };
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', fontWeight: 500, color: tone.fg }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: tone.fg, flexShrink: 0 }} />
+      {tone.label}
+    </span>
+  );
+};
+
+// A ledger row: date / description / amount / status.
+// Reads as a bank statement line, not a database table dump.
+const LedgerList: React.FC<{
+  rows: { key: string; date: string; primary: string; secondary?: string; amount: string; status: string }[];
+}> = ({ rows }) => (
+  <div>
+    <style>{`
+      .ledger-row {
+        display: grid;
+        grid-template-columns: 88px 1fr auto;
+        gap: 16px;
+        align-items: center;
+        padding: 16px 4px;
+        border-bottom: 1px solid ${tokens.hairline};
+      }
+      .ledger-row:last-child { border-bottom: none; }
+      .ledger-date {
+        font-size: 0.78rem;
+        color: ${tokens.inkSoft};
+        font-variant-numeric: tabular-nums;
+      }
+      .ledger-amount {
+        font-family: 'Fraunces', Georgia, serif;
+        font-size: 1.05rem;
+        color: ${tokens.ink};
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        white-space: nowrap;
+      }
+      @media (max-width: 560px) {
+        .ledger-row {
+          grid-template-columns: 1fr auto;
+          grid-template-rows: auto auto;
+          row-gap: 4px;
+        }
+        .ledger-date { grid-column: 1; grid-row: 2; }
+        .ledger-primary-wrap { grid-column: 1; grid-row: 1; }
+        .ledger-amount { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+      }
+    `}</style>
+    {rows.map(row => (
+      <div className="ledger-row" key={row.key}>
+        <span className="ledger-date">{row.date}</span>
+        <div className="ledger-primary-wrap">
+          <div style={{ fontSize: '0.92rem', color: tokens.ink, fontWeight: 500 }}>{row.primary}</div>
+          {row.secondary && <div style={{ marginTop: 2 }}><Status status={row.status} /></div>}
+        </div>
+        <span className="ledger-amount">KES {row.amount}</span>
+      </div>
+    ))}
+  </div>
+);
+
+const SectionLabel: React.FC<{ children: React.ReactNode; hint?: string }> = ({ children, hint }) => (
+  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14, marginTop: 40 }}>
+    <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.2rem', fontWeight: 500, color: tokens.ink, margin: 0 }}>
+      {children}
+    </h2>
+    {hint && <span style={{ fontSize: '0.8rem', color: tokens.inkSoft }}>{hint}</span>}
+  </div>
+);
+
 // -------------------- CreditPaymentsView --------------------
 interface CreditPlan {
   id: string;
@@ -110,98 +226,161 @@ const CreditPaymentsView: React.FC<{ business: any }> = ({ business }) => {
 
   return (
     <div>
-      <SectionHeader title="Payments & Credit" subtitle="Manage your credit balance and view transactions" />
-      {success && <div style={{ background: '#dcfce7', color: '#16a34a', padding: '10px 16px', borderRadius: '6px', marginBottom: '16px' }}>{success}</div>}
-      {error && <div style={{ background: '#fef2f2', color: '#dc2626', padding: '10px 16px', borderRadius: '6px', marginBottom: '16px' }}>{error}</div>}
+      <style>{fontImport}</style>
+
+      {success && (
+        <div style={{ background: tokens.emeraldSoft, color: tokens.emerald, padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontSize: '0.9rem', fontWeight: 500 }}>
+          {success}
+        </div>
+      )}
+      {error && (
+        <div style={{ background: tokens.brickSoft, color: tokens.brick, padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontSize: '0.9rem', fontWeight: 500 }}>
+          {error}
+        </div>
+      )}
+
       {phoneError && (
-        <div style={{ background: '#fef9e7', border: '1px solid #f59e0b', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
-          <p style={{ fontWeight: 600, color: '#111', marginBottom: 8 }}>Phone number required</p>
-          <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: 12 }}>
-            Add the phone number that should receive the M-Pesa STK prompt.
+        <div style={{ background: tokens.goldSoft, borderLeft: `3px solid ${tokens.gold}`, padding: '16px 18px', borderRadius: '0 8px 8px 0', marginBottom: 24 }}>
+          <p style={{ fontWeight: 600, color: tokens.ink, marginBottom: 6 }}>Add a phone number to continue</p>
+          <p style={{ fontSize: '0.88rem', color: tokens.inkSoft, marginBottom: 12 }}>
+            We'll send the M-Pesa prompt to this number.
           </p>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             <input
               type="tel"
               value={phoneInput}
               onChange={e => setPhoneInput(e.target.value)}
-              placeholder="0712345678"
-              style={{ flex: 1, padding: 8, borderRadius: 4, border: '1px solid #d1d5db' }}
+              placeholder="0712 345 678"
+              style={{ flex: '1 1 200px', padding: '10px 12px', borderRadius: 6, border: `1px solid ${tokens.hairline}`, fontSize: '0.9rem', background: tokens.paperRaised }}
             />
             <button
               onClick={handleSavePhoneAndRetry}
-              style={{ padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4, whiteSpace: 'nowrap' }}
+              style={{ padding: '10px 20px', background: tokens.ink, color: '#fff', border: 'none', borderRadius: 6, whiteSpace: 'nowrap', fontWeight: 600, cursor: 'pointer', fontSize: '0.88rem' }}
             >
-              Save & Retry
+              Save and continue
             </button>
           </div>
         </div>
       )}
 
-      {/* Credit Balance & Volume Card */}
-      <Card style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>Available Credit</p>
-            <p style={{ fontSize: '2rem', fontWeight: 700, color: lowCredit ? '#dc2626' : '#16a34a' }}>KES {creditBalance.toFixed(2)}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>Remaining Volume</p>
-            <p style={{ fontSize: '2rem', fontWeight: 700, color: '#111111' }}>KES {remainingVolume.toFixed(2)}</p>
-            <p style={{ fontSize: '0.75rem', color: '#6b7280' }}>Approximate remaining order capacity</p>
-          </div>
+      {/* Hero: the balance is the whole point of the page */}
+      <div
+        style={{
+          background: tokens.ink,
+          borderRadius: 16,
+          padding: '32px 28px',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 32,
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+        }}
+      >
+        <div>
+          <p style={{ color: '#9BA3B2', fontSize: '0.85rem', marginBottom: 8 }}>Available credit</p>
+          <p
+            style={{
+              fontFamily: "'Fraunces', Georgia, serif",
+              fontSize: 'clamp(2.2rem, 7vw, 3.2rem)',
+              fontWeight: 500,
+              color: lowCredit ? '#E8917C' : '#7FD6AE',
+              lineHeight: 1,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            KES {formatKES(creditBalance)}
+          </p>
+          {lowCredit && (
+            <p style={{ color: '#E8917C', fontSize: '0.85rem', marginTop: 10 }}>
+              Running low — top up below to keep accepting orders.
+            </p>
+          )}
         </div>
-        {lowCredit && (
-          <p style={{ color: '#dc2626', fontSize: '0.875rem', marginTop: 12 }}>⚠️ Low credit – top up to continue accepting orders.</p>
-        )}
-      </Card>
+        <div style={{ textAlign: 'left' }}>
+          <p style={{ color: '#9BA3B2', fontSize: '0.85rem', marginBottom: 8 }}>Remaining order capacity</p>
+          <p
+            style={{
+              fontFamily: "'Fraunces', Georgia, serif",
+              fontSize: 'clamp(1.3rem, 4vw, 1.7rem)',
+              fontWeight: 500,
+              color: '#F1F0EA',
+              lineHeight: 1,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            KES {formatKES(remainingVolume)}
+          </p>
+        </div>
+      </div>
 
       {/* Credit Plans */}
-      <SectionHeader title="Credit Plans" subtitle="Purchase credit to accept more orders" />
+      <SectionLabel hint="One-time top-up, no subscription">Top up your credit</SectionLabel>
       {creditPlans.length === 0 ? (
         <EmptyState title="No plans available" description="Check back later for credit plans" />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-          {creditPlans.map(plan => (
-            <Card key={plan.id}>
-              <h3 style={{ fontSize: '1.125rem', fontWeight: 700 }}>{plan.name}</h3>
-              <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#16a34a', margin: '8px 0' }}>KES {plan.price.toFixed(0)}</p>
-              <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>Processing credit: KES {plan.credit_amount.toFixed(0)}</p>
-              {plan.description && <p style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: 4 }}>{plan.description}</p>}
-              <Button variant="primary" size="sm" onClick={() => handlePurchase(plan.id)} isLoading={purchasing === plan.id} disabled={purchasing === plan.id} style={{ marginTop: 12, width: '100%' }}>
-                Buy
-              </Button>
-            </Card>
+        <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8, marginLeft: -4, paddingLeft: 4 }}>
+          {creditPlans.map((plan, i) => (
+            <div
+              key={plan.id}
+              style={{
+                minWidth: 220,
+                flex: '0 0 auto',
+                background: tokens.paperRaised,
+                border: `1px solid ${tokens.hairline}`,
+                borderLeft: `3px solid ${i % 2 === 0 ? tokens.emerald : tokens.gold}`,
+                borderRadius: 10,
+                padding: '18px 18px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: tokens.ink, margin: 0 }}>{plan.name}</h3>
+              <p style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.5rem', color: tokens.ink, margin: '10px 0 2px', fontVariantNumeric: 'tabular-nums' }}>
+                KES {formatKES(plan.price, 0)}
+              </p>
+              <p style={{ fontSize: '0.8rem', color: tokens.inkSoft, marginBottom: plan.description ? 4 : 0 }}>
+                Gives you KES {formatKES(plan.credit_amount, 0)} in processing credit
+              </p>
+              {plan.description && <p style={{ fontSize: '0.78rem', color: tokens.inkSoft, flexGrow: 1, marginTop: 4 }}>{plan.description}</p>}
+              <button
+                onClick={() => handlePurchase(plan.id)}
+                disabled={purchasing === plan.id}
+                style={{
+                  marginTop: 16,
+                  padding: '10px 0',
+                  background: purchasing === plan.id ? '#C9C6BC' : tokens.ink,
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: purchasing === plan.id ? 'default' : 'pointer',
+                }}
+              >
+                {purchasing === plan.id ? 'Opening checkout…' : 'Buy credit'}
+              </button>
+            </div>
           ))}
         </div>
       )}
 
       {/* Purchase History */}
-      <SectionHeader title="Purchase History" subtitle="All credit purchases" />
+      <SectionLabel>Credit purchases</SectionLabel>
       {purchaseHistory.length === 0 ? (
         <EmptyState title="No purchases yet" description="Your credit purchases will appear here" />
       ) : (
-        <Card>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
-                <th style={{ padding: '8px' }}>Date</th>
-                <th style={{ padding: '8px' }}>Amount Paid</th>
-                <th style={{ padding: '8px' }}>Credit Received</th>
-                <th style={{ padding: '8px' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {purchaseHistory.map(order => (
-                <tr key={order.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '8px', fontSize: '0.875rem' }}>{new Date(order.created_at).toLocaleDateString()}</td>
-                  <td style={{ padding: '8px' }}>KES {order.amount_paid.toFixed(0)}</td>
-                  <td style={{ padding: '8px' }}>KES {order.credit_received.toFixed(0)}</td>
-                  <td style={{ padding: '8px' }}>{order.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+        <div style={{ background: tokens.paperRaised, border: `1px solid ${tokens.hairline}`, borderRadius: 10, padding: '4px 20px' }}>
+          <LedgerList
+            rows={purchaseHistory.map(order => ({
+              key: order.id,
+              date: formatDate(order.created_at),
+              primary: `+ KES ${formatKES(order.credit_received, 0)} credit`,
+              secondary: order.status,
+              status: order.status,
+              amount: formatKES(order.amount_paid, 0),
+            }))}
+          />
+        </div>
       )}
     </div>
   );
@@ -239,34 +418,72 @@ const PaygPaymentsView: React.FC = () => {
 
   if (loading) return <LoadingSpinner size="lg" />;
 
+  const total = settlements.reduce((sum, s) => sum + (s.amount || 0), 0);
+  const lastSettled = settlements.find(s => (s.status || '').toLowerCase() === 'completed' || (s.status || '').toLowerCase() === 'paid');
+
   return (
     <div>
-      <SectionHeader title="Payments & Settlements" subtitle="View your payout history" />
-      {error && <div style={{ background: '#fef2f2', color: '#dc2626', padding: '10px 16px', borderRadius: '6px', marginBottom: '16px' }}>{error}</div>}
+      <style>{fontImport}</style>
 
+      {error && (
+        <div style={{ background: tokens.brickSoft, color: tokens.brick, padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontSize: '0.9rem', fontWeight: 500 }}>
+          {error}
+        </div>
+      )}
+
+      <div
+        style={{
+          background: tokens.ink,
+          borderRadius: 16,
+          padding: '32px 28px',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 32,
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+        }}
+      >
+        <div>
+          <p style={{ color: '#9BA3B2', fontSize: '0.85rem', marginBottom: 8 }}>Total settled to date</p>
+          <p
+            style={{
+              fontFamily: "'Fraunces', Georgia, serif",
+              fontSize: 'clamp(2.2rem, 7vw, 3.2rem)',
+              fontWeight: 500,
+              color: '#7FD6AE',
+              lineHeight: 1,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            KES {formatKES(total)}
+          </p>
+        </div>
+        {lastSettled && (
+          <div>
+            <p style={{ color: '#9BA3B2', fontSize: '0.85rem', marginBottom: 8 }}>Last payout</p>
+            <p style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 'clamp(1.3rem, 4vw, 1.7rem)', fontWeight: 500, color: '#F1F0EA', lineHeight: 1 }}>
+              {formatDate(lastSettled.created_at)}
+            </p>
+          </div>
+        )}
+      </div>
+
+      <SectionLabel>Payouts</SectionLabel>
       {settlements.length === 0 ? (
         <EmptyState title="No settlements yet" description="Settlements will appear here when customers pay for orders" />
       ) : (
-        <Card>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>
-                <th style={{ padding: '8px' }}>Date</th>
-                <th style={{ padding: '8px' }}>Amount</th>
-                <th style={{ padding: '8px' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {settlements.map(s => (
-                <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '8px', fontSize: '0.875rem' }}>{new Date(s.created_at).toLocaleDateString()}</td>
-                  <td style={{ padding: '8px' }}>KES {s.amount.toFixed(2)}</td>
-                  <td style={{ padding: '8px' }}>{s.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+        <div style={{ background: tokens.paperRaised, border: `1px solid ${tokens.hairline}`, borderRadius: 10, padding: '4px 20px' }}>
+          <LedgerList
+            rows={settlements.map(s => ({
+              key: s.id,
+              date: formatDate(s.created_at),
+              primary: 'Order payout',
+              secondary: s.status,
+              status: s.status,
+              amount: formatKES(s.amount),
+            }))}
+          />
+        </div>
       )}
     </div>
   );
@@ -300,12 +517,18 @@ const Settlements: React.FC = () => {
     return <ErrorState message="Could not load business details." onRetry={() => window.location.reload()} />;
   }
 
-  // Hard split by payment model
-  if (business.payment_model === 'credit') {
-    return <CreditPaymentsView business={business} />;
-  }
-
-  return <PaygPaymentsView />;
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px 60px', background: tokens.paper, fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: '1.6rem', fontWeight: 500, color: tokens.ink, margin: '4px 0 24px' }}>
+        Payments
+      </h1>
+      {business.payment_model === 'credit' ? (
+        <CreditPaymentsView business={business} />
+      ) : (
+        <PaygPaymentsView />
+      )}
+    </div>
+  );
 };
 
 export default Settlements;

@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { createCleanMap } from '../mapbox/init';
+import { createCleanMap, getDarkMode, setDarkMode } from '../mapbox/init';
 import {
   createRiderMarker,
   createBusinessMarker,
   createCustomerMarker,
   createEdgeMarker,
 } from '../mapbox/markers';
+import MapModeToggle from './MapModeToggle';
+import { color, radius, shadow } from '../styles/tokens';
 import { Order } from '../types/order';
 
 interface OverviewMapProps {
@@ -99,7 +101,17 @@ const OverviewMap: React.FC<OverviewMapProps> = ({
   const [tooltip, setTooltip] = useState<{ x: number; y: number; html: string } | null>(null);
   const [tooltipKey, setTooltipKey] = useState<string | null>(null);
   const tooltipKeyRef = useRef<string | null>(null);
+  const [darkMode, setDarkModeState] = useState(() => getDarkMode());
 
+  const handleToggleDarkMode = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    setDarkModeState(next);
+  };
+
+  // Mount / remount the map. Depends on darkMode so toggling the style
+  // (which Mapbox only reads at creation time) tears down and rebuilds
+  // the map cleanly with the new style.
   useEffect(() => {
     if (!mapContainer.current) return;
 
@@ -117,6 +129,8 @@ const OverviewMap: React.FC<OverviewMapProps> = ({
       0
     );
 
+    mapReadyRef.current = false;
+
     // Use 'idle' instead of 'load' to ensure map style/source is ready.
     // Fallback timeout ensures initial render even if 'idle' doesn't fire.
     map.current.once('idle', () => {
@@ -124,7 +138,7 @@ const OverviewMap: React.FC<OverviewMapProps> = ({
       renderOverview();
     });
 
-    setTimeout(() => {
+    const t = setTimeout(() => {
       if (!mapReadyRef.current && map.current?.isStyleLoaded()) {
         mapReadyRef.current = true;
         renderOverview();
@@ -132,13 +146,15 @@ const OverviewMap: React.FC<OverviewMapProps> = ({
     }, 1500);
 
     return () => {
+      clearTimeout(t);
       map.current?.remove();
       map.current = null;
       mapReadyRef.current = false;
       businessMarkersMap.current.clear();
       orderMarkersMap.current.clear();
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [darkMode]);
 
   useEffect(() => {
     if (mapReadyRef.current) renderOverview();
@@ -367,10 +383,10 @@ const OverviewMap: React.FC<OverviewMapProps> = ({
             left: tooltip.x,
             top: tooltip.y,
             transform: 'translate(-50%, -100%)',
-            backgroundColor: '#fff',
+            backgroundColor: color.surface,
             padding: '6px 10px',
-            borderRadius: 6,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            borderRadius: radius.sm,
+            boxShadow: shadow.raised,
             fontSize: 13,
             fontWeight: 600,
             zIndex: 1000,
@@ -388,10 +404,10 @@ const OverviewMap: React.FC<OverviewMapProps> = ({
           transform: 'translateX(-50%)',
           display: 'flex',
           gap: 4,
-          backgroundColor: '#ffffff',
-          borderRadius: 8,
+          backgroundColor: color.surface,
+          borderRadius: radius.sm,
           padding: 4,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+          boxShadow: shadow.card,
           zIndex: 10,
         }}
       >
@@ -403,8 +419,8 @@ const OverviewMap: React.FC<OverviewMapProps> = ({
               padding: '6px 10px',
               border: 'none',
               borderRadius: 6,
-              backgroundColor: selectedRadius === r ? '#2563eb' : 'transparent',
-              color: selectedRadius === r ? '#ffffff' : '#1f2937',
+              backgroundColor: selectedRadius === r ? color.ink : 'transparent',
+              color: selectedRadius === r ? color.surface : color.inkMuted,
               fontWeight: 600,
               fontSize: 12,
               cursor: 'pointer',
@@ -415,6 +431,12 @@ const OverviewMap: React.FC<OverviewMapProps> = ({
           </button>
         ))}
       </div>
+
+      <MapModeToggle
+        dark={darkMode}
+        onToggle={handleToggleDarkMode}
+        style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}
+      />
     </div>
   );
 };

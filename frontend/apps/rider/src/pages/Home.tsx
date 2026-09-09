@@ -52,6 +52,7 @@ const Home: React.FC = () => {
   const [tripOrderIds, setTripOrderIds] = useState<string[]>(() => loadTripSelection().orderIds);
   const [tripMessage, setTripMessage] = useState('');
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     saveTripSelection(tripOrderIds, isSelectingForTrip);
@@ -507,14 +508,43 @@ const Home: React.FC = () => {
         </div>
 
         {memoizedRiderLocation || activeOrders.length > 0 ? (
-          <div style={{ height: '42vh', marginBottom: 16, borderRadius: radius.lg, overflow: 'hidden', border: `1px solid ${color.border}` }}>
-            <OverviewMap
-              orders={activeOrders}
-              riderLocation={memoizedRiderLocation}
-              radiusKm={30}
-              selectedOrderId={selectedOrderId}
-              onOrderSelect={(id) => setSelectedOrderId(prev => (prev === id ? null : id))}
-            />
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+              <button
+                onClick={() => setShowMap(v => !v)}
+                style={{
+                  background: '#111111',
+                  border: 'none',
+                  color: '#ffffff',
+                  borderRadius: 10,
+                  padding: '12px 22px',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z" />
+                  <line x1="8" y1="2" x2="8" y2="22" />
+                  <line x1="16" y1="6" x2="16" y2="22" />
+                </svg>
+                {showMap ? 'Hide map' : 'Show map'}
+              </button>
+            </div>
+            {showMap && (
+              <div style={{ height: '42vh', borderRadius: radius.lg, overflow: 'hidden', border: `1px solid ${color.border}` }}>
+                <OverviewMap
+                  orders={activeOrders}
+                  riderLocation={memoizedRiderLocation}
+                  radiusKm={30}
+                  selectedOrderId={selectedOrderId}
+                  onOrderSelect={(id) => setSelectedOrderId(prev => (prev === id ? null : id))}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div

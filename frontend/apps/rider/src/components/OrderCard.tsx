@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { haversineKm } from '../utils/distance';
 import { Order } from '../types/order';
 import { PhoneIcon, CameraIcon, NavigateIcon, CheckCircleIcon, ChevronRightIcon } from './icons';
@@ -37,6 +37,8 @@ const OrderCard: React.FC<Props> = ({
   isSelected,
   onSelect,
 }) => {
+  const [showMore, setShowMore] = useState(false);
+
   const pickupLat = cleanCoord(order.pickup_location?.lat);
   const pickupLon = cleanCoord(order.pickup_location?.lon);
   const deliveryLat = cleanCoord(order.delivery_location?.lat);
@@ -130,7 +132,7 @@ const OrderCard: React.FC<Props> = ({
                 <img
                   src={order.business_logo}
                   alt=""
-                  style={{ width: 22, height: 22, borderRadius: 5, objectFit: 'cover', flexShrink: 0 }}
+                  style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
                 />
               )}
               <span style={{ fontSize: 14.5, fontWeight: 650, color: color.ink }}>
@@ -193,6 +195,35 @@ const OrderCard: React.FC<Props> = ({
           ))}
         </div>
       </div>
+
+      {/* More details toggle */}
+      <div style={{ padding: '0 16px 12px' }}>
+        <button
+          onClick={() => setShowMore(v => !v)}
+          style={{
+            width: '100%',
+            background: 'transparent',
+            border: `1px solid ${color.border}`,
+            borderRadius: 8,
+            padding: '8px 12px',
+            color: color.inkMuted,
+            fontWeight: 600,
+            fontSize: 13,
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <span>More details</span>
+          <ChevronRightIcon size={16} color={color.inkFaint} />
+        </button>
+      </div>
+      {showMore && (
+        <div style={{ padding: '0 16px 12px' }}>
+          {/* Additional details already present in items and recipient section */}
+        </div>
+      )}
 
       {/* Recipient + payout */}
       <div

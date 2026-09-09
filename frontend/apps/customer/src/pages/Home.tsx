@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import DesktopHome from '../components/DesktopHome';
 import { api } from '../api';
 import { useFeedContext, BusinessCard } from '../CustomerFeedContext';
 import { Config } from '@hakika/config';
@@ -105,7 +106,7 @@ const LocationSvg = ({ color = '#16a34a', size = 12 }: { color?: string; size?: 
     );
 
 const StarSvg = ({ color = '#facc15', size = 13 }: { color?: string; size?: number }) =>
-    React.createElement('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: color, stroke: 'none' },
+    React.createElement('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' },
         React.createElement('path', { d: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' })
     );
 
@@ -321,7 +322,7 @@ const BizCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: CatC
                                     </span>
                                 )}
                                 {gpsEnabled && biz.distance_meters ? (
-                                    <span className="hk-biz-dist" style={{ color: '#16a34a', fontWeight: 700, whiteSpace: 'nowrap' }}>{(biz.distance_meters / 1000).toFixed(1)}km</span>
+                                    <span className="hk-biz-dist" style={{ color: '#dc2626', fontWeight: 700, whiteSpace: 'nowrap' }}>{(biz.distance_meters / 1000).toFixed(1)}km</span>
                                 ) : null}
                             </div>
                         </div>
@@ -348,45 +349,46 @@ const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; dark
     if (!biz.snippet_title || !biz.snippet_products || biz.snippet_products.length === 0) return null;
     const bizPath = `/business/${biz.slug ?? biz.id}`;
     return (
-        <div style={{ marginTop: 26, marginBottom: 26 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }}>
+        <div style={{ marginTop: 48, marginBottom: 48 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
                 {biz.snippet_products.slice(0, 4).map(p => (
-                    <Link key={p.id} to={bizPath} style={{ textDecoration: 'none', display: 'block' }}>
-                        <div style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: 0, overflow: 'hidden', background: catColor.light }}>
+                    <Link key={p.id} to={bizPath} style={{ textDecoration: 'none', display: 'block', background: '#f3f4f6', borderRadius: 10, overflow: 'hidden' }}>
+                        <div style={{ width: '100%', aspectRatio: '3 / 4', overflow: 'hidden', background: catColor.light }}>
                             {p.image_url ? (
                                 <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                             ) : (
                                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <ShopSvg size={26} />
+                                    <ShopSvg size={20} />
                                 </div>
                             )}
                         </div>
-                        <div style={{ marginTop: 9, fontSize: 12.5, fontWeight: 500, color: darkMode ? '#d1d5db' : '#4b5563', lineHeight: 1.4, letterSpacing: '0.01em' }}>{p.name}</div>
+                        <div style={{ padding: '5px 8px 7px', fontFamily: "'Caveat', cursive", fontWeight: 700, fontSize: 16, color: '#7A5C00', background: '#f3f4f6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
                     </Link>
                 ))}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '14px 2px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '30px 2px 0' }}>
                 <span style={{
-                    fontSize: 15,
+                    fontSize: 13,
                     fontWeight: 800,
                     color: darkMode ? '#f3f4f6' : '#111827',
                     fontFamily: 'inherit',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
+                    letterSpacing: '0.06em',
                 }}>{biz.snippet_title}</span>
                 <span style={{ flex: 1, height: 1, background: darkMode ? '#262626' : '#e5e7eb' }} />
             </div>
 
-            <Link to={bizPath} style={{ textDecoration: 'none', display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+            <Link to={bizPath} style={{ textDecoration: 'none', display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
                 <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    color: '#000',
-                    fontSize: 12, fontWeight: 700,
-                    letterSpacing: '0.03em',
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    color: '#F4C430',
+                    fontSize: 26, fontWeight: 700,
+                    fontFamily: "'Caveat', cursive",
+                    marginTop: 10,
                 }}>
                     Shop more
-                    <ShopMoreArrowSvg color="#000" size={13} />
+                    <ShopMoreArrowSvg color="#000000" size={24} />
                 </span>
             </Link>
         </div>
@@ -438,7 +440,7 @@ const BizShelf: React.FC<{ items: BusinessCard[]; gpsEnabled: boolean; label: st
    Every avatar shares the same bright gold ring and handwritten label
    style now (previously each had its own per-category ring color). */
 const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor; onClick: () => void; imageUrl?: string | null; size: number; darkMode: boolean }> = ({ label, active, colors, onClick, imageUrl, size, darkMode }) => (
-    <button onClick={onClick} className="hk-cat-story" style={{ width: size + 10 }}>
+    <button onClick={onClick} className="hk-cat-story" style={{ width: size + 10, background: darkMode ? '#2a2a2a' : '#f3f4f6', borderRadius: 14, padding: '6px 8px' }}>
         <div className="hk-cat-ring" style={{
             width: size, height: size, borderRadius: '50%', padding: 0,
             background: 'transparent',
@@ -451,7 +453,7 @@ const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor
                 )}
             </div>
         </div>
-        <span className="hk-cat-label" style={{ fontFamily: 'inherit', fontWeight: 700, color: colors.strong, background: darkMode ? '#2a2a2a' : '#e5e7eb', letterSpacing: '0.02em', padding: '3px 10px 3px', borderRadius: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: size + 24 }}>{label}</span>
+        <span className="hk-cat-label" style={{ fontFamily: 'inherit', fontWeight: 700, color: '#B8860B', background: 'transparent', letterSpacing: '0.005em', padding: '3px 10px 3px', borderRadius: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: size + 24 }}>{label}</span>
     </button>
 );
 
@@ -459,6 +461,7 @@ const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor
 type BarMode = 'none' | 'search' | 'location';
 
 const Home: React.FC = () => {
+    const navigate = useNavigate();
     const [categories, setCategories] = useState<any[]>([]);
     // Starts true (not false) so the very first paint — before the mount
     // effect below has even run — shows the spinner instead of a flash of
@@ -795,7 +798,36 @@ const Home: React.FC = () => {
         );
     };
 
+    const [isDesktop, setIsDesktop] = useState<boolean>(() => window.innerWidth >= 860);
+
+    useEffect(() => {
+        const mq = window.matchMedia('(min-width: 860px)');
+        const handler = () => setIsDesktop(mq.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
+
     const iconBtnStyle: React.CSSProperties = { width: 38, height: 38, background: '#16a34a', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 };
+
+    if (isDesktop) {
+        return (
+            <DesktopHome
+                businesses={allBusinesses}
+                searchText={searchText}
+                setSearchText={setSearchText}
+                onSearch={runSearch}
+                onUseLocation={handleUseGPS}
+                onOpenMyOrders={() => navigate('/my-orders')}
+                onOpenNotifications={() => navigate('/notifications')}
+                nextCursor={nextCursor}
+                loadingMore={loadingMore}
+                loadMore={() => fetchBusinesses(location?.lat, location?.lon, selectedCategory, radiusMeters, searchText, nextCursor ?? undefined)}
+                gpsLoading={gpsLoading}
+                error={error}
+            />
+        );
+    }
+
 
     return (
         <div style={{ background: mainBg, minHeight: '100vh', color: textColor, position: 'relative' }}>
@@ -899,7 +931,7 @@ const Home: React.FC = () => {
                    group (sits right under the sticky category bar), bigger spacing
                    between cards. On desktop this becomes the same edge-to-edge grid
                    as belts (see media query). ── */
-                .hk-vgroup-track { display: flex; flex-direction: column; gap: 36px; padding: ${BELT_LOGO_D / 2 + 4}px 16px 8px 16px; }
+                .hk-vgroup-track { display: flex; flex-direction: column; gap: 61px; padding: ${BELT_LOGO_D / 2 + 4}px 16px 8px 16px; }
                 .hk-vgroup-track:first-of-type { padding-top: ${BELT_LOGO_D / 2}px; margin-top: 0; }
                 .hk-vgroup-item { width: 100%; }
 
@@ -1078,20 +1110,31 @@ const Home: React.FC = () => {
 
                 {error && <div className="hk-container" style={{ marginTop: 10, padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#dc2626', fontSize: 12 }}>{error}</div>}
 
-                {gpsLoading && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', gap: 10, color: mutedText, fontSize: 13, textAlign: 'center' }}>
-                        <LocationSvg size={22} color="#16a34a" />
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <SpinnerSvg />
-                            <span>Getting your location…</span>
+                {(gpsLoading || loading) && (
+                    <div style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(255,255,255,0.85)',
+                        zIndex: 1500,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 18,
+                    }}>
+                        <div style={{
+                            width: 64,
+                            height: 64,
+                            borderRadius: '50%',
+                            border: '6px solid #e5e7eb',
+                            borderTopColor: '#16a34a',
+                            animation: 'spin 0.8s linear infinite',
+                        }} />
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#16a34a' }}>
+                            Opening GPS and finding nearby shops…
                         </div>
-                        <span style={{ fontSize: 11.5, color: mutedText, maxWidth: 260 }}>
-                            This can take a moment — we're calculating nearby shops for you, please hang on.
-                        </span>
                     </div>
                 )}
-
-                {!gpsLoading && loading && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', gap: 8, color: mutedText, fontSize: 13 }}><SpinnerSvg />Finding shops near you…</div>}
 
                 {!gpsLoading && !loading && (
                     <div style={{ paddingBottom: 24 }}>

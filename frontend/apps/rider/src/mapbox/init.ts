@@ -30,9 +30,9 @@ const DARK_MODE_KEY = 'hakika-rider-dark-mode';
 export function getDarkMode(): boolean {
   try {
     const raw = localStorage.getItem(DARK_MODE_KEY);
-    return raw ? JSON.parse(raw) : true; // default dark
+    return raw ? JSON.parse(raw) : false; // default dark
   } catch {
-    return true;
+    return false;
   }
 }
 

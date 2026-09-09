@@ -12,7 +12,8 @@ import type { DeliveryTrip } from '../services/tripBuilder';
 import { reconcileTripWithActiveOrders, advanceTripAfterStopCompleted } from '../services/tripBuilder';
 import { useOrders } from '../hooks/useOrders';
 import { loadActiveTrip, saveActiveTrip, clearActiveTrip } from '../services/navigationPersistence';
-import { getDarkMode } from '../mapbox/init';
+import { getDarkMode, setDarkMode } from '../mapbox/init';
+import MapModeToggle from '../components/MapModeToggle';
 import { calculateRouteProgress, type RouteProgress } from '../services/routeProgress';
 import { orderToDestination, stopToDestination, type NavigationDestination } from '../services/navigationDestination';
 
@@ -183,6 +184,13 @@ const NavigationScreen: React.FC = () => {
   const handleStartNavigationRef = useRef<() => void>(() => {});
   const navigationTargetRef = useRef<NavigationDestination | null>(null);
   const lastSmoothedHeadingRef = useRef<number | null>(null);
+
+  const [darkMode, setDarkModeState] = useState(() => getDarkMode());
+  const handleToggleDarkMode = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    setDarkModeState(next);
+  };
 
   function normalizeHeading(deg: number): number {
     return ((deg % 360) + 360) % 360;
@@ -573,7 +581,7 @@ const NavigationScreen: React.FC = () => {
       <div style={{ flex: 3, minHeight: 0, position: 'relative' }}>
         {riderLocation && (
         <NavigationMap
-          key={getDarkMode() ? 'dark' : 'light'}
+          key={darkMode ? 'dark' : 'light'}
           riderLocation={riderLocation}
           riderHeading={riderHeading}
           riderSpeed={riderSpeed}
@@ -613,6 +621,12 @@ const NavigationScreen: React.FC = () => {
         >
           ← Back
         </button>
+
+        <MapModeToggle
+          dark={darkMode}
+          onToggle={handleToggleDarkMode}
+          style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}
+        />
 
         {navigationPhase === 'active' && activeRouteData && (
           <div

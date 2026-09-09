@@ -577,11 +577,6 @@ const BusinessProfile: React.FC = () => {
 
     const bottomPadding = totalItems === 0 ? 24 : cartMini ? 96 : (itemsListOpen ? 420 : 210);
 
-    const MarqueeContent = () => (
-        <span className="welcome-belt-text">
-            <span className="belt-gold">✦ Welcome to </span><span className="belt-maroon">{business.name}</span><span className="belt-gold"> ✦ Get the best from </span><span className="belt-maroon">{business.name}</span><span className="belt-gold"> ✦ Welcome to </span><span className="belt-maroon">Hakika</span><span className="belt-gold">, where our customers are our passion ✦ Enjoy — </span><span className="belt-maroon">we love you</span><span className="belt-gold"> ✦</span>
-        </span>
-    );
 
     return (
         <div style={{ background: '#f9fafb', minHeight: '100vh', paddingBottom: bottomPadding }}>
@@ -590,7 +585,6 @@ const BusinessProfile: React.FC = () => {
 
                 @keyframes gold-spin { to { transform: rotate(360deg); } }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-                @keyframes marquee-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
                 .page-wrap { max-width: 900px; margin: 0 auto; width: 100%; }
 
@@ -615,7 +609,7 @@ const BusinessProfile: React.FC = () => {
                 /* ── Profile page styling ─────────────────────── */
                 .profile-page-inner { max-width: 640px; margin: 0 auto; padding: 0 18px 40px; }
                 .profile-hero { text-align: center; padding: 6px 0 20px; border-bottom: 1px solid #eee0c0; margin-bottom: 18px; }
-                .profile-script { font-family: 'Caveat', cursive; font-weight: 700; font-size: 34px; color: ${GOLD}; }
+                .profile-script { font-family: system-ui, -apple-system, sans-serif; font-weight: 700; font-size: 34px; color: ${GOLD}; }
                 .profile-desc { font-size: 13px; color: #6b7280; margin: 4px 0 12px; line-height: 1.6; }
                 .profile-open-pill {
                     display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px;
@@ -697,7 +691,7 @@ const BusinessProfile: React.FC = () => {
                     background: #f3f4f6; overflow: hidden; cursor: pointer; border-radius: 18px;
                 }
 
-                .header-name { text-align: center; margin: 46px 0 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 36px; color: ${GOLD}; }
+                .header-name { text-align: center; margin: 46px 0 0; font-family: system-ui, -apple-system, sans-serif; font-weight: 800; font-size: 32px; color: #111827; letter-spacing: 0.2px; }
 
                 .header-controls-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
                 .side-btn {
@@ -706,23 +700,6 @@ const BusinessProfile: React.FC = () => {
                 }
                 .side-btn.search-btn { background: #f0fdf4; border: 1px solid #bbf7d0; }
                 .status-pill { display: flex; align-items: center; gap: 5px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; }
-
-                /* ── Hotel-marquee welcome belt: transparent background,
-                   just the glowing scrolling text with a subtle chase
-                   of light only along the bottom edge. ── */
-                .welcome-belt {
-                    position: relative; overflow: hidden; background: transparent;
-                    padding: 10px 0 12px; margin: 6px 0 4px;
-                }
-                .welcome-belt-track {
-                    display: inline-flex; white-space: nowrap; animation: marquee-scroll 18s linear infinite;
-                }
-                .welcome-belt-text {
-                    font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: 17px;
-                    letter-spacing: 0.6px; padding: 0 18px;
-                }
-                .belt-gold { color: ${GOLD_BRIGHT}; text-shadow: 0 0 8px rgba(244,196,48,0.5); }
-                .belt-maroon { color: #8b2252; text-shadow: 0 0 8px rgba(139,34,82,0.4); }
 
                 .search-row { display: flex; align-items: center; gap: 7px; padding: 12px 4px 4px; }
 
@@ -781,6 +758,18 @@ const BusinessProfile: React.FC = () => {
             )}
 
             <div className="page-wrap">
+                <button
+                    onClick={() => navigate(-1)}
+                    aria-label="Back"
+                    style={{
+                        position: 'fixed', top: 14, left: 14, zIndex: 1200,
+                        width: 40, height: 40, borderRadius: '50%', background: '#ffffff',
+                        border: '1px solid #e5e7eb', cursor: 'pointer', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                    }}
+                >
+                    <BackArrowSvg color="#111827" size={20} />
+                </button>
                 {/* ── Logo overlapping the top edge of the square cover ── */}
                 <div className="top-header">
                     <div className="cover-logo-wrap">
@@ -837,14 +826,6 @@ const BusinessProfile: React.FC = () => {
                             </button>
                         </div>
                     )}
-                </div>
-
-                {/* ── Hotel-entrance style welcome marquee ── */}
-                <div className="welcome-belt">
-                    <div className="welcome-belt-track">
-                        <MarqueeContent />
-                        <MarqueeContent />
-                    </div>
                 </div>
 
                 {/* ── Products masonry grid ───────────────────────────── */}

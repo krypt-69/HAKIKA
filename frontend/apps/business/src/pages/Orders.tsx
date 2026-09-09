@@ -80,11 +80,11 @@ const BUCKET_STYLE: Record<string, { bg: string; text: string; label: string }> 
 };
 
 const FILTERS: { key: 'waiting' | 'progress' | 'done' | 'dead' | 'all'; label: string }[] = [
+  { key: 'all', label: 'All' },
   { key: 'waiting', label: 'Waiting Acceptance' },
   { key: 'progress', label: 'In Progress' },
   { key: 'done', label: 'Completed' },
   { key: 'dead', label: 'Cancelled' },
-  { key: 'all', label: 'All' },
 ];
 
 const Orders: React.FC = () => {
