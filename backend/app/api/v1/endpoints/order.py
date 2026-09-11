@@ -11,6 +11,7 @@ from app.repositories.trust_event_repository import TrustEventRepository
 from app.api.v1.endpoints.credit import get_payment_service
 from app.services.order_service import OrderService
 from app.services.order_events import publish_order_update
+from app.services.tracking_registry import tracking_registry
 from app.services.payment_service import PaymentService
 from app.repositories.payment_repository import PaymentRepository
 from app.repositories.order_repository import OrderRepository
@@ -165,3 +166,46 @@ async def list_my_business_orders(
     service: OrderService = Depends(get_order_service)
 ):
     return await service.list_orders_for_business(current_user)
+
+
+@router.get("/{order_id}/rider-location")
+async def get_rider_location(
+    order_id: str,
+    phone: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Authorized snapshot of the current rider's location for an order.
+
+    Returns one of:
+      - {"status": "not_tracking"}              (no active tracking)
+      - {"status": "awaiting_location"}         (ownership exists, no GPS yet)
+      - {"status": "ok", "latitude": ...}       (latest known location)
+    """
+    from app.models.customer import Customer
+
+    # Normalize phone
+    if phone.startswith("0"):
+        normalized = "+254" + phone[1:]
+    elif phone.startswith("254"):
+        normalized = "+" + phone
+    else:
+        normalized = phone
+
+    try:
+        oid = uuid.UUID(order_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    order_repo = OrderRepository(db)
+    order = await order_repo.get_by_id(oid)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    customer_repo = CustomerRepository(db)
+    customer = await customer_repo.get_by_id(order.customer_id)
+    if not customer or customer.phone_normalized != normalized:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    snapshot = await tracking_registry.get_snapshot(order_id)
+    return snapshot

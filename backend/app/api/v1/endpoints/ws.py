@@ -5,8 +5,11 @@ from app.repositories.user_repository import UserRepository
 from app.models.rider import Rider
 from app.database.session import async_session
 from app.services.ws_manager import manager
+from app.services.tracking_registry import tracking_registry
 from sqlalchemy import select
 import uuid
+import json
+from datetime import datetime, timezone
 
 router = APIRouter()
 
@@ -55,10 +58,23 @@ async def rider_websocket(websocket: WebSocket, token: str = Query("")):
     await websocket.accept()
     await manager.connect(rider_id, websocket)
 
-    # 4. Keep-alive – no custom heartbeat
+    # 4. Message loop – handle tracking messages and ignore others
     try:
         while True:
-            _ = await websocket.receive_text()
+            raw = await websocket.receive_text()
+            try:
+                msg = json.loads(raw)
+            except Exception:
+                continue
+
+            mtype = msg.get("type")
+
+            if mtype == "start_tracking":
+                await _handle_start_tracking(rider_id, msg)
+            elif mtype == "location_update":
+                await _handle_location_update(rider_id, msg)
+            elif mtype == "stop_tracking":
+                await _handle_stop_tracking(rider_id, msg)
     except WebSocketDisconnect:
         pass
     finally:
@@ -129,3 +145,80 @@ async def customer_websocket(
     finally:
         manager.disconnect_order(order_id, websocket)
 
+
+
+# ── Tracking helpers ────────────────────────────────────────────
+
+async def _load_order(order_id: str):
+    from app.models.order import Order
+    try:
+        oid = uuid.UUID(order_id)
+    except ValueError:
+        return None
+    async with async_session() as db:
+        result = await db.execute(select(Order).where(Order.id == oid))
+        return result.scalar_one_or_none()
+
+
+async def _rider_assigned_to_order(order_id: uuid.UUID, rider_id: uuid.UUID) -> bool:
+    from app.repositories.delivery_repository import DeliveryRepository
+    async with async_session() as db:
+        repo = DeliveryRepository(db)
+        assignment = await repo.get_active_assignment(order_id)
+        return assignment is not None and str(assignment.rider_id) == str(rider_id)
+
+
+async def _handle_start_tracking(rider_id: str, msg: dict) -> None:
+    from app.models.order import OrderStatus
+    order_id = msg.get("order_id")
+    if not order_id:
+        return
+    order = await _load_order(order_id)
+    if not order:
+        return
+    if order.status != OrderStatus.out_for_delivery:
+        return
+    if not await _rider_assigned_to_order(order.id, uuid.UUID(rider_id)):
+        return
+    await tracking_registry.start_tracking(rider_id, order_id)
+
+
+async def _handle_location_update(rider_id: str, msg: dict) -> None:
+    from app.models.order import OrderStatus
+    order_id = msg.get("order_id")
+    if not order_id:
+        return
+    order = await _load_order(order_id)
+    if not order:
+        return
+    if order.status != OrderStatus.out_for_delivery:
+        return
+    if not await _rider_assigned_to_order(order.id, uuid.UUID(rider_id)):
+        return
+
+    location = {
+        "latitude": msg.get("latitude"),
+        "longitude": msg.get("longitude"),
+        "heading": msg.get("heading"),
+        "speed": msg.get("speed"),
+        "timestamp": msg.get("timestamp") or datetime.now(timezone.utc).isoformat(),
+    }
+
+    accepted = await tracking_registry.update_location(rider_id, order_id, location)
+    if not accepted:
+        return
+
+    await manager.send_to_order(
+        order_id,
+        {
+            "type": "rider_location",
+            **location,
+        },
+    )
+
+
+async def _handle_stop_tracking(rider_id: str, msg: dict) -> None:
+    order_id = msg.get("order_id")
+    if not order_id:
+        return
+    await tracking_registry.stop_tracking(rider_id, order_id)

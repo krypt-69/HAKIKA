@@ -7,6 +7,7 @@ from app.models.order import OrderStatus
 from app.models.business import Business, PaymentModel
 from app.services.fee_calculator import calculate_processing_fee
 from app.services.order_events import publish_order_update
+from app.services.tracking_registry import tracking_registry
 from app.core.exceptions import HakikaHTTPException
 from app.schemas.order import OrderCreateRequest, OrderResponse, OrderItemResponse
 from app.models.location import Location
@@ -235,6 +236,7 @@ class OrderService:
             order_id=order.id,
             trust_event=trust_event,
         )
+        await tracking_registry.terminate_for_order(str(order.id))
         await publish_order_update(order, prev)
 
         order_items = await self.order_repo.get_order_items(order.id)

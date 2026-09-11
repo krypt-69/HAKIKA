@@ -3,6 +3,7 @@ from app.repositories.order_repository import OrderRepository
 from app.repositories.rider_repository import RiderRepository
 from app.repositories.business_repository import BusinessRepository
 from app.services.order_events import publish_order_update
+from app.services.tracking_registry import tracking_registry
 from app.models.order import OrderStatus
 from app.models.delivery_attempt import DeliveryAttemptStatus
 from app.models.user import User
@@ -93,6 +94,7 @@ class DeliveryService:
         )
         # Atomic transition
         await self.order_repo.arrive_order_transaction(order.id)
+        await tracking_registry.terminate_for_order(str(order.id))
         await publish_order_update(order, prev)
 
     async def record_failed_attempt(self, rider_user: User, order_id: uuid.UUID, reason: DeliveryAttemptStatus, gps_lat: float, gps_lon: float):
