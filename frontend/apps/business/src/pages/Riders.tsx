@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { api } from '../api';
 import { Card, Button, LoadingSpinner, ErrorState, EmptyState, SectionHeader } from '../components';
+import { X as XIcon, ZoomIn } from 'lucide-react';
 
 interface Rider {
   id: string;
@@ -14,10 +15,10 @@ interface Rider {
 }
 
 const STATUS_STYLES: Record<string, { bg: string; fg: string; dot: string }> = {
-  pending: { bg: '#fdf3e2', fg: '#a5690f', dot: '#f4a536' },
-  active: { bg: '#e4f6ee', fg: '#1e8a5f', dot: '#2fa876' },
-  busy: { bg: '#e8ecfb', fg: '#3c4aa8', dot: '#5568d6' },
-  inactive: { bg: '#f1f1f5', fg: '#767c96', dot: '#a5a9c2' },
+  pending: { bg: '#F2E3C2', fg: '#8A5A12', dot: '#B4791D' },
+  active: { bg: '#DEE8DD', fg: '#2E5138', dot: '#3C6B4C' },
+  busy: { bg: '#DCE8E6', fg: '#1F4645', dot: '#2E5F5E' },
+  inactive: { bg: '#EFE8D8', fg: '#7A7266', dot: '#B7AF9E' },
 };
 
 const Riders: React.FC = () => {
@@ -26,6 +27,7 @@ const Riders: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Rider[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<Rider | null>(null);
+  const [zoomedRider, setZoomedRider] = useState<Rider | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -115,20 +117,34 @@ const Riders: React.FC = () => {
     );
   };
 
-  const Avatar: React.FC<{ rider: Rider; size: number }> = ({ rider, size }) => (
-    rider.profile_picture_url ? (
-      <img
-        src={rider.profile_picture_url}
-        alt={rider.name || rider.username || 'Rider'}
-        className="hkr-avatar-img"
+  // Avatar is clickable whenever a real photo exists — opens the zoom lightbox.
+  const Avatar: React.FC<{ rider: Rider; size: number; zoomable?: boolean }> = ({ rider, size, zoomable = true }) => {
+    const hasPhoto = !!rider.profile_picture_url;
+    const clickable = zoomable && hasPhoto;
+
+    return hasPhoto ? (
+      <div
+        className={`hkr-avatar-wrap ${clickable ? 'hkr-avatar-wrap--clickable' : ''}`}
         style={{ width: size, height: size }}
-      />
+        onClick={clickable ? (e) => { e.stopPropagation(); setZoomedRider(rider); } : undefined}
+      >
+        <img
+          src={rider.profile_picture_url as string}
+          alt={rider.name || rider.username || 'Rider'}
+          className="hkr-avatar-img"
+        />
+        {clickable && (
+          <span className="hkr-avatar-zoom-hint">
+            <ZoomIn size={Math.max(11, size * 0.24)} />
+          </span>
+        )}
+      </div>
     ) : (
       <div className="hkr-avatar-fallback" style={{ width: size, height: size, fontSize: size * 0.4 }}>
         {initial(rider)}
       </div>
-    )
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -141,16 +157,27 @@ const Riders: React.FC = () => {
   return (
     <div className="hkr-page">
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..800&family=Inter:wght@400;500;600;700&display=swap');
+
         .hkr-page {
-          --ink: #10142a;
-          --amber: #f4a536;
-          --amber-deep: #d98c1f;
-          --text-dark: #171b2e;
-          --text-muted: #767c96;
-          --line: #e6e7f0;
-          --surface: #fbfbfd;
-          font-family: 'Inter', sans-serif;
-          color: var(--text-dark);
+          --paper: #F6F2E9;
+          --card: #FFFFFF;
+          --ink: #26211B;
+          --ink-soft: #7A7266;
+          --line: #E7DFCE;
+          --forest: #3C6B4C;
+          --forest-light: #DEE8DD;
+          --rust: #B4502F;
+          --rust-light: #F3DDD0;
+          background: var(--paper);
+          min-height: 100vh;
+          padding: 20px 20px 48px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          color: var(--ink);
+        }
+
+        .hkr-page h1, .hkr-page h2, .hkr-page h3 {
+          font-family: 'Fraunces', serif;
         }
 
         .hkr-loading {
@@ -158,11 +185,12 @@ const Riders: React.FC = () => {
           justify-content: center;
           align-items: center;
           height: 400px;
+          background: var(--paper);
         }
 
         .hkr-banner {
           padding: 11px 16px;
-          border-radius: 8px;
+          border-radius: 12px;
           font-size: 13.5px;
           font-weight: 500;
           margin-bottom: 16px;
@@ -172,24 +200,30 @@ const Riders: React.FC = () => {
         }
 
         .hkr-banner--success {
-          background: #e4f6ee;
-          color: #1e8a5f;
+          background: var(--forest-light);
+          color: var(--forest);
+          border: 1px solid ${'rgba(60,107,76,0.15)'};
         }
 
         .hkr-banner--error {
-          background: #fdecec;
-          color: #c23b3b;
+          background: var(--rust-light);
+          color: var(--rust);
+          border: 1px solid ${'rgba(180,80,47,0.15)'};
         }
 
         .hkr-search-card {
           margin-bottom: 24px;
+          background: var(--card) !important;
+          border: 1px solid var(--line) !important;
+          border-radius: 16px !important;
         }
 
         .hkr-search-title {
           font-size: 1rem;
-          font-weight: 600;
+          font-weight: 700;
           margin: 0 0 12px;
-          color: var(--text-dark);
+          color: var(--ink);
+          font-family: 'Fraunces', serif;
         }
 
         .hkr-search-form {
@@ -202,18 +236,21 @@ const Riders: React.FC = () => {
           flex: 1 1 240px;
           padding: 10px 14px;
           border: 1.5px solid var(--line);
-          border-radius: 8px;
+          border-radius: 10px;
           font-size: 15px;
           font-family: inherit;
-          background: var(--surface);
+          background: var(--paper);
+          color: var(--ink);
           transition: border-color 0.15s ease;
         }
 
+        .hkr-search-input::placeholder { color: #B7AF9E; }
+
         .hkr-search-input:focus {
           outline: none;
-          border-color: var(--amber);
+          border-color: var(--forest);
           background: #fff;
-          box-shadow: 0 0 0 3px rgba(244, 165, 54, 0.16);
+          box-shadow: 0 0 0 3px rgba(60, 107, 76, 0.14);
         }
 
         .hkr-results {
@@ -223,7 +260,7 @@ const Riders: React.FC = () => {
         .hkr-results-label {
           font-weight: 600;
           font-size: 13px;
-          color: var(--text-muted);
+          color: var(--ink-soft);
           text-transform: none;
           margin-bottom: 8px;
         }
@@ -234,7 +271,7 @@ const Riders: React.FC = () => {
           justify-content: space-between;
           gap: 12px;
           padding: 10px 0;
-          border-bottom: 1px solid #f1f2f7;
+          border-bottom: 1px solid var(--line);
           flex-wrap: wrap;
         }
 
@@ -245,27 +282,53 @@ const Riders: React.FC = () => {
           min-width: 0;
         }
 
-        .hkr-avatar-img {
+        .hkr-avatar-wrap {
+          position: relative;
           border-radius: 50%;
-          object-fit: cover;
+          overflow: hidden;
           flex: none;
+          border: 2px solid var(--line);
+        }
+        .hkr-avatar-wrap--clickable {
+          cursor: zoom-in;
+        }
+        .hkr-avatar-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+        .hkr-avatar-zoom-hint {
+          position: absolute;
+          inset: 0;
+          background: rgba(38,33,27,0);
+          color: transparent;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background 0.15s, color 0.15s;
+        }
+        .hkr-avatar-wrap--clickable:hover .hkr-avatar-zoom-hint {
+          background: rgba(38,33,27,0.45);
+          color: #ffffff;
         }
 
         .hkr-avatar-fallback {
           border-radius: 50%;
-          background: #eef0fb;
-          color: var(--ink);
+          background: var(--forest-light);
+          color: var(--forest);
           display: flex;
           align-items: center;
           justify-content: center;
           font-weight: 700;
+          font-family: 'Fraunces', serif;
           flex: none;
         }
 
         .hkr-person-name {
           font-weight: 600;
           font-size: 14.5px;
-          color: var(--text-dark);
+          color: var(--ink);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -273,7 +336,7 @@ const Riders: React.FC = () => {
 
         .hkr-person-meta {
           font-size: 12.5px;
-          color: var(--text-muted);
+          color: var(--ink-soft);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -287,14 +350,22 @@ const Riders: React.FC = () => {
 
         .hkr-section-title {
           font-size: 1rem;
-          font-weight: 600;
+          font-weight: 700;
           margin: 0 0 14px;
+          font-family: 'Fraunces', serif;
         }
 
         .hkr-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
           gap: 14px;
+        }
+
+        .hkr-grid :global(.card),
+        .hkr-grid > div {
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 16px;
         }
 
         .hkr-rider-card-top {
@@ -314,9 +385,10 @@ const Riders: React.FC = () => {
           align-items: center;
           gap: 5px;
           font-size: 12px;
-          font-weight: 600;
+          font-weight: 700;
           padding: 3px 9px 3px 7px;
           border-radius: 999px;
+          text-transform: capitalize;
         }
 
         .hkr-pill-dot {
@@ -325,11 +397,11 @@ const Riders: React.FC = () => {
           border-radius: 50%;
         }
 
-        /* ---------- Modal ---------- */
+        /* ---------- Rider profile modal ---------- */
         .hkr-modal-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(16, 20, 42, 0.55);
+          background: rgba(38, 33, 27, 0.55);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -338,13 +410,14 @@ const Riders: React.FC = () => {
         }
 
         .hkr-modal {
-          background: #fff;
-          border-radius: 16px;
+          background: var(--card);
+          border-radius: 18px;
           max-width: 420px;
           width: 100%;
           padding: 24px;
           max-height: 90vh;
           overflow-y: auto;
+          border: 1px solid var(--line);
         }
 
         .hkr-modal-header {
@@ -355,8 +428,8 @@ const Riders: React.FC = () => {
 
         .hkr-modal-header h3 {
           margin: 0;
-          font-size: 1.05rem;
-          font-weight: 600;
+          font-size: 1.1rem;
+          font-weight: 700;
         }
 
         .hkr-modal-close {
@@ -365,12 +438,12 @@ const Riders: React.FC = () => {
           font-size: 22px;
           line-height: 1;
           cursor: pointer;
-          color: var(--text-muted);
+          color: var(--ink-soft);
           padding: 4px;
         }
 
         .hkr-modal-close:hover {
-          color: var(--text-dark);
+          color: var(--ink);
         }
 
         .hkr-modal-body {
@@ -382,13 +455,14 @@ const Riders: React.FC = () => {
         }
 
         .hkr-modal-name {
-          font-size: 1.2rem;
+          font-family: 'Fraunces', serif;
+          font-size: 1.25rem;
           font-weight: 700;
-          margin: 4px 0 2px;
+          margin: 8px 0 2px;
         }
 
         .hkr-modal-meta {
-          color: var(--text-muted);
+          color: var(--ink-soft);
           font-size: 13.5px;
           margin: 2px 0;
         }
@@ -397,7 +471,66 @@ const Riders: React.FC = () => {
           margin: 10px 0 16px;
         }
 
+        /* ---------- Photo zoom lightbox ---------- */
+        .hkr-lightbox-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(20, 17, 13, 0.9);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1100;
+          padding: 24px;
+        }
+        .hkr-lightbox-image {
+          max-width: 90vw;
+          max-height: 80vh;
+          width: 360px;
+          aspect-ratio: 1 / 1;
+          object-fit: cover;
+          border-radius: 16px;
+          cursor: default;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+        .hkr-lightbox-caption {
+          position: absolute;
+          bottom: 28px;
+          left: 50%;
+          transform: translateX(-50%);
+          color: #ffffff;
+          text-align: center;
+        }
+        .hkr-lightbox-caption-name {
+          font-family: 'Fraunces', serif;
+          font-weight: 700;
+          font-size: 1.05rem;
+          margin: 0;
+        }
+        .hkr-lightbox-caption-meta {
+          font-size: 0.8rem;
+          color: rgba(255,255,255,0.7);
+          margin: 2px 0 0 0;
+        }
+        .hkr-lightbox-close {
+          position: absolute;
+          top: 18px;
+          right: 18px;
+          background: rgba(255,255,255,0.12);
+          border: none;
+          color: #ffffff;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+        .hkr-lightbox-close:hover { background: rgba(255,255,255,0.22); }
+
         @media (max-width: 640px) {
+          .hkr-page { padding: 16px 14px 40px; }
+
           .hkr-search-form {
             flex-direction: column;
           }
@@ -422,9 +555,11 @@ const Riders: React.FC = () => {
           .hkr-modal {
             max-width: none;
             width: 100%;
-            border-radius: 16px 16px 0 0;
+            border-radius: 18px 18px 0 0;
             max-height: 85vh;
           }
+
+          .hkr-lightbox-image { width: 82vw; }
         }
       `}</style>
 
@@ -518,6 +653,29 @@ const Riders: React.FC = () => {
               </div>
               <Button variant="primary" size="sm" onClick={() => handleInvite(selectedProfile.id)}>Invite</Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo zoom lightbox — opens from any avatar click, including the one inside the profile modal */}
+      {zoomedRider && zoomedRider.profile_picture_url && (
+        <div className="hkr-lightbox-overlay" onClick={() => setZoomedRider(null)}>
+          <button className="hkr-lightbox-close" onClick={() => setZoomedRider(null)} aria-label="Close">
+            <XIcon size={22} />
+          </button>
+          <img
+            src={zoomedRider.profile_picture_url}
+            alt={zoomedRider.name || zoomedRider.username || 'Rider'}
+            className="hkr-lightbox-image"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <div className="hkr-lightbox-caption">
+            <p className="hkr-lightbox-caption-name">
+              {zoomedRider.name || zoomedRider.username || zoomedRider.email}
+            </p>
+            {zoomedRider.username && (
+              <p className="hkr-lightbox-caption-meta">@{zoomedRider.username}</p>
+            )}
           </div>
         </div>
       )}

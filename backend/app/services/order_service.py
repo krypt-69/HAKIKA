@@ -18,6 +18,7 @@ from app.models.product import Product
 from app.models.product_image import ProductImage
 import uuid
 import logging
+from decimal import Decimal
 
 logger = logging.getLogger("hakika.order")
 

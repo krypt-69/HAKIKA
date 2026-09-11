@@ -26,6 +26,15 @@ interface ProductFormProps {
   submitLabel?: string;
 }
 
+/* Same warm-paper palette used across the dashboard, product card & products page */
+const PAPER = '#F6F2E9';
+const CARD = '#FFFFFF';
+const INK = '#26211B';
+const INK_SOFT = '#7A7266';
+const BORDER = '#E7DFCE';
+const RUST = '#B4502F';
+const FOREST = '#3C6B4C';
+
 export const ProductForm: React.FC<ProductFormProps> = ({
   initialData,
   categories = [],
@@ -97,107 +106,69 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '4px' }}>
-            Product Name
-          </label>
+    <form onSubmit={handleSubmit} className="product-form">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="form-field">
+          <label className="form-label">Product Name</label>
           <input
             type="text"
+            className="form-input"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             required
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '1rem',
-            }}
           />
         </div>
 
-        <div>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '4px' }}>
-            Description
-          </label>
+        <div className="form-field">
+          <label className="form-label">Description</label>
           <textarea
+            className="form-input"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             rows={3}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '1rem',
-              fontFamily: 'inherit',
-            }}
+            style={{ fontFamily: 'inherit', resize: 'vertical' }}
           />
         </div>
 
-        <div>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '4px' }}>
-            Original Price (KES)
-          </label>
+        <div className="form-field">
+          <label className="form-label">Original Price (KES)</label>
           <input
             type="number"
             step="0.01"
+            className="form-input"
             value={formData.original_price}
             onChange={(e) => setFormData({ ...formData, original_price: e.target.value })}
             required
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '1rem',
-            }}
           />
         </div>
 
-        <div>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '4px' }}>
-            Discount Price (optional)
-          </label>
+        <div className="form-field">
+          <label className="form-label">Discount Price (optional)</label>
           <input
             type="number"
             step="0.01"
+            className="form-input"
             value={formData.discount_price}
             onChange={(e) => setFormData({ ...formData, discount_price: e.target.value })}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '1rem',
-            }}
           />
         </div>
 
-        <div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={formData.is_available}
-              onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
-              style={{ width: '18px', height: '18px', accentColor: '#16a34a' }}
-            />
-            <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#111111' }}>
-              Available for ordering
-            </span>
-          </label>
-        </div>
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={formData.is_available}
+            onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
+            className="form-checkbox"
+          />
+          <span className="checkbox-label">Available for ordering</span>
+        </label>
 
-        <div>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '4px' }}>
-            Category
-          </label>
+        <div className="form-field">
+          <label className="form-label">Category</label>
           <select
+            className="form-input"
             value={formData.category_id || ''}
             onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-            style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
           >
             <option value="">Select category (optional)</option>
             {categories.map(c => (
@@ -207,20 +178,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         </div>
 
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: '140px' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '4px' }}>
-              Currency
-            </label>
-            <input type="text" value={formData.currency || 'KES'} disabled style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem', background: '#f9fafb' }} />
+          <div className="form-field" style={{ flex: 1, minWidth: '140px' }}>
+            <label className="form-label">Currency</label>
+            <input type="text" className="form-input form-input--disabled" value={formData.currency || 'KES'} disabled />
           </div>
-          <div style={{ flex: 1, minWidth: '140px' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '4px' }}>
-              Selling Unit
-            </label>
+          <div className="form-field" style={{ flex: 1, minWidth: '140px' }}>
+            <label className="form-label">Selling Unit</label>
             <select
+              className="form-input"
               value={formData.selling_unit}
               onChange={(e) => setFormData({ ...formData, selling_unit: e.target.value })}
-              style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
             >
               {['Piece','Kg','Gram','Litre','Millilitre','Metre','Pair','Set','Pack','Other'].map(u => (
                 <option key={u} value={u}>{u}</option>
@@ -229,54 +196,49 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           </div>
         </div>
 
-        <div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+        <div className="form-field">
+          <label className="checkbox-row" style={{ marginBottom: 0 }}>
             <input
               type="checkbox"
               checked={formData.track_inventory}
               onChange={(e) => setFormData({ ...formData, track_inventory: e.target.checked })}
-              style={{ width: '18px', height: '18px', accentColor: '#16a34a' }}
+              className="form-checkbox"
             />
-            <span style={{ fontSize: '0.875rem', fontWeight: 500, color: '#111111' }}>
-              Track inventory
-            </span>
+            <span className="checkbox-label">Track inventory</span>
           </label>
           {formData.track_inventory && (
             <input
               type="number"
               min="0"
+              className="form-input"
               value={formData.stock_quantity}
               onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
               placeholder="Available quantity"
-              style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem', marginTop: '8px' }}
+              style={{ marginTop: '8px' }}
             />
           )}
         </div>
 
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: '120px' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '4px' }}>
-              Minimum Order Quantity
-            </label>
+          <div className="form-field" style={{ flex: 1, minWidth: '120px' }}>
+            <label className="form-label">Minimum Order Quantity</label>
             <input
               type="number"
               min="1"
+              className="form-input"
               value={formData.min_order_quantity}
               onChange={(e) => setFormData({ ...formData, min_order_quantity: e.target.value })}
-              style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
             />
           </div>
-          <div style={{ flex: 1, minWidth: '120px' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '4px' }}>
-              Maximum Quantity Per Order
-            </label>
+          <div className="form-field" style={{ flex: 1, minWidth: '120px' }}>
+            <label className="form-label">Maximum Quantity Per Order</label>
             <input
               type="number"
               min="0"
+              className="form-input"
               value={formData.max_order_quantity}
               onChange={(e) => setFormData({ ...formData, max_order_quantity: e.target.value })}
               placeholder="Unlimited"
-              style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '1rem' }}
             />
           </div>
         </div>
@@ -284,13 +246,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         {formData.selling_unit === '' && null}
 
         {/* Multi-image upload */}
-        <div>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#111111', marginBottom: '6px' }}>
-            Product Images (optional, select multiple)
-          </label>
+        <div className="form-field">
+          <label className="form-label">Product Images (optional, select multiple)</label>
 
           <label className="upload-dropzone">
-            <Upload size={18} color="#6b7280" />
+            <Upload size={18} color={FOREST} />
             <span>Click to choose images</span>
             <input
               type="file"
@@ -319,13 +279,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           )}
 
           {imageFiles.length > 0 && (
-            <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '6px' }}>
+            <p className="image-count">
               {imageFiles.length} image{imageFiles.length !== 1 ? 's' : ''} selected
             </p>
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+        <div className="form-actions">
           <Button type="submit" variant="primary" isLoading={isLoading} disabled={isLoading}>
             {submitLabel}
           </Button>
@@ -336,21 +296,93 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       </div>
 
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        .product-form {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .form-field { display: flex; flex-direction: column; }
+
+        .form-label {
+          display: block;
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: ${INK};
+          margin-bottom: 6px;
+          letter-spacing: 0.01em;
+        }
+
+        .form-input {
+          width: 100%;
+          padding: 10px 13px;
+          border: 1.5px solid ${BORDER};
+          border-radius: 10px;
+          font-size: 0.95rem;
+          color: ${INK};
+          background: ${CARD};
+          outline: none;
+          transition: border-color 0.15s, box-shadow 0.15s;
+          box-sizing: border-box;
+        }
+        .form-input::placeholder { color: #B7AF9E; }
+        .form-input:focus {
+          border-color: ${FOREST};
+          box-shadow: 0 0 0 3px ${FOREST}1A;
+        }
+        .form-input--disabled {
+          background: ${PAPER};
+          color: ${INK_SOFT};
+          cursor: not-allowed;
+        }
+
+        select.form-input {
+          cursor: pointer;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%237A7266' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 13px center;
+          padding-right: 34px;
+        }
+
+        .checkbox-row {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          cursor: pointer;
+          margin-bottom: 2px;
+        }
+        .form-checkbox {
+          width: 18px;
+          height: 18px;
+          accent-color: ${FOREST};
+          cursor: pointer;
+          flex-shrink: 0;
+        }
+        .checkbox-label {
+          font-size: 0.88rem;
+          font-weight: 500;
+          color: ${INK};
+        }
+
         .upload-dropzone {
           display: flex;
           align-items: center;
-          gap: 8px;
-          border: 1.5px dashed #d1d5db;
-          border-radius: 8px;
-          padding: 12px 14px;
+          gap: 9px;
+          border: 1.5px dashed ${BORDER};
+          border-radius: 12px;
+          padding: 14px 16px;
           cursor: pointer;
           font-size: 0.85rem;
-          color: #6b7280;
-          transition: border-color 0.15s, color 0.15s;
+          font-weight: 500;
+          color: ${INK_SOFT};
+          background: ${PAPER};
+          transition: border-color 0.15s, color 0.15s, background 0.15s;
         }
         .upload-dropzone:hover {
-          border-color: #16a34a;
-          color: #16a34a;
+          border-color: ${FOREST};
+          color: ${FOREST};
+          background: #DEE8DD4D;
         }
 
         .image-preview-grid {
@@ -363,9 +395,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           position: relative;
           width: 100%;
           aspect-ratio: 1 / 1;
-          border-radius: 8px;
+          border-radius: 10px;
           overflow: hidden;
-          border: 1px solid #e5e7eb;
+          border: 1px solid ${BORDER};
         }
         .image-preview-item img {
           width: 100%;
@@ -379,7 +411,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           width: 20px;
           height: 20px;
           border-radius: 50%;
-          background: rgba(0,0,0,0.6);
+          background: rgba(38,33,27,0.65);
           color: #ffffff;
           border: none;
           display: flex;
@@ -387,7 +419,23 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           justify-content: center;
           cursor: pointer;
         }
-        .image-preview-remove:hover { background: #dc2626; }
+        .image-preview-remove:hover { background: ${RUST}; }
+
+        .image-count {
+          font-size: 0.75rem;
+          color: ${INK_SOFT};
+          margin: 8px 0 0 0;
+        }
+
+        .form-actions {
+          display: flex;
+          gap: 10px;
+          margin-top: 6px;
+        }
+
+        @media (max-width: 480px) {
+          .form-input { font-size: 0.9rem; padding: 9px 12px; }
+        }
       `}</style>
     </form>
   );

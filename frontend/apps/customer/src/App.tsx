@@ -258,9 +258,9 @@ const App: React.FC = () => {
       <CustomerFeedProvider>
         <OrdersProvider>
         <style>{`
-            @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700&display=swap');
 
-            .hk-app-shell { padding-bottom: 56px; }
+            .hk-app-shell { padding-bottom: 56px; background: #F4F1EA; min-height: 100vh; }
 
             .hk-navbar {
                 position: fixed;
@@ -288,9 +288,9 @@ const App: React.FC = () => {
             /* Handwriting-style label: strong gold text (matching the
                top line) on a soft grey chip, mobile and desktop. */
             .hk-nav-label {
-                font-family: 'Caveat', cursive !important;
+                font-family: 'Fraunces', serif !important;
                 font-weight: 700 !important;
-                color: #a06f00 !important;
+                color: #000000 !important;
                 background: #e5e7eb;
                 padding: 1px 8px 0;
                 border-radius: 6px;
@@ -308,7 +308,7 @@ const App: React.FC = () => {
                    ≈ 105px. The previous 76px under-reserved this, which is
                    why content (search/location on the Home page) rendered
                    too high and got covered by the fixed nav. */
-                .hk-app-shell { padding-bottom: 0; padding-top: 112px; }
+                .hk-app-shell { padding-bottom: 0; padding-top: 112px; background: #F4F1EA; min-height: 100vh; }
 
                 /* Desktop: nav sits at the top, so hiding slides it up instead. */
                 .hk-navbar--hidden { transform: translateY(-100%); }

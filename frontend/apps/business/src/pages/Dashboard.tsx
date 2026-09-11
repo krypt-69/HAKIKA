@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   ArrowRight,
   ArrowUpRight,
+  Sparkles,
 } from 'lucide-react';
 
 interface Order {
@@ -40,15 +41,34 @@ interface CreditTransaction {
   created_at: string;
 }
 
-const RED = '#dc2626';
-const RED_LIGHT = '#fee2e2';
-const ORANGE = '#ea580c';
-const ORANGE_LIGHT = '#ffedd5';
-const GREEN = '#16a34a';
-const GREEN_LIGHT = '#dcfce7';
-const GREY = '#6b7280';
-const GREY_LIGHT = '#f3f4f6';
-const BLACK = '#111111';
+/* ---------------------------------------------------------------
+   Palette — warm paper background with complementary, muted accents.
+   Nothing is pure white/black; everything sits on the same warm
+   undertone as PAPER so the page reads as one cohesive material.
+------------------------------------------------------------------*/
+const PAPER = '#F6F2E9';        // page background — warm parchment
+const CARD = '#FFFFFF';         // card surface
+const INK = '#26211B';          // warm near-black for text
+const INK_SOFT = '#7A7266';     // muted warm grey for secondary text
+const BORDER = '#E7DFCE';       // warm hairline border
+
+const RUST = '#B4502F';         // waiting / urgent — terracotta
+const RUST_LIGHT = '#F3DDD0';
+
+const AMBER = '#B4791D';        // active — muted mustard
+const AMBER_LIGHT = '#F2E3C2';
+
+const FOREST = '#3C6B4C';       // riders / positive — deep forest
+const FOREST_LIGHT = '#DEE8DD';
+
+const TEAL = '#2E5F5E';         // total orders — deep teal
+const TEAL_LIGHT = '#DCE8E6';
+
+const PLUM = '#6B3F52';         // credit / capacity — dusty plum
+const PLUM_LIGHT = '#E9DEE2';
+
+const formatNumber = (n: number) =>
+  n.toLocaleString('en-KE', { maximumFractionDigits: 0 });
 
 const Dashboard: React.FC = () => {
   const { businessId, businessName, paymentModel } = useAuth();
@@ -109,7 +129,7 @@ const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px', background: PAPER }}>
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -134,69 +154,91 @@ const Dashboard: React.FC = () => {
 
       {/* Stats */}
       <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: GREY_LIGHT }}>
-            <Package size={18} color={BLACK} />
-          </div>
-          <div>
-            <p className="stat-label">Total Orders</p>
-            <p className="stat-value">{orders.length}</p>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: RED_LIGHT }}>
-            <AlertTriangle size={18} color={RED} />
-          </div>
-          <div>
-            <p className="stat-label">Waiting</p>
-            <p className="stat-value" style={{ color: waitingOrders.length > 0 ? RED : BLACK }}>{waitingOrders.length}</p>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: ORANGE_LIGHT }}>
-            <Zap size={18} color={ORANGE} />
-          </div>
-          <div>
-            <p className="stat-label">Active</p>
-            <p className="stat-value" style={{ color: ORANGE }}>{acceptedOrders.length}</p>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: GREEN_LIGHT }}>
-            <Bike size={18} color={GREEN} />
-          </div>
-          <div>
-            <p className="stat-label">Riders</p>
-            <p className="stat-value">{riders.length}</p>
-          </div>
-        </div>
-
         {paymentModel === 'credit' && (
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: lowCredit ? RED_LIGHT : GREEN_LIGHT }}>
-              <Wallet size={18} color={lowCredit ? RED : GREEN} />
+          <div className="stat-card stat-card--capacity">
+            <div className="stat-icon" style={{ background: lowCredit ? RUST_LIGHT : PLUM_LIGHT }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2.5" y="6" width="19" height="13" rx="2.5" stroke={lowCredit ? RUST : PLUM} strokeWidth="1.8" />
+                <path d="M2.5 10.5H21.5" stroke={lowCredit ? RUST : PLUM} strokeWidth="1.8" />
+                <circle cx="17" cy="15" r="1.5" fill={lowCredit ? RUST : PLUM} />
+              </svg>
             </div>
             <div>
-              <p className="stat-label">Remaining Order Capacity</p>
-              <p className="stat-value" style={{ color: lowCredit ? RED : GREEN }}>
-                KES {remainingCreditVolume?.toFixed(0) || '0'}
+              <p className="stat-label">Remaining Capacity</p>
+              <p className="stat-value" style={{ color: lowCredit ? RUST : PLUM }}>
+                KES {formatNumber(remainingCreditVolume || 0)}
               </p>
             </div>
           </div>
         )}
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: TEAL_LIGHT }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3.5 8.2L12 3.5L20.5 8.2V16.8L12 21.5L3.5 16.8V8.2Z" stroke={TEAL} strokeWidth="1.8" strokeLinejoin="round" />
+              <path d="M3.7 8.4L12 13L20.3 8.4" stroke={TEAL} strokeWidth="1.8" strokeLinejoin="round" />
+              <path d="M12 13V21.3" stroke={TEAL} strokeWidth="1.8" />
+            </svg>
+          </div>
+          <div>
+            <p className="stat-label">Total Orders</p>
+            <p className="stat-value">{formatNumber(orders.length)}</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: RUST_LIGHT }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2.5L22.5 21H1.5L12 2.5Z" stroke={RUST} strokeWidth="1.8" strokeLinejoin="round" />
+              <path d="M12 9.5V14" stroke={RUST} strokeWidth="1.8" strokeLinecap="round" />
+              <circle cx="12" cy="17.3" r="1.05" fill={RUST} />
+            </svg>
+          </div>
+          <div>
+            <p className="stat-label">Waiting</p>
+            <p className="stat-value" style={{ color: waitingOrders.length > 0 ? RUST : INK }}>
+              {formatNumber(waitingOrders.length)}
+            </p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: AMBER_LIGHT }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M13 2.5L4 14H11.2L10.5 21.5L20 10H12.6L13 2.5Z" stroke={AMBER} strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div>
+            <p className="stat-label">Active</p>
+            <p className="stat-value" style={{ color: AMBER }}>{formatNumber(acceptedOrders.length)}</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: FOREST_LIGHT }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="6" cy="18" r="3" stroke={FOREST} strokeWidth="1.8" />
+              <circle cx="18" cy="18" r="3" stroke={FOREST} strokeWidth="1.8" />
+              <path d="M6 18L10 9.5H14.5L18 18" stroke={FOREST} strokeWidth="1.8" strokeLinejoin="round" />
+              <path d="M9.2 9.5H14.5L13 6.5H10.5" stroke={FOREST} strokeWidth="1.8" strokeLinejoin="round" />
+              <circle cx="13" cy="4.8" r="1.5" stroke={FOREST} strokeWidth="1.6" />
+            </svg>
+          </div>
+          <div>
+            <p className="stat-label">Riders</p>
+            <p className="stat-value">{formatNumber(riders.length)}</p>
+          </div>
+        </div>
       </div>
 
       {/* Credit warning */}
       {paymentModel === 'credit' && lowCredit && (
         <div className="warning-banner">
-          <AlertTriangle size={20} color={RED} />
+          <AlertTriangle size={20} color={RUST} />
           <div className="warning-text">
             <p className="warning-title">Low Credit</p>
             <p className="warning-sub">
-              You have KES {remainingCreditVolume?.toFixed(0)} remaining. Top up to continue accepting orders.
+              You have KES {formatNumber(remainingCreditVolume || 0)} remaining. Top up to continue accepting orders.
             </p>
           </div>
           <Button variant="primary" size="sm" onClick={() => navigate('/settlements')}>
@@ -241,10 +283,10 @@ const Dashboard: React.FC = () => {
                 <div>
                   {order.distance_km !== null && (
                     <p className="order-mini-distance">
-                      <MapPin size={13} color={GREEN} /> {order.distance_km.toFixed(1)} km
+                      <MapPin size={13} color={FOREST} /> {order.distance_km.toFixed(1)} km
                     </p>
                   )}
-                  <p className="order-mini-amount">KES {order.total_amount.toFixed(0)}</p>
+                  <p className="order-mini-amount">KES {formatNumber(order.total_amount)}</p>
                 </div>
                 <Button variant="primary" size="sm" onClick={() => navigate('/orders')}>
                   Accept
@@ -286,10 +328,11 @@ const Dashboard: React.FC = () => {
                   src={rider.profile_picture_url}
                   alt={rider.name}
                   style={{
-                    width: 40,
-                    height: 40,
+                    width: 42,
+                    height: 42,
                     borderRadius: '50%',
                     objectFit: 'cover',
+                    border: `2px solid ${BORDER}`,
                   }}
                 />
               ) : (
@@ -307,80 +350,106 @@ const Dashboard: React.FC = () => {
       )}
 
       <style>{`
-        .dash-page { max-width: 100%; }
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..800&family=Inter:wght@400;500;600;700&display=swap');
 
-        .welcome-block { margin-bottom: 28px; }
+        .dash-page {
+          max-width: 100%;
+          background: ${PAPER};
+          padding: 20px 20px 48px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .dash-page h1,
+        .dash-page h2,
+        .dash-page h3 {
+          font-family: 'Fraunces', serif;
+        }
+
+        .welcome-block { margin-bottom: 24px; }
         .welcome-title {
-          font-size: 1.6rem;
-          font-weight: 800;
-          color: ${BLACK};
+          font-size: 1.9rem;
+          font-weight: 700;
+          color: ${INK};
           margin: 0;
+          letter-spacing: -0.01em;
         }
         .welcome-sub {
-          color: ${GREY};
-          font-size: 0.9rem;
-          margin-top: 4px;
+          color: ${INK_SOFT};
+          font-size: 0.92rem;
+          margin-top: 6px;
         }
 
         .stats-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-          gap: 12px;
-          margin-bottom: 20px;
+          gap: 14px;
+          margin-bottom: 22px;
         }
         .stat-card {
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 14px;
-          padding: 16px;
+          background: ${CARD};
+          border: 1px solid ${BORDER};
+          border-radius: 16px;
+          padding: 18px;
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 14px;
+          box-shadow: 0 1px 2px rgba(38, 33, 27, 0.04);
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .stat-card:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 14px rgba(38, 33, 27, 0.07);
+        }
+        .stat-card--capacity {
+          border-color: ${PLUM_LIGHT};
         }
         .stat-icon {
-          width: 40px;
-          height: 40px;
-          border-radius: 10px;
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
         }
         .stat-label {
-          font-size: 0.75rem;
-          color: ${GREY};
-          font-weight: 500;
+          font-size: 0.76rem;
+          color: ${INK_SOFT};
+          font-weight: 600;
           margin: 0;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
         }
         .stat-value {
-          font-size: 1.35rem;
-          font-weight: 800;
-          color: ${BLACK};
-          margin: 2px 0 0 0;
+          font-family: 'Fraunces', serif;
+          font-size: 1.55rem;
+          font-weight: 700;
+          color: ${INK};
+          margin: 3px 0 0 0;
         }
 
         .warning-banner {
           display: flex;
           align-items: center;
           gap: 14px;
-          background: ${RED_LIGHT};
-          border: 1px solid #fecaca;
-          border-radius: 14px;
-          padding: 14px 18px;
-          margin-bottom: 24px;
+          background: ${RUST_LIGHT};
+          border: 1px solid ${RUST}33;
+          border-radius: 16px;
+          padding: 16px 20px;
+          margin-bottom: 26px;
           flex-wrap: wrap;
         }
         .warning-text { flex: 1; min-width: 180px; }
         .warning-title {
           font-weight: 700;
-          color: ${BLACK};
+          color: ${INK};
           margin: 0;
-          font-size: 0.9rem;
+          font-size: 0.92rem;
         }
         .warning-sub {
-          font-size: 0.8rem;
-          color: #7f1d1d;
-          margin-top: 2px;
+          font-size: 0.82rem;
+          color: #7A2E1B;
+          margin-top: 3px;
         }
 
         .btn-inline {
@@ -396,9 +465,10 @@ const Dashboard: React.FC = () => {
         }
 
         .order-mini-card {
-          background: ${RED_LIGHT};
-          border-radius: 14px;
-          padding: 14px 16px;
+          background: ${RUST_LIGHT};
+          border: 1px solid ${RUST}26;
+          border-radius: 16px;
+          padding: 16px 18px;
         }
         .order-mini-top {
           display: flex;
@@ -407,50 +477,53 @@ const Dashboard: React.FC = () => {
           gap: 8px;
         }
         .order-mini-number {
-          font-weight: 800;
-          color: ${BLACK};
+          font-family: 'Fraunces', serif;
+          font-weight: 700;
+          color: ${INK};
           margin: 0;
-          font-size: 0.92rem;
+          font-size: 0.98rem;
         }
         .order-mini-meta {
           display: flex;
           align-items: center;
           gap: 5px;
-          font-size: 0.75rem;
-          color: #7f1d1d;
-          margin: 4px 0 0 0;
+          font-size: 0.76rem;
+          color: #7A2E1B;
+          margin: 5px 0 0 0;
         }
         .dot { margin: 0 2px; }
         .waiting-badge {
-          background: ${RED};
-          color: #ffffff;
+          background: ${RUST};
+          color: #FFFFFF;
           font-size: 0.65rem;
           font-weight: 700;
-          padding: 3px 10px;
+          padding: 4px 11px;
           border-radius: 20px;
           text-transform: uppercase;
+          letter-spacing: 0.03em;
           white-space: nowrap;
         }
         .order-mini-bottom {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-top: 12px;
+          margin-top: 14px;
         }
         .order-mini-distance {
           display: flex;
           align-items: center;
           gap: 4px;
-          font-size: 0.78rem;
-          color: ${GREEN};
+          font-size: 0.8rem;
+          color: ${FOREST};
           font-weight: 600;
           margin: 0;
         }
         .order-mini-amount {
-          font-size: 1.05rem;
-          font-weight: 800;
-          color: ${BLACK};
-          margin: 2px 0 0 0;
+          font-family: 'Fraunces', serif;
+          font-size: 1.12rem;
+          font-weight: 700;
+          color: ${INK};
+          margin: 3px 0 0 0;
         }
 
         .riders-grid {
@@ -459,9 +532,9 @@ const Dashboard: React.FC = () => {
           gap: 12px;
         }
         .rider-mini-card {
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 14px;
+          background: ${CARD};
+          border: 1px solid ${BORDER};
+          border-radius: 16px;
           padding: 14px 16px;
           display: flex;
           align-items: center;
@@ -471,27 +544,28 @@ const Dashboard: React.FC = () => {
           width: 42px;
           height: 42px;
           border-radius: 50%;
-          background: ${GREEN_LIGHT};
-          color: ${GREEN};
+          background: ${FOREST_LIGHT};
+          color: ${FOREST};
           display: flex;
           align-items: center;
           justify-content: center;
-          font-weight: 800;
-          font-size: 0.9rem;
+          font-family: 'Fraunces', serif;
+          font-weight: 700;
+          font-size: 0.95rem;
           flex-shrink: 0;
         }
         .rider-name {
-          font-weight: 700;
-          color: ${BLACK};
+          font-weight: 600;
+          color: ${INK};
           margin: 0;
-          font-size: 0.88rem;
+          font-size: 0.9rem;
         }
         .rider-status {
           display: flex;
           align-items: center;
           gap: 5px;
-          font-size: 0.75rem;
-          color: ${GREEN};
+          font-size: 0.76rem;
+          color: ${FOREST};
           font-weight: 600;
           margin: 2px 0 0 0;
           text-transform: capitalize;
@@ -500,13 +574,15 @@ const Dashboard: React.FC = () => {
           width: 7px;
           height: 7px;
           border-radius: 50%;
-          background: ${GREEN};
+          background: ${FOREST};
           display: inline-block;
         }
 
         @media (max-width: 640px) {
-          .welcome-title { font-size: 1.3rem; }
+          .dash-page { padding: 16px 14px 40px; }
+          .welcome-title { font-size: 1.5rem; }
           .stats-grid { grid-template-columns: repeat(2, 1fr); }
+          .stat-card--capacity { grid-column: 1 / -1; order: -1; }
           .orders-grid, .riders-grid { grid-template-columns: 1fr; }
         }
       `}</style>

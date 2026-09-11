@@ -12,7 +12,7 @@ import {
   ProductCard,
   ProductForm,
 } from '../components';
-import { Search, X as XIcon } from 'lucide-react';
+import { Search, X as XIcon, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface ProductImage {
   id: string;
@@ -35,9 +35,18 @@ interface Product {
   images: ProductImage[];
 }
 
-const GREEN = '#16a34a';
-const GREY = '#6b7280';
-const BLACK = '#111111';
+/* Same warm-paper palette used across the dashboard & product cards */
+const PAPER = '#F6F2E9';
+const CARD = '#FFFFFF';
+const INK = '#26211B';
+const INK_SOFT = '#7A7266';
+const BORDER = '#E7DFCE';
+
+const RUST = '#B4502F';
+const RUST_LIGHT = '#F3DDD0';
+
+const FOREST = '#3C6B4C';
+const FOREST_LIGHT = '#DEE8DD';
 
 const Products: React.FC = () => {
   const { businessId } = useAuth();
@@ -190,7 +199,7 @@ const Products: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px', background: PAPER }}>
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -213,19 +222,21 @@ const Products: React.FC = () => {
       />
 
       {success && (
-        <div style={{ background: '#dcfce7', color: '#16a34a', padding: '10px 16px', borderRadius: '6px', marginBottom: '16px' }}>
-          {success}
+        <div className="banner banner--success">
+          <CheckCircle2 size={16} />
+          <span>{success}</span>
         </div>
       )}
       {error && (
-        <div style={{ background: '#fef2f2', color: '#dc2626', padding: '10px 16px', borderRadius: '6px', marginBottom: '16px' }}>
-          {error}
+        <div className="banner banner--error">
+          <AlertCircle size={16} />
+          <span>{error}</span>
         </div>
       )}
 
       {/* Search */}
       <div className="search-bar">
-        <Search size={16} color={GREY} />
+        <Search size={16} color={INK_SOFT} />
         <input
           className="search-input"
           type="text"
@@ -256,13 +267,7 @@ const Products: React.FC = () => {
           description="Try a different search term"
         />
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: '20px',
-          }}
-        >
+        <div className="products-grid">
           {filteredProducts.map((product) => (
             <ProductCard
               key={product.id}
@@ -311,34 +316,96 @@ const Products: React.FC = () => {
       </Modal>
 
       <style>{`
-        .search-bar {
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..800&family=Inter:wght@400;500;600;700&display=swap');
+
+        .products-page {
+          background: ${PAPER};
+          min-height: 100vh;
+          padding: 20px 20px 48px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .products-page h1,
+        .products-page h2,
+        .products-page h3 {
+          font-family: 'Fraunces', serif;
+        }
+
+        .banner {
           display: flex;
           align-items: center;
           gap: 8px;
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 10px;
-          padding: 10px 14px;
-          margin-bottom: 18px;
+          padding: 11px 16px;
+          border-radius: 12px;
+          margin-bottom: 16px;
+          font-size: 0.88rem;
+          font-weight: 500;
+        }
+        .banner--success {
+          background: ${FOREST_LIGHT};
+          color: ${FOREST};
+          border: 1px solid ${FOREST}26;
+        }
+        .banner--error {
+          background: ${RUST_LIGHT};
+          color: ${RUST};
+          border: 1px solid ${RUST}26;
+        }
+
+        .search-bar {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          background: ${CARD};
+          border: 1px solid ${BORDER};
+          border-radius: 12px;
+          padding: 11px 16px;
+          margin-bottom: 20px;
           max-width: 480px;
+          box-shadow: 0 1px 2px rgba(38, 33, 27, 0.03);
+        }
+        .search-bar:focus-within {
+          border-color: ${FOREST};
         }
         .search-input {
           border: none;
           outline: none;
+          background: transparent;
           flex: 1;
           font-size: 0.9rem;
-          color: ${BLACK};
+          color: ${INK};
+          font-family: 'Inter', sans-serif;
+        }
+        .search-input::placeholder {
+          color: ${INK_SOFT};
         }
         .search-clear {
           border: none;
           background: transparent;
           cursor: pointer;
-          color: ${GREY};
+          color: ${INK_SOFT};
           display: flex;
           align-items: center;
+          padding: 2px;
+          border-radius: 50%;
         }
+        .search-clear:hover {
+          background: ${PAPER};
+          color: ${RUST};
+        }
+
+        .products-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+          gap: 18px;
+        }
+
         @media (max-width: 640px) {
+          .products-page { padding: 16px 14px 40px; }
           .search-bar { max-width: 100%; }
+          .products-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+          }
         }
       `}</style>
     </div>

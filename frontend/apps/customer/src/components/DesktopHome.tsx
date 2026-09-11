@@ -17,6 +17,20 @@ interface Props {
   error: string;
 }
 
+// ---- Design tokens -------------------------------------------------------
+const PAPER = '#F6F2E9';     // page background — warm parchment
+const INK = '#221F1A';       // primary text, warm near-black
+const MUTED = '#7A7261';     // secondary text
+const LINE = '#E3DAC7';      // hairline borders / dividers
+const CARD = '#FFFEFB';      // card surface — warm off-white, one notch up from PAPER
+const MOSS = '#3E6C4C';      // primary accent — produce green
+const MOSS_DARK = '#2E5138'; // primary accent, pressed/hover
+const MOSS_SOFT = '#EAF0E7'; // primary accent, tint (badges, focus)
+const CLAY = '#B5502E';      // secondary accent — used sparingly, for the distance stub
+const CLAY_SOFT = '#F5E4DB'; // secondary accent, tint
+
+const SHELF_SLOTS = 4;
+
 const DesktopHome: React.FC<Props> = ({
   businesses,
   searchText,
@@ -32,6 +46,7 @@ const DesktopHome: React.FC<Props> = ({
   error,
 }) => {
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [zoomedLogo, setZoomedLogo] = React.useState<{ url: string; name: string } | null>(null);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -48,110 +63,391 @@ const DesktopHome: React.FC<Props> = ({
     return () => observer.disconnect();
   }, [nextCursor, loadingMore, loadMore]);
 
+  React.useEffect(() => {
+    if (!zoomedLogo) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setZoomedLogo(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [zoomedLogo]);
+
+  const hasLocation = businesses.some(
+    b => typeof b.distance_meters === 'number' && b.distance_meters !== null
+  );
+
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', color: '#111111', fontFamily: 'system-ui, -apple-system, sans-serif', paddingTop: 32 }}>
-      <style>{`@media (min-width: 860px){ .hk-navbar { display: none !important; } }`}</style>
+    <div style={{ minHeight: '100vh', background: PAPER, color: INK, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,440;9..144,560;9..144,680&family=Inter:wght@400;500;600;700&display=swap');
+
+        @media (min-width: 860px){ .hk-navbar { display: none !important; } }
+
+        .hk-shop-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 40px;
+        }
+        @media (max-width: 1400px){
+          .hk-shop-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 860px){
+          .hk-shop-grid { grid-template-columns: 1fr; }
+        }
+
+        .hk-shop-card {
+          transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+        }
+        .hk-shop-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 22px 40px rgba(34, 31, 26, 0.11);
+          border-color: #D8CDB4;
+        }
+
+        .hk-search-btn:hover { background: ${MOSS_DARK}; }
+        .hk-locate-btn:hover { background: ${MOSS_SOFT}; }
+
+        .hk-product-link { transition: opacity 140ms ease; }
+        .hk-product-link:hover { opacity: 0.82; }
+
+        .hk-logo-btn {
+          transition: transform 160ms ease, box-shadow 160ms ease;
+          cursor: zoom-in;
+        }
+        .hk-logo-btn:hover {
+          transform: scale(1.06);
+          box-shadow: 0 6px 16px rgba(34,31,26,0.28);
+        }
+
+        .hk-icon-btn:focus-visible,
+        .hk-search-input:focus-visible,
+        .hk-search-btn:focus-visible,
+        .hk-locate-btn:focus-visible,
+        .hk-shop-card:focus-visible,
+        .hk-menu-item:focus-visible,
+        .hk-logo-btn:focus-visible,
+        .hk-product-link:focus-visible {
+          outline: 2px solid ${MOSS};
+          outline-offset: 2px;
+        }
+
+        @keyframes hk-spin {
+          to { transform: rotate(360deg); }
+        }
+
+        @keyframes hk-zoom-out {
+          from { opacity: 0; transform: scale(0.55); }
+          to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes hk-fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        .hk-spinner {
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          border: 3px solid ${LINE};
+          border-top-color: ${MOSS};
+          border-right-color: ${CLAY};
+          animation: hk-spin 0.75s linear infinite;
+        }
+
+        .hk-logo-overlay {
+          animation: hk-fade-in 160ms ease;
+        }
+
+        .hk-logo-zoom-img {
+          animation: hk-zoom-out 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .hk-shop-card, .hk-logo-btn { transition: none !important; }
+          .hk-shop-card:hover, .hk-logo-btn:hover { transform: none !important; }
+          .hk-spinner, .hk-logo-overlay, .hk-logo-zoom-img { animation: none !important; }
+        }
+      `}</style>
 
       {/* Corner menu */}
       <div style={{ position: 'fixed', top: 20, right: 24, zIndex: 1300 }}>
-        <button onClick={() => setMenuOpen(v => !v)} style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 10, width: 42, height: 42, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Menu">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#111111" strokeWidth="2" strokeLinecap="round">
+        <button
+          className="hk-icon-btn"
+          onClick={() => setMenuOpen(v => !v)}
+          style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, width: 42, height: 42, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          aria-label="Menu"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="2" strokeLinecap="round">
             <line x1="3" y1="6" x2="21" y2="6" />
             <line x1="3" y1="12" x2="21" y2="12" />
             <line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
         {menuOpen && (
-          <div style={{ position: 'absolute', top: 48, right: 0, background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 1400 }}>
-            <button onClick={onOpenMyOrders} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: '10px 14px', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#111111', borderRadius: 8 }}>My Orders</button>
-            <button onClick={onOpenNotifications} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: '10px 14px', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#111111', borderRadius: 8 }}>Notifications</button>
+          <div style={{ position: 'absolute', top: 48, right: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 6, minWidth: 168, boxShadow: '0 12px 28px rgba(34,31,26,0.14)', zIndex: 1400 }}>
+            <button className="hk-menu-item" onClick={onOpenMyOrders} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: '10px 12px', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: INK, borderRadius: 8 }}>My orders</button>
+            <button className="hk-menu-item" onClick={onOpenNotifications} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: '10px 12px', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: INK, borderRadius: 8 }}>Notifications</button>
           </div>
         )}
       </div>
 
-      {/* Search hero */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 32px 48px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: 44, fontWeight: 800, marginBottom: 8 }}>Find a shop near you</h1>
-        <p style={{ fontSize: 18, color: '#4b5563', marginBottom: 28 }}>Search for shops, products or businesses around your location.</p>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10 }}>
-          <div style={{ flex: 1, maxWidth: 620, background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              value={searchText}
-              onChange={e => setSearchText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') onSearch(); }}
-              placeholder="Search for a shop or product..."
-              style={{ flex: 1, border: 'none', outline: 'none', fontSize: 16, color: '#111111' }}
-            />
-            <button onClick={onSearch} style={{ background: '#16a34a', border: 'none', color: '#ffffff', borderRadius: 10, padding: '10px 20px', fontWeight: 700, cursor: 'pointer' }}>
+      {/* Hero / search */}
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '68px 32px 56px', textAlign: 'center' }}>
+        <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 620, fontSize: 46, lineHeight: 1.08, letterSpacing: '-0.01em', margin: 0, marginBottom: 14 }}>
+          What&rsquo;s open, what&rsquo;s fresh, what&rsquo;s close
+        </h1>
+        <p style={{ fontSize: 17, color: MUTED, maxWidth: 520, margin: '0 auto 32px', lineHeight: 1.55 }}>
+          Search the shops around you, browse what they carry, and see how far it is to walk there.
+        </p>
+
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div style={{ width: '100%', maxWidth: 600, background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, padding: '8px 12px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MOSS} strokeWidth="2" strokeLinecap="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                className="hk-search-input"
+                value={searchText}
+                onChange={e => setSearchText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') onSearch(); }}
+                placeholder="Search shops or products…"
+                style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 15, color: INK, fontFamily: "'Inter', sans-serif" }}
+              />
+            </div>
+            <button
+              className="hk-search-btn"
+              onClick={onSearch}
+              style={{ background: MOSS, border: 'none', color: '#FFFFFF', borderRadius: 10, padding: '12px 22px', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'background 150ms ease' }}
+            >
               Search
             </button>
           </div>
         </div>
-        <button onClick={onUseLocation} disabled={gpsLoading} style={{ marginTop: 24, background: gpsLoading ? '#e5e7eb' : '#ffffff', border: `1px solid ${gpsLoading ? '#9ca3af' : '#16a34a'}`, color: gpsLoading ? '#9ca3af' : '#16a34a', borderRadius: 999, padding: '10px 20px', fontWeight: 700, cursor: gpsLoading ? 'not-allowed' : 'pointer' }}>
-          {gpsLoading ? 'Locating…' : 'Use my location'}
-        </button>
+
+        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'center' }}>
+          {hasLocation ? (
+            <button
+              className="hk-locate-btn"
+              onClick={onUseLocation}
+              disabled={gpsLoading}
+              style={{ background: 'transparent', border: `1px solid ${MOSS}`, color: MOSS, borderRadius: 999, padding: '9px 18px', fontWeight: 600, fontSize: 13, cursor: gpsLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'background 150ms ease' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MOSS} strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" strokeLinecap="round" /></svg>
+              {gpsLoading ? 'Locating…' : 'Distances are on'}
+            </button>
+          ) : (
+            <button
+              className="hk-locate-btn"
+              onClick={onUseLocation}
+              disabled={gpsLoading}
+              style={{ background: gpsLoading ? '#EDE7D8' : CLAY_SOFT, border: `1px solid ${gpsLoading ? LINE : '#E3C3AD'}`, color: gpsLoading ? MUTED : CLAY, borderRadius: 999, padding: '9px 18px', fontWeight: 600, fontSize: 13, cursor: gpsLoading ? 'not-allowed' : 'pointer', transition: 'background 150ms ease' }}
+            >
+              {gpsLoading ? 'Locating…' : 'Turn on location to see distances'}
+            </button>
+          )}
+        </div>
         {error && (
-          <p style={{ marginTop: 12, color: '#dc2626', fontSize: 14 }}>{error}</p>
+          <p style={{ marginTop: 12, color: '#B3401F', fontSize: 13 }}>{error}</p>
         )}
       </div>
 
-      {/* Nearby Shops */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 32px 48px' }}>
-        <h2 style={{ textAlign: 'center', fontSize: 28, fontWeight: 800, marginBottom: 32 }}>Nearby Shops</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 48 }}>
-          {businesses.map(biz => (
-            <Link to={`/business/${biz.slug || biz.id}`} key={biz.id} style={{ textDecoration: 'none', color: 'inherit' }}>
-              <div style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 18, padding: 20, textAlign: 'left', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                <div style={{ position: 'relative', width: '100%', height: 160, marginBottom: 14 }}>
-                  {biz.cover_url ? (
-                    <img src={biz.cover_url} alt={biz.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 12 }} />
-                  ) : (
-                    <div style={{ width: '100%', height: '100%', background: '#e5e7eb', borderRadius: 12 }} />
-                  )}
-                  {biz.logo_url && (
-                    <img src={biz.logo_url} alt={`${biz.name} logo`} style={{ position: 'absolute', left: 12, bottom: -18, width: 64, height: 64, objectFit: 'cover', borderRadius: '50%', border: '3px solid #ffffff' }} />
-                  )}
-                </div>
-                <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>{biz.name}</div>
-                <div style={{ fontSize: 13, color: '#4b5563' }}>{biz.category_name}</div>
-                <div style={{ fontSize: 12, color: '#16a34a', marginTop: 8 }}>{biz.address_text}</div>
-                {biz.distance_meters ? (
-                  <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 700, marginTop: 6 }}>{(biz.distance_meters / 1000).toFixed(1)} km</div>
-                ) : null}
-              </div>
-            </Link>
-          ))}
+      {/* Shop grid */}
+      <div style={{ maxWidth: 2240, margin: '0 auto', padding: '0 32px 88px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 26, borderBottom: `1px solid ${LINE}`, paddingBottom: 16 }}>
+          <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 600, fontSize: 24, margin: 0 }}>Shops near you</h2>
+          <span style={{ fontSize: 13, color: MUTED }}>{businesses.length} {businesses.length === 1 ? 'shop' : 'shops'}</span>
         </div>
+
+        {(() => {
+          const rows: BusinessCard[][] = [];
+          for (let i = 0; i < businesses.length; i += 3) rows.push(businesses.slice(i, i + 3));
+
+          return rows.map((row, rowIdx) => (
+            <div key={rowIdx} style={{ marginBottom: 48 }}>
+              {/* Cards */}
+              <div className="hk-shop-grid" style={{ marginBottom: 26 }}>
+                {row.map(biz => {
+                  const km = biz.distance_meters ? (biz.distance_meters / 1000).toFixed(1) : null;
+                  return (
+                    <Link
+                      to={`/business/${biz.slug || biz.id}`}
+                      key={biz.id}
+                      className="hk-shop-card"
+                      style={{ textDecoration: 'none', color: 'inherit', display: 'block', background: CARD, border: `1px solid ${LINE}`, borderRadius: 18, overflow: 'hidden' }}
+                    >
+                      {/* Cover — shown in full, nothing overlapping it */}
+                      <div style={{ position: 'relative', width: '100%', height: 368, background: '#EDE6D5' }}>
+                        {biz.cover_url ? (
+                          <img src={biz.cover_url} alt={biz.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', background: 'repeating-linear-gradient(135deg, #EDE6D5, #EDE6D5 10px, #E6DDC7 10px, #E6DDC7 20px)' }} />
+                        )}
+
+                        {biz.category_name && (
+                          <span style={{ position: 'absolute', top: 14, left: 14, background: 'rgba(34,31,26,0.72)', color: '#FFFFFF', fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 999 }}>
+                            {biz.category_name}
+                          </span>
+                        )}
+
+                        {km && (
+                          <span style={{ position: 'absolute', top: 14, right: 14, background: CLAY, color: '#FFFFFF', fontSize: 13, fontWeight: 700, padding: '6px 12px', borderRadius: 999, boxShadow: '0 4px 10px rgba(181,80,46,0.35)' }}>
+                            {km} km
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Details — logo now lives in here, beside the name */}
+                      <div style={{ padding: '24px 24px 28px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                        {biz.logo_url && (
+                          <button
+                            type="button"
+                            className="hk-logo-btn"
+                            onClick={e => { e.preventDefault(); e.stopPropagation(); setZoomedLogo({ url: biz.logo_url as string, name: biz.name }); }}
+                            aria-label={`View ${biz.name}'s logo larger`}
+                            style={{ flexShrink: 0, width: 76, height: 76, padding: 0, border: `1px solid ${LINE}`, borderRadius: '50%', background: CARD }}
+                          >
+                            <img
+                              src={biz.logo_url}
+                              alt={`${biz.name} logo`}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', display: 'block' }}
+                            />
+                          </button>
+                        )}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 600, fontSize: 23, lineHeight: 1.25, marginBottom: 8 }}>
+                            {biz.name}
+                          </div>
+                          {biz.address_text && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13.5, color: MUTED }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" style={{ flexShrink: 0 }}>
+                                <path d="M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11z" />
+                                <circle cx="12" cy="10" r="2.5" />
+                              </svg>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{biz.address_text}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {/* Belt — one continuous shelf holding every shop's products in this row */}
+              <div
+                className="hk-shop-grid"
+                style={{ gap: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 18, overflow: 'hidden', boxShadow: '0 16px 30px rgba(34,31,26,0.10)' }}
+              >
+                {row.map((biz, idx) => {
+                  const products = (biz.snippet_products || []).slice(0, SHELF_SLOTS);
+                  const n = products.length;
+                  const TILE = 160;
+                  const GAP = 16;
+                  const businessHref = `/business/${biz.slug || biz.id}`;
+
+                  const tile = (p: { image_url?: string | null; name: string }, pIdx: number, fixed: boolean) => (
+                    <Link
+                      key={pIdx}
+                      to={businessHref}
+                      className="hk-product-link"
+                      style={{ display: 'block', textDecoration: 'none', color: 'inherit', width: fixed ? TILE : '100%', flexShrink: 0, textAlign: 'center' }}
+                    >
+                      <div style={{ width: '100%', aspectRatio: '1 / 1', ...(fixed ? { height: TILE } : {}), overflow: 'hidden', background: '#EDE6D5' }}>
+                        {p.image_url ? (
+                          <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', background: MOSS_SOFT }} />
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12.5, fontWeight: 500, color: INK, padding: '8px 4px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.name}
+                      </div>
+                    </Link>
+                  );
+
+                  return (
+                    <div
+                      key={biz.id}
+                      style={{ padding: '22px 22px 0', borderRight: idx < row.length - 1 ? `1px solid ${LINE}` : 'none' }}
+                    >
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: MUTED, marginBottom: 14 }}>On the shelf</div>
+
+                      {n === 0 && (
+                        <div style={{ borderRadius: 0, border: `1px dashed #D8CDB4`, padding: '28px 12px', marginBottom: 22, textAlign: 'center', fontSize: 12.5, color: '#B8AD91' }}>
+                          Nothing on the shelf yet
+                        </div>
+                      )}
+
+                      {n === 1 && (
+                        <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 22 }}>
+                          {tile(products[0], 0, true)}
+                        </div>
+                      )}
+
+                      {n === 2 && (
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: GAP, paddingBottom: 22 }}>
+                          {products.map((p, pIdx) => tile(p, pIdx, true))}
+                        </div>
+                      )}
+
+                      {n === 3 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: GAP, width: TILE * 2 + GAP, margin: '0 auto', paddingBottom: 22 }}>
+                          {products.map((p, pIdx) => tile(p, pIdx, true))}
+                        </div>
+                      )}
+
+                      {n === 4 && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: GAP, margin: `0 -22px 0`, padding: GAP }}>
+                          {products.map((p, pIdx) => tile(p, pIdx, false))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ));
+        })()}
+
         <div ref={sentinelRef} style={{ height: 1 }} />
         {loadingMore && (
-          <div style={{ textAlign: 'center', padding: 20 }}>
-            <span style={{ fontSize: 14, color: '#16a34a' }}>Loading more…</span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '36px 0' }}>
+            <div className="hk-spinner" role="status" aria-label="Loading more shops" />
+            <span style={{ fontSize: 13, color: MUTED, fontWeight: 600 }}>Bringing in more shops nearby…</span>
           </div>
         )}
       </div>
 
-      {/* Product preview belt */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 32px 80px' }}>
-        {businesses.some(biz => (biz.snippet_products || []).length > 0) && (
-          <>
-            <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 800, marginBottom: 28 }}>Product Preview</h2>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, justifyContent: 'center' }}>
-              {businesses.flatMap(biz => (biz.snippet_products || []).slice(0, 4).map(p => ({ p, biz }))).slice(0, 12).map(({ p, biz }, idx) => (
-                <Link to={`/business/${biz.slug || biz.id}`} key={idx} style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <div style={{ width: 140, background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 10, textAlign: 'center' }}>
-                    {p.image_url && <img src={p.image_url} alt={p.name} style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 8, marginBottom: 8 }} />}
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.name}</div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+      {/* Logo zoom */}
+      {zoomedLogo && (
+        <div
+          className="hk-logo-overlay"
+          onClick={() => setZoomedLogo(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${zoomedLogo.name} logo, enlarged`}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(24,22,18,0.72)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 1500, cursor: 'zoom-out' }}
+        >
+          <img
+            src={zoomedLogo.url}
+            alt={`${zoomedLogo.name} logo, enlarged`}
+            className="hk-logo-zoom-img"
+            style={{ width: 280, height: 280, objectFit: 'cover', borderRadius: '50%', border: `6px solid ${CARD}`, boxShadow: '0 24px 60px rgba(0,0,0,0.4)' }}
+          />
+          <div style={{ marginTop: 20, color: '#FFFFFF', fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 600 }}>
+            {zoomedLogo.name}
+          </div>
+          <button
+            type="button"
+            onClick={() => setZoomedLogo(null)}
+            aria-label="Close"
+            style={{ position: 'absolute', top: 24, right: 28, background: 'rgba(255,255,255,0.12)', border: 'none', color: '#FFFFFF', width: 38, height: 38, borderRadius: '50%', fontSize: 18, cursor: 'pointer' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 };
