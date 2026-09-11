@@ -241,7 +241,7 @@ const BizZoomOverlay: React.FC<{ biz: BusinessCard; open: boolean; statusLabel: 
                     <XSvg color={catColor.strong} size={15} />
                 </button>
                 <LogoImage id={biz.id} logoUrl={biz.logo_url} alt={biz.name} style={{ width: '75%', aspectRatio: '1 / 1', objectFit: 'cover', borderRadius: '50%', border: `4px solid ${catColor.ring}`, margin: '0 auto 14px', display: 'block' }} />
-                <div style={{ fontSize: 20, fontWeight: 800, color: catColor.strong, fontFamily: 'Georgia, serif', marginBottom: 4, textAlign: 'center' }}>{biz.name}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: catColor.strong, fontFamily: "'Fraunces', serif", marginBottom: 4, textAlign: 'center' }}>{biz.name}</div>
                 <div style={{ fontSize: 13, color: catColor.strong, marginBottom: 10, opacity: 0.8, textAlign: 'center' }}>{biz.category_name}</div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 12 }}>
                     <StarSvg color="#facc15" size={15} /><StarSvg color="#facc15" size={15} /><StarSvg color="#facc15" size={15} />
@@ -308,7 +308,7 @@ const BizCard: React.FC<{ biz: BusinessCard; gpsEnabled: boolean; catColor: CatC
                             <LogoImage id={biz.id} logoUrl={biz.logo_url} alt={biz.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minWidth: 0 }}>
-                            <div className="hk-biz-name" style={{ fontWeight: 800, color: catColor.strong, fontFamily: 'Georgia, serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{biz.name}</div>
+                            <div className="hk-biz-name" style={{ fontWeight: 800, color: catColor.strong, fontFamily: "'Fraunces', serif", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{biz.name}</div>
                             <div className="hk-biz-cat" style={{ fontWeight: 700, color: catColor.strong, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 3 }}>{biz.category_name}</div>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                                 <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -362,7 +362,7 @@ const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; dark
                                 </div>
                             )}
                         </div>
-                        <div style={{ padding: '5px 8px 7px', fontFamily: "'Caveat', cursive", fontWeight: 700, fontSize: 16, color: '#7A5C00', background: '#f3f4f6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                        <div style={{ padding: '5px 8px 7px', fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 16, color: '#7A5C00', background: '#f3f4f6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
                     </Link>
                 ))}
             </div>
@@ -453,7 +453,7 @@ const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor
                 )}
             </div>
         </div>
-        <span className="hk-cat-label" style={{ fontFamily: 'inherit', fontWeight: 700, color: '#B8860B', background: 'transparent', letterSpacing: '0.005em', padding: '3px 10px 3px', borderRadius: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: size + 24 }}>{label}</span>
+        <span className="hk-cat-label" style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, color: '#B8860B', background: 'transparent', letterSpacing: '0.005em', padding: '3px 10px 3px', borderRadius: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: size + 24 }}>{label}</span>
     </button>
 );
 

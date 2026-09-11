@@ -286,7 +286,7 @@ const DesktopHome: React.FC<Props> = ({
 
                         {biz.category_name && (
                           <span style={{ position: 'absolute', top: 14, left: 14, background: 'rgba(34,31,26,0.72)', color: '#FFFFFF', fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 999 }}>
-                            {biz.category_name}
+                            <span style={{ fontFamily: "'Fraunces', serif" }}>{biz.category_name}</span>
                           </span>
                         )}
 
@@ -316,7 +316,7 @@ const DesktopHome: React.FC<Props> = ({
                         )}
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 600, fontSize: 23, lineHeight: 1.25, marginBottom: 8 }}>
-                            {biz.name}
+                            <span style={{ fontFamily: "'Fraunces', serif" }}>{biz.name}</span>
                           </div>
                           {biz.address_text && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13.5, color: MUTED }}>
@@ -361,7 +361,7 @@ const DesktopHome: React.FC<Props> = ({
                         )}
                       </div>
                       <div style={{ fontSize: 12.5, fontWeight: 500, color: INK, padding: '8px 4px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.name}
+                        <span style={{ fontFamily: "'Fraunces', serif" }}>{p.name}</span>
                       </div>
                     </Link>
                   );
