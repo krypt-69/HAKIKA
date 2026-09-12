@@ -29,7 +29,6 @@ const MOSS_SOFT = '#EAF0E7'; // primary accent, tint (badges, focus)
 const CLAY = '#B5502E';      // secondary accent — used sparingly, for the distance stub
 const CLAY_SOFT = '#F5E4DB'; // secondary accent, tint
 
-const SHELF_SLOTS = 4;
 
 const DesktopHome: React.FC<Props> = ({
   businesses,
@@ -340,32 +339,6 @@ const DesktopHome: React.FC<Props> = ({
                 style={{ gap: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 18, overflow: 'hidden', boxShadow: '0 16px 30px rgba(34,31,26,0.10)' }}
               >
                 {row.map((biz, idx) => {
-                  const products = (biz.snippet_products || []).slice(0, SHELF_SLOTS);
-                  const n = products.length;
-                  const TILE = 160;
-                  const GAP = 16;
-                  const businessHref = `/business/${biz.slug || biz.id}`;
-
-                  const tile = (p: { image_url?: string | null; name: string }, pIdx: number, fixed: boolean) => (
-                    <Link
-                      key={pIdx}
-                      to={businessHref}
-                      className="hk-product-link"
-                      style={{ display: 'block', textDecoration: 'none', color: 'inherit', width: fixed ? TILE : '100%', flexShrink: 0, textAlign: 'center' }}
-                    >
-                      <div style={{ width: '100%', aspectRatio: '1 / 1', ...(fixed ? { height: TILE } : {}), overflow: 'hidden', background: '#EDE6D5' }}>
-                        {p.image_url ? (
-                          <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '100%', height: '100%', background: MOSS_SOFT }} />
-                        )}
-                      </div>
-                      <div style={{ fontSize: 12.5, fontWeight: 500, color: INK, padding: '8px 4px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <span style={{ fontFamily: "'Fraunces', serif" }}>{p.name}</span>
-                      </div>
-                    </Link>
-                  );
-
                   return (
                     <div
                       key={biz.id}
@@ -373,35 +346,9 @@ const DesktopHome: React.FC<Props> = ({
                     >
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: MUTED, marginBottom: 14 }}>On the shelf</div>
 
-                      {n === 0 && (
-                        <div style={{ borderRadius: 0, border: `1px dashed #D8CDB4`, padding: '28px 12px', marginBottom: 22, textAlign: 'center', fontSize: 12.5, color: '#B8AD91' }}>
-                          Nothing on the shelf yet
-                        </div>
-                      )}
-
-                      {n === 1 && (
-                        <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 22 }}>
-                          {tile(products[0], 0, true)}
-                        </div>
-                      )}
-
-                      {n === 2 && (
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: GAP, paddingBottom: 22 }}>
-                          {products.map((p, pIdx) => tile(p, pIdx, true))}
-                        </div>
-                      )}
-
-                      {n === 3 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: GAP, width: TILE * 2 + GAP, margin: '0 auto', paddingBottom: 22 }}>
-                          {products.map((p, pIdx) => tile(p, pIdx, true))}
-                        </div>
-                      )}
-
-                      {n === 4 && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: GAP, margin: `0 -22px 0`, padding: GAP }}>
-                          {products.map((p, pIdx) => tile(p, pIdx, false))}
-                        </div>
-                      )}
+                      <div style={{ borderRadius: 0, border: `1px dashed #D8CDB4`, padding: '28px 12px', marginBottom: 22, textAlign: 'center', fontSize: 12.5, color: '#B8AD91' }}>
+                        Nothing on the shelf yet
+                      </div>
                     </div>
                   );
                 })}

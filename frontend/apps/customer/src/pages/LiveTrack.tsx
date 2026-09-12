@@ -85,6 +85,19 @@ async function fetchRoadRoute(
   }
 }
 
+// Turns a timestamp into a short "how long ago" string for the status panel.
+function relativeTime(timestamp?: string): string {
+  if (!timestamp) return '';
+  const ms = Date.now() - Date.parse(timestamp);
+  if (ms < 0 || Number.isNaN(ms)) return '';
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 5) return 'Updated just now';
+  if (seconds < 60) return `Updated ${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `Updated ${minutes} min${minutes === 1 ? '' : 's'} ago`;
+  return `Last seen at ${new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+}
+
 const LiveTrack: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -94,6 +107,8 @@ const LiveTrack: React.FC = () => {
   const [state, setState] = useState<TrackState>('loading');
   const [lastPayload, setLastPayload] = useState<RiderLocationPayload | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  // Bumped every few seconds purely to force the "Updated Xs ago" text to refresh.
+  const [, setClock] = useState(0);
 
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -106,6 +121,12 @@ const LiveTrack: React.FC = () => {
     if (!id) return;
     api.getOrder(id).then(setOrder).catch(() => {});
   }, [id]);
+
+  // Keep the "Updated Xs ago" text fresh even when no new location arrives.
+  useEffect(() => {
+    const t = setInterval(() => setClock(c => c + 1), 5000);
+    return () => clearInterval(t);
+  }, []);
 
   const applyState = useCallback((snap: any) => {
     if (!snap) return;
@@ -141,7 +162,6 @@ const LiveTrack: React.FC = () => {
 
   // Live events
   const handleRiderLocation = useCallback((payload: RiderLocationPayload) => {
-    console.log('LiveTrack: rider_location received', payload);
     setLastPayload(payload);
     setState('ok');
     if (staleTimerRef.current) clearTimeout(staleTimerRef.current);
@@ -168,7 +188,6 @@ const LiveTrack: React.FC = () => {
       console.warn('LiveTrack: missing VITE_MAPBOX_TOKEN');
       return;
     }
-    console.log('LiveTrack: token length', token.length);
     mapboxgl.accessToken = token;
 
     const map = new mapboxgl.Map({
@@ -222,7 +241,6 @@ const LiveTrack: React.FC = () => {
           'line-join': 'round',
         },
       });
-      console.log('LiveTrack: source+layer added, setting mapReady=true');
       setMapReady(true);
     });
 
@@ -243,7 +261,6 @@ const LiveTrack: React.FC = () => {
     if (!map || !order) return;
 
     const dest = parseDestination(order);
-    console.log('LiveTrack: order.delivery_coordinates =', order.delivery_coordinates, 'parsed dest =', dest);
     if (dest && !destMarkerRef.current) {
       // Red pin marker for the customer's destination
       const size = 32;
@@ -336,22 +353,45 @@ const LiveTrack: React.FC = () => {
     };
   }, [lastPayload, order, mapReady]);
 
+  // Headline shown in the status panel — short and glanceable.
   const stateLabel = (() => {
     switch (state) {
       case 'loading': return 'Loading live tracking…';
-      case 'not_tracking': return 'Live tracking has not started yet.';
-      case 'awaiting_location': return 'Waiting for the rider’s location…';
+      case 'not_tracking': return 'Tracking hasn’t started yet';
+      case 'awaiting_location': return 'Rider hasn’t set off yet';
       case 'ok': return 'Rider is on the way';
-      case 'stale': return 'Location updating…';
-      case 'ended': return 'Live tracking has ended';
+      case 'stale': return 'Reconnecting…';
+      case 'ended': return 'Tracking has ended';
     }
   })();
+
+  // One short supporting line explaining what that headline means, in plain language.
+  const stateNote = (() => {
+    switch (state) {
+      case 'loading':
+        return null;
+      case 'not_tracking':
+        return 'You’ll see your rider here once they start navigating to you.';
+      case 'awaiting_location':
+        return 'Your rider hasn’t started navigating to you yet. As soon as they do, you’ll see their exact position here.';
+      case 'ok':
+        return 'Following your rider on the road as they head your way.';
+      case 'stale':
+        return 'We haven’t heard from your rider’s phone in a moment. Their marker may be a little behind.';
+      case 'ended':
+        return 'Your rider has arrived, or tracking was turned off for this order.';
+    }
+  })();
+
+  const updatedLabel = lastPayload?.timestamp ? relativeTime(lastPayload.timestamp) : '';
+
+  const statusColor = state === 'ok' ? '#16a34a' : state === 'stale' ? '#d97706' : '#52525b';
 
   return (
     <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column' }}>
       <div
         style={{
-          padding: 12,
+          padding: '10px 12px',
           background: '#ffffff',
           borderBottom: '1px solid #eee',
           display: 'flex',
@@ -376,21 +416,45 @@ const LiveTrack: React.FC = () => {
         <strong>Live tracking</strong>
       </div>
 
-      <div ref={mapContainerRef} style={{ flex: 1 }} />
-
-      <div style={{ padding: 16, background: '#ffffff', borderTop: '1px solid #eee' }}>
-        <p style={{ margin: 0, fontWeight: 600 }}>{stateLabel}</p>
-        {state === 'stale' && lastPayload?.timestamp && (
-          <p style={{ margin: '4px 0 0', fontSize: 12, color: '#666' }}>
-            Last updated {new Date(lastPayload.timestamp).toLocaleTimeString()}
-          </p>
-        )}
-        {state === 'ended' && (
-          <p style={{ margin: '4px 0 0', fontSize: 12, color: '#666' }}>
-            Your rider has arrived or tracking was stopped.
-          </p>
-        )}
+      {/* Status panel sits right under the header, above the map, so the
+          rider's status is visible at a glance without scrolling. */}
+      <div
+        style={{
+          padding: '12px 16px',
+          background: '#ffffff',
+          borderBottom: '1px solid #eee',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 10,
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            marginTop: 6,
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            flexShrink: 0,
+            background: statusColor,
+          }}
+        />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+            <p style={{ margin: 0, fontWeight: 600 }}>{stateLabel}</p>
+            {updatedLabel && (
+              <span style={{ fontSize: 12, color: '#71717a' }}>{updatedLabel}</span>
+            )}
+          </div>
+          {stateNote && (
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#52525b', lineHeight: 1.4 }}>
+              {stateNote}
+            </p>
+          )}
+        </div>
       </div>
+
+      <div ref={mapContainerRef} style={{ flex: 1 }} />
     </div>
   );
 };
