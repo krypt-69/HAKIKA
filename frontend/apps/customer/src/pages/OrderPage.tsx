@@ -9,6 +9,11 @@ interface CartItem {
         name: string;
         original_price: number;
         discount_price: number | null;
+        selling_unit?: string;
+        min_order_quantity?: number;
+        max_order_quantity?: number | null;
+        track_inventory?: boolean;
+        stock_quantity?: number | null;
         images?: { id: string; position: number; url: string }[];
     };
     quantity: number;
@@ -96,10 +101,29 @@ const OrderPage: React.FC = () => {
 
     const locationReady = locationSet || isValidCoord(deliveryLat, deliveryLon);
 
+    const cartIssue = (() => {
+        for (const item of cart) {
+            const p = item.product;
+            const min = p.min_order_quantity ?? 1;
+            const orderCap = p.max_order_quantity ?? null;
+            const stockCap = p.track_inventory && p.stock_quantity != null ? p.stock_quantity : null;
+            const caps: number[] = [];
+            if (orderCap !== null) caps.push(orderCap);
+            if (stockCap !== null) caps.push(stockCap);
+            const max = caps.length ? Math.min(...caps) : null;
+
+            if (p.track_inventory && (p.stock_quantity ?? 0) <= 0) return `${p.name} is out of stock.`;
+            if (item.quantity < min) return `Quantity for ${p.name} is below the minimum of ${min}.`;
+            if (max !== null && item.quantity > max) return `Quantity for ${p.name} exceeds the available maximum of ${max}.`;
+        }
+        return null;
+    })();
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!phone) return setError('Phone number is required');
         if (!locationReady) return setError('Please share your location or enter valid delivery coordinates before placing your order');
+        if (cartIssue) return setError(cartIssue);
         setError('');
         setLoading(true);
         try {
@@ -192,7 +216,10 @@ const OrderPage: React.FC = () => {
                                         )}
                                         <div className="cart-item-info">
                                             <div className="cart-item-name">{item.product.name} × {item.quantity}</div>
-                                            <div className="cart-item-price">KES {(unitPrice * item.quantity).toFixed(2)}</div>
+                                            <div className="cart-item-price">
+                                                KES {(unitPrice * item.quantity).toFixed(2)}
+                                                {item.product.selling_unit ? ` / ${item.product.selling_unit}` : ''}
+                                            </div>
                                         </div>
                                         <div className="cart-item-total">KES {(unitPrice * item.quantity).toFixed(2)}</div>
                                     </div>

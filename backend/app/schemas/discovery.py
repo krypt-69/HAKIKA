@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, List
 import uuid
+from app.schemas.product import ProductImageResponse
 
 class CategoryResponse(BaseModel):
     id: int
@@ -60,3 +61,18 @@ class BusinessProfileResponse(BaseModel):
 class DiscoverResponse(BaseModel):
     businesses: list[DiscoveredBusiness]
     next_cursor: Optional[str] = None
+
+
+class CustomerProductInfo(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: Optional[str]
+    original_price: float
+    discount_price: Optional[float]
+    selling_unit: str
+    min_order_quantity: int
+    max_order_quantity: Optional[int]
+    track_inventory: bool
+    stock_quantity: Optional[int]
+    category_id: Optional[int]
+    images: List[ProductImageResponse] = []

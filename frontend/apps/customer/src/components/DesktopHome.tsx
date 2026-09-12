@@ -29,7 +29,6 @@ const MOSS_SOFT = '#EAF0E7'; // primary accent, tint (badges, focus)
 const CLAY = '#B5502E';      // secondary accent — used sparingly, for the distance stub
 const CLAY_SOFT = '#F5E4DB'; // secondary accent, tint
 
-
 const DesktopHome: React.FC<Props> = ({
   businesses,
   searchText,
@@ -104,9 +103,6 @@ const DesktopHome: React.FC<Props> = ({
         .hk-search-btn:hover { background: ${MOSS_DARK}; }
         .hk-locate-btn:hover { background: ${MOSS_SOFT}; }
 
-        .hk-product-link { transition: opacity 140ms ease; }
-        .hk-product-link:hover { opacity: 0.82; }
-
         .hk-logo-btn {
           transition: transform 160ms ease, box-shadow 160ms ease;
           cursor: zoom-in;
@@ -122,8 +118,7 @@ const DesktopHome: React.FC<Props> = ({
         .hk-locate-btn:focus-visible,
         .hk-shop-card:focus-visible,
         .hk-menu-item:focus-visible,
-        .hk-logo-btn:focus-visible,
-        .hk-product-link:focus-visible {
+        .hk-logo-btn:focus-visible {
           outline: 2px solid ${MOSS};
           outline-offset: 2px;
         }
@@ -263,7 +258,7 @@ const DesktopHome: React.FC<Props> = ({
           for (let i = 0; i < businesses.length; i += 3) rows.push(businesses.slice(i, i + 3));
 
           return rows.map((row, rowIdx) => (
-            <div key={rowIdx} style={{ marginBottom: 48 }}>
+            <div key={rowIdx} style={{ marginBottom: 144 }}>
               {/* Cards */}
               <div className="hk-shop-grid" style={{ marginBottom: 26 }}>
                 {row.map(biz => {
@@ -275,8 +270,8 @@ const DesktopHome: React.FC<Props> = ({
                       className="hk-shop-card"
                       style={{ textDecoration: 'none', color: 'inherit', display: 'block', background: CARD, border: `1px solid ${LINE}`, borderRadius: 18, overflow: 'hidden' }}
                     >
-                      {/* Cover — shown in full, nothing overlapping it */}
-                      <div style={{ position: 'relative', width: '100%', height: 368, background: '#EDE6D5' }}>
+                      {/* Cover — shown in full, nothing overlapping it (height +20%) */}
+                      <div style={{ position: 'relative', width: '100%', height: 486, background: '#EDE6D5' }}>
                         {biz.cover_url ? (
                           <img src={biz.cover_url} alt={biz.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
@@ -299,27 +294,38 @@ const DesktopHome: React.FC<Props> = ({
                       {/* Details — logo now lives in here, beside the name */}
                       <div style={{ padding: '24px 24px 28px', display: 'flex', alignItems: 'center', gap: 16 }}>
                         {biz.logo_url && (
-                          <button
-                            type="button"
-                            className="hk-logo-btn"
-                            onClick={e => { e.preventDefault(); e.stopPropagation(); setZoomedLogo({ url: biz.logo_url as string, name: biz.name }); }}
-                            aria-label={`View ${biz.name}'s logo larger`}
-                            style={{ flexShrink: 0, width: 76, height: 76, padding: 0, border: `1px solid ${LINE}`, borderRadius: '50%', background: CARD }}
+                          <div
+                            style={{
+                              flexShrink: 0,
+                              width: 76,
+                              height: 76,
+                              borderRadius: '50%',
+                              padding: 3,
+                              background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)',
+                            }}
                           >
-                            <img
-                              src={biz.logo_url}
-                              alt={`${biz.name} logo`}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', display: 'block' }}
-                            />
-                          </button>
+                            <button
+                              type="button"
+                              className="hk-logo-btn"
+                              onClick={e => { e.preventDefault(); e.stopPropagation(); setZoomedLogo({ url: biz.logo_url as string, name: biz.name }); }}
+                              aria-label={`View ${biz.name}'s logo larger`}
+                              style={{ width: '100%', height: '100%', padding: 0, border: `3px solid ${CARD}`, borderRadius: '50%', background: CARD }}
+                            >
+                              <img
+                                src={biz.logo_url}
+                                alt={`${biz.name} logo`}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', display: 'block' }}
+                              />
+                            </button>
+                          </div>
                         )}
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 600, fontSize: 23, lineHeight: 1.25, marginBottom: 8 }}>
                             <span style={{ fontFamily: "'Fraunces', serif" }}>{biz.name}</span>
                           </div>
                           {biz.address_text && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13.5, color: MUTED }}>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" style={{ flexShrink: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13.5, color: MOSS }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={MOSS} strokeWidth="2" style={{ flexShrink: 0 }}>
                                 <path d="M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11z" />
                                 <circle cx="12" cy="10" r="2.5" />
                               </svg>
@@ -333,26 +339,6 @@ const DesktopHome: React.FC<Props> = ({
                 })}
               </div>
 
-              {/* Belt — one continuous shelf holding every shop's products in this row */}
-              <div
-                className="hk-shop-grid"
-                style={{ gap: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 18, overflow: 'hidden', boxShadow: '0 16px 30px rgba(34,31,26,0.10)' }}
-              >
-                {row.map((biz, idx) => {
-                  return (
-                    <div
-                      key={biz.id}
-                      style={{ padding: '22px 22px 0', borderRight: idx < row.length - 1 ? `1px solid ${LINE}` : 'none' }}
-                    >
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: MUTED, marginBottom: 14 }}>On the shelf</div>
-
-                      <div style={{ borderRadius: 0, border: `1px dashed #D8CDB4`, padding: '28px 12px', marginBottom: 22, textAlign: 'center', fontSize: 12.5, color: '#B8AD91' }}>
-                        Nothing on the shelf yet
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           ));
         })()}
@@ -376,23 +362,25 @@ const DesktopHome: React.FC<Props> = ({
           aria-label={`${zoomedLogo.name} logo, enlarged`}
           style={{ position: 'fixed', inset: 0, background: 'rgba(24,22,18,0.72)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 1500, cursor: 'zoom-out' }}
         >
-          <img
-            src={zoomedLogo.url}
-            alt={`${zoomedLogo.name} logo, enlarged`}
-            className="hk-logo-zoom-img"
-            style={{ width: 280, height: 280, objectFit: 'cover', borderRadius: '50%', border: `6px solid ${CARD}`, boxShadow: '0 24px 60px rgba(0,0,0,0.4)' }}
-          />
+          <div style={{ position: 'relative', width: 280, height: 280 }}>
+            <img
+              src={zoomedLogo.url}
+              alt={`${zoomedLogo.name} logo, enlarged`}
+              className="hk-logo-zoom-img"
+              style={{ width: 280, height: 280, objectFit: 'cover', borderRadius: '50%', border: `6px solid ${CARD}`, boxShadow: '0 24px 60px rgba(0,0,0,0.4)', display: 'block' }}
+            />
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); setZoomedLogo(null); }}
+              aria-label="Close"
+              style={{ position: 'absolute', top: -14, right: -14, background: CARD, border: `1px solid ${LINE}`, color: INK, width: 34, height: 34, borderRadius: '50%', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 16px rgba(34,31,26,0.28)' }}
+            >
+              ✕
+            </button>
+          </div>
           <div style={{ marginTop: 20, color: '#FFFFFF', fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 600 }}>
             {zoomedLogo.name}
           </div>
-          <button
-            type="button"
-            onClick={() => setZoomedLogo(null)}
-            aria-label="Close"
-            style={{ position: 'absolute', top: 24, right: 28, background: 'rgba(255,255,255,0.12)', border: 'none', color: '#FFFFFF', width: 38, height: 38, borderRadius: '50%', fontSize: 18, cursor: 'pointer' }}
-          >
-            ✕
-          </button>
         </div>
       )}
     </div>

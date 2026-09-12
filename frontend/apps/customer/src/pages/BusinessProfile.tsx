@@ -1,17 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useParams } from 'react-router-dom';
-import { api } from '../api';
+import { api, CustomerProductInfo } from '../api';
 import { Config } from '@hakika/config';
 
-interface Product {
-    id: string;
-    name: string;
-    description: string | null;
-    original_price: number;
-    discount_price: number | null;
-    images: { id: string; position: number; url: string }[];
-}
+type Product = CustomerProductInfo;
 
 const GOLD = '#b8860b';
 const GOLD_BRIGHT = '#f4c430';
@@ -341,11 +334,13 @@ const ProfileFullPage: React.FC<{ business: any; hours: any[]; open: boolean; st
 const ProductFullPage: React.FC<{
     product: Product;
     quantity: number;
+    purchasable: boolean;
+    categoryNames: Record<number, string>;
     onAdd: () => void;
     onInc: () => void;
     onDec: () => void;
     onClose: () => void;
-}> = ({ product, quantity, onAdd, onInc, onDec, onClose }) => {
+}> = ({ product, quantity, purchasable, categoryNames, onAdd, onInc, onDec, onClose }) => {
     const ready = usePageTransition();
     const [activeIndex, setActiveIndex] = useState(0);
     const scrollerRef = useRef<HTMLDivElement>(null);
@@ -394,10 +389,25 @@ const ProductFullPage: React.FC<{
                     <div className="pfp-price-row">
                         {hasDiscount && <span className="price-strike" style={{ fontSize: 15 }}>KES {product.original_price}</span>}
                         <span className="pfp-price">KES {finalPrice}</span>
+                        {product.selling_unit ? <span className="pfp-unit">/ {product.selling_unit}</span> : null}
                         {hasDiscount && (
                             <span className="pfp-save-badge">
                                 Save {Math.round(100 - (finalPrice / product.original_price) * 100)}%
                             </span>
+                        )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                        {product.min_order_quantity > 1 && (
+                            <span className="pfp-meta-pill">Min {product.min_order_quantity}</span>
+                        )}
+                        {product.track_inventory && product.stock_quantity !== null && product.stock_quantity > 0 && product.stock_quantity <= 5 && (
+                            <span className="pfp-meta-pill pfp-meta-pill--low">Only {product.stock_quantity} left</span>
+                        )}
+                        {product.track_inventory && (product.stock_quantity === null || product.stock_quantity <= 0) && (
+                            <span className="pfp-meta-pill pfp-meta-pill--out">Out of stock</span>
+                        )}
+                        {product.category_id && categoryNames[product.category_id] && (
+                            <span className="pfp-meta-pill">{categoryNames[product.category_id]}</span>
                         )}
                     </div>
 
@@ -415,9 +425,13 @@ const ProductFullPage: React.FC<{
                                 <span className="pfp-qty-num">{quantity} in cart</span>
                                 <button onClick={onInc} className="pfp-qty-btn"><PlusSvg size={14} /></button>
                             </div>
-                        ) : (
+                        ) : purchasable ? (
                             <button onClick={onAdd} className="pfp-add-btn">
                                 <CartAddSvg size={16} color="#fff" /> Add to Cart
+                            </button>
+                        ) : (
+                            <button disabled className="pfp-add-btn pfp-add-btn--disabled">
+                                Out of stock
                             </button>
                         )}
                     </div>
@@ -430,11 +444,12 @@ const ProductFullPage: React.FC<{
 const ProductCard: React.FC<{
     product: Product;
     quantity: number;
+    purchasable: boolean;
     onOpen: () => void;
     onAdd: () => void;
     onInc: () => void;
     onDec: () => void;
-}> = ({ product, quantity, onOpen, onAdd, onInc, onDec }) => {
+}> = ({ product, quantity, purchasable, onOpen, onAdd, onInc, onDec }) => {
     const [imgFailed, setImgFailed] = useState(false);
     const finalPrice = product.discount_price ?? product.original_price;
     const hasDiscount = !!product.discount_price && product.discount_price < product.original_price;
@@ -457,7 +472,19 @@ const ProductCard: React.FC<{
                 <div className="pc-price-row">
                     {hasDiscount && <span className="price-strike pc-price-strike">KES {product.original_price}</span>}
                     <span className="pc-price">KES {finalPrice}</span>
+                    {product.selling_unit ? <span className="pc-price-unit">/ {product.selling_unit}</span> : null}
                 </div>
+
+                {(product.min_order_quantity > 1 || (product.track_inventory && product.stock_quantity !== null && product.stock_quantity > 0 && product.stock_quantity <= 5)) && (
+                    <div className="pc-meta-row">
+                        {product.min_order_quantity > 1 && (
+                            <span className="pc-meta-pill">Min {product.min_order_quantity}</span>
+                        )}
+                        {product.track_inventory && product.stock_quantity !== null && product.stock_quantity > 0 && product.stock_quantity <= 5 && (
+                            <span className="pc-meta-pill pc-meta-pill--low">Only {product.stock_quantity} left</span>
+                        )}
+                    </div>
+                )}
 
                 {/* Cart control now sits under the details, not floating on the image */}
                 <div className="pc-cart-zone" onClick={e => e.stopPropagation()}>
@@ -467,9 +494,13 @@ const ProductCard: React.FC<{
                             <span className="pc-qty-num">{quantity}</span>
                             <button onClick={onInc} className="pc-qty-btn"><PlusSvg size={11} /></button>
                         </div>
-                    ) : (
+                    ) : purchasable ? (
                         <button onClick={onAdd} className="pc-cart-btn" aria-label="Add to cart">
                             <CartAddSvg size={13} /> <span>Add</span>
+                        </button>
+                    ) : (
+                        <button disabled className="pc-cart-btn pc-cart-btn--disabled">
+                            Out of stock
                         </button>
                     )}
                 </div>
@@ -494,18 +525,34 @@ const BusinessProfile: React.FC = () => {
 
     const [cartMini, setCartMini] = useState(true);
     const [itemsListOpen, setItemsListOpen] = useState(false);
+    const [categoryNames, setCategoryNames] = useState<Record<number, string>>({});
     const productsRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!slug) return;
-        api.businessById(slug)
-            .then(data => {
-                setBusiness(data);
-                setProducts(data.products || []);
+        setLoading(true);
+        Promise.all([
+            api.businessById(slug),
+            api.customerProducts.listByBusiness(slug),
+        ])
+            .then(([biz, prodList]) => {
+                setBusiness(biz);
+                setProducts(prodList || []);
             })
             .catch(err => setError(err.message))
             .finally(() => setLoading(false));
     }, [slug]);
+
+    // Best-effort category name lookup; failure must not affect product loading.
+    useEffect(() => {
+        api.categories()
+            .then((cats: any[]) => {
+                const map: Record<number, string> = {};
+                (cats || []).forEach(c => { if (c && typeof c.id === 'number') map[c.id] = c.name; });
+                setCategoryNames(map);
+            })
+            .catch(() => { /* non-fatal */ });
+    }, []);
 
     // Land straight on the products, not the header — the person can
     // still scroll up a bit to see the cover, logo, and welcome belt.
@@ -515,15 +562,40 @@ const BusinessProfile: React.FC = () => {
         }
     }, [loading, business]);
 
+    // Effective maximum the customer may select for a product (client-side UX cap only).
+    const effectiveMaxFor = (p: Product): number | null => {
+        const stockCap = p.track_inventory && p.stock_quantity !== null ? p.stock_quantity : null;
+        const orderCap = p.max_order_quantity;
+        const candidates: number[] = [];
+        if (stockCap !== null) candidates.push(stockCap);
+        if (orderCap !== null && orderCap !== undefined) candidates.push(orderCap);
+        if (candidates.length === 0) return null;
+        return Math.min(...candidates);
+    };
+
+    const isOutOfStock = (p: Product): boolean =>
+        p.track_inventory && (p.stock_quantity === null || p.stock_quantity <= 0);
+
+    const isPurchasable = (p: Product): boolean => {
+        if (isOutOfStock(p)) return false;
+        const max = effectiveMaxFor(p);
+        if (max !== null && max < p.min_order_quantity) return false;
+        return true;
+    };
+
     const addToCart = (product: Product) => {
+        if (!isPurchasable(product)) return;
         setCart(prev => {
             const existing = prev.find(item => item.product.id === product.id);
             if (existing) {
+                const max = effectiveMaxFor(product);
+                const next = existing.quantity + 1;
+                const capped = max !== null ? Math.min(next, max) : next;
                 return prev.map(item =>
-                    item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+                    item.product.id === product.id ? { ...item, quantity: capped } : item
                 );
             }
-            return [...prev, { product, quantity: 1 }];
+            return [...prev, { product, quantity: product.min_order_quantity }];
         });
     };
 
@@ -532,9 +604,14 @@ const BusinessProfile: React.FC = () => {
     };
 
     const updateQuantity = (productId: string, quantity: number) => {
-        if (quantity <= 0) { removeFromCart(productId); return; }
+        const entry = cart.find(i => i.product.id === productId);
+        if (!entry) return;
+        const min = entry.product.min_order_quantity;
+        if (quantity < min) { removeFromCart(productId); return; }
+        const max = effectiveMaxFor(entry.product);
+        const next = max !== null ? Math.min(quantity, max) : quantity;
         setCart(prev => prev.map(item =>
-            item.product.id === productId ? { ...item, quantity } : item
+            item.product.id === productId ? { ...item, quantity: next } : item
         ));
     };
 
@@ -627,6 +704,19 @@ const BusinessProfile: React.FC = () => {
                 .profile-hours-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #374151; padding: 7px 0; border-bottom: 1px solid #f7f0dd; }
                 .profile-hours-row:last-child { border-bottom: none; }
                 .profile-hours-row span:first-child { display: flex; align-items: center; gap: 6px; }
+
+                /* ── New product meta pills (Phase 3) ─────────── */
+                .pfp-unit { font-size: 12.5px; font-weight: 600; color: #6b7280; margin-left: 2px; }
+                .pfp-meta-pill { font-size: 11px; font-weight: 700; color: #374151; background: #f3f4f6; border: 1px solid #e5e7eb; padding: 3px 8px; border-radius: 20px; }
+                .pfp-meta-pill--low { color: #b45309; background: #fef3c7; border-color: #fde68a; }
+                .pfp-meta-pill--out { color: #b91c1c; background: #fee2e2; border-color: #fecaca; }
+                .pfp-add-btn--disabled { background: #9ca3af; box-shadow: none; cursor: not-allowed; }
+
+                .pc-price-unit { font-size: 10px; font-weight: 600; color: #6b7280; }
+                .pc-meta-row { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+                .pc-meta-pill { font-size: 9.5px; font-weight: 700; color: #374151; background: #f3f4f6; border: 1px solid #e5e7eb; padding: 1px 6px; border-radius: 20px; }
+                .pc-meta-pill--low { color: #b45309; background: #fef3c7; border-color: #fde68a; }
+                .pc-cart-btn--disabled { background: #f3f4f6; border-color: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
 
                 /* ── Product page styling ─────────────────────── */
                 .pfp-body { max-width: 900px; margin: 0 auto; padding: 0 0 40px; }
@@ -739,6 +829,8 @@ const BusinessProfile: React.FC = () => {
                 <ProductFullPage
                     product={quickViewProduct}
                     quantity={cartQuantityFor(quickViewProduct.id)}
+                    purchasable={isPurchasable(quickViewProduct)}
+                    categoryNames={categoryNames}
                     onAdd={() => addToCart(quickViewProduct)}
                     onInc={() => updateQuantity(quickViewProduct.id, cartQuantityFor(quickViewProduct.id) + 1)}
                     onDec={() => updateQuantity(quickViewProduct.id, cartQuantityFor(quickViewProduct.id) - 1)}
@@ -852,6 +944,7 @@ const BusinessProfile: React.FC = () => {
                                         <ProductCard
                                             product={product}
                                             quantity={cartQuantityFor(product.id)}
+                                            purchasable={isPurchasable(product)}
                                             onOpen={() => setQuickViewProduct(product)}
                                             onAdd={() => addToCart(product)}
                                             onInc={() => updateQuantity(product.id, cartQuantityFor(product.id) + 1)}

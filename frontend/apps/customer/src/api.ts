@@ -17,6 +17,21 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     return JSON.parse(text);
 }
 
+export interface CustomerProductInfo {
+    id: string;
+    name: string;
+    description: string | null;
+    original_price: number;
+    discount_price: number | null;
+    selling_unit: string;
+    min_order_quantity: number;
+    max_order_quantity: number | null;
+    track_inventory: boolean;
+    stock_quantity: number | null;
+    category_id: number | null;
+    images: { id: string; position: number; url: string }[];
+}
+
 export const api = {
     categories: () => request<any[]>('/categories'),
     discover: (params: {
@@ -39,6 +54,10 @@ export const api = {
     },
     businessBySlug: (slug: string) => request<any>(`/b/${slug}`),
     businessById: (id: string) => request<any>(`/b/${id}`),
+    customerProducts: {
+        listByBusiness: (identifier: string) =>
+            request<CustomerProductInfo[]>(`/b/${encodeURIComponent(identifier)}/products`),
+    },
     createOrder: (data: any) => request<any>('/orders', { method: 'POST', body: JSON.stringify(data) }),
     getOrder: (id: string) => request<any>(`/orders/${id}`),
     confirmDelivery: (id: string, phone: string) =>

@@ -11,7 +11,7 @@ from app.models.product import Product
 from app.models.product_image import ProductImage
 from app.models.location import Location
 from app.models.operating_hours import OperatingHours
-from app.schemas.discovery import CategoryResponse, DiscoveredBusiness, BusinessProfileResponse, DiscoverResponse
+from app.schemas.discovery import CategoryResponse, DiscoveredBusiness, BusinessProfileResponse, DiscoverResponse, CustomerProductInfo
 from typing import Optional, List
 import uuid
 
@@ -137,3 +137,80 @@ async def business_public_profile(
         "products": product_list,
         "collect_payment_before_delivery": business.collect_payment_before_delivery
     }
+
+
+@router.get("/b/{identifier}/products", response_model=List[CustomerProductInfo])
+async def business_products_public(
+    identifier: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public product list for a business, with customer-facing fields.
+
+    Filtering contract (approved):
+      - deleted_at IS NULL
+      - is_available = true
+    Out-of-stock products ARE returned so the Customer can render an
+    explicit "Out of stock" state. The backend order validation remains
+    the authoritative gate on quantity and stock at order time.
+    """
+    # Reuse the same slug-or-UUID business resolution as /b/{identifier}
+    result = await db.execute(
+        select(Business).where(Business.slug == identifier, Business.deleted_at == None)
+    )
+    business = result.scalar_one_or_none()
+
+    if not business:
+        try:
+            biz_id = uuid.UUID(identifier)
+            result = await db.execute(
+                select(Business).where(Business.id == biz_id, Business.deleted_at == None)
+            )
+            business = result.scalar_one_or_none()
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Business not found")
+
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+
+    # Fetch products with the approved filter (no stock filtering here)
+    product_result = await db.execute(
+        select(Product).where(
+            Product.business_id == business.id,
+            Product.deleted_at == None,
+            Product.is_available == True,
+        )
+    )
+    products = product_result.scalars().all()
+
+    # Preload all images in one query, ordered by position
+    product_ids = [p.id for p in products]
+    images_by_product = {}
+    if product_ids:
+        img_result = await db.execute(
+            select(ProductImage)
+            .where(ProductImage.product_id.in_(product_ids))
+            .order_by(ProductImage.position)
+        )
+        for img in img_result.scalars().all():
+            images_by_product.setdefault(img.product_id, []).append(
+                {"id": img.id, "position": img.position, "url": f"/api/v1/product/{img.id}"}
+            )
+
+    # Build the customer-facing response
+    return [
+        CustomerProductInfo(
+            id=p.id,
+            name=p.name,
+            description=p.description,
+            original_price=float(p.original_price),
+            discount_price=float(p.discount_price) if p.discount_price is not None else None,
+            selling_unit=p.selling_unit,
+            min_order_quantity=p.min_order_quantity,
+            max_order_quantity=p.max_order_quantity,
+            track_inventory=p.track_inventory,
+            stock_quantity=p.stock_quantity,
+            category_id=p.category_id,
+            images=images_by_product.get(p.id, []),
+        )
+        for p in products
+    ]

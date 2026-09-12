@@ -490,7 +490,7 @@ const OrderTracking: React.FC = () => {
                                                             <span className="ot-step-time">{stepTime.toLocaleTimeString()}</span>
                                                         )}
                                                     </div>
-                                                    {step === 'out_for_delivery' && (
+                                                    {isCurrent && step === 'out_for_delivery' && (
                                                         <button
                                                             onClick={() => navigate(`/order/${id}/live-track`)}
                                                             style={{
