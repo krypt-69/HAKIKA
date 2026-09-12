@@ -77,6 +77,7 @@ const NavigationMap: React.FC<Props> = ({
   const routeLayerIdsRef = useRef<string[]>([]);
   const mapReadyRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
+  const [styleSettled, setStyleSettled] = React.useState(false);
   const forceFitRef = useRef(false);
   const hadRouteRef = useRef(false);
   const [isFollowing, setIsFollowing] = useState(true);
@@ -168,6 +169,7 @@ const NavigationMap: React.FC<Props> = ({
       map.current = null;
       mapReadyRef.current = false;
       setMapReady(false);
+      setStyleSettled(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -232,7 +234,17 @@ const NavigationMap: React.FC<Props> = ({
   // so GPS ticks never trigger a full teardown/rebuild -> no more blinking.
   useEffect(() => {
     const m = map.current;
-    if (!m || !mapReadyRef.current || !m.isStyleLoaded()) return;
+    if (!m || !mapReadyRef.current) return;
+
+    if (!m.isStyleLoaded()) {
+      // Mapbox can fire 'load' before isStyleLoaded() flips true. Wait for idle,
+      // then rerun this effect via the styleSettled dependency.
+      const onIdle = () => setStyleSettled(true);
+      m.once('idle', onIdle);
+      return () => {
+        try { m.off('idle', onIdle); } catch {}
+      };
+    }
 
     clearRadius();
     clearRoutes();
@@ -333,7 +345,7 @@ const NavigationMap: React.FC<Props> = ({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, bLat, bLon, cLat, cLon, selectedRadius, activeRoute, referenceRoute, tripRouteGeometry, navigationPhase, businessToCustomerKm, riderToBusinessKm]);
+  }, [mapReady, styleSettled, bLat, bLon, cLat, cLon, selectedRadius, activeRoute, referenceRoute, tripRouteGeometry, navigationPhase, businessToCustomerKm, riderToBusinessKm]);
 
   // ---- Rider marker: created once, then just moved. This is what makes
   // movement smooth instead of snapping (markers.ts adds a CSS transition).
