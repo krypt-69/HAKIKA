@@ -179,6 +179,27 @@ const LiveTrack: React.FC = () => {
     });
 
     map.on('load', () => {
+      // Same approach as the rider app: keep only road, place, boundary,
+      // and admin label layers. Hide every other symbol layer (POI,
+      // transit, shops, churches, business names, etc.).
+      const layers = map.getStyle().layers || [];
+      const hiddenIds: string[] = [];
+      layers.forEach((layer) => {
+        if (layer.type !== 'symbol') return;
+        const id = layer.id || '';
+        const keep =
+          id.includes('road-label') ||
+          id.includes('place-label') ||
+          id.includes('boundary') ||
+          id.includes('admin');
+        if (!keep) hiddenIds.push(id);
+      });
+      hiddenIds.forEach(id => {
+        if (map.getLayer(id)) {
+          try { map.setLayoutProperty(id, 'visibility', 'none'); } catch {}
+        }
+      });
+
       map.addSource(ROUTE_SOURCE_ID, {
         type: 'geojson',
         data: {
