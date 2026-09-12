@@ -362,9 +362,33 @@ class OrderService:
         customer = await self.customer_repo.get_by_id(customer_id)
         return customer.phone_normalized if customer else None
 
+
+    def _coords_to_geojson(self, coords) -> dict | None:
+        """Convert a PostGIS/GeoJSON/WKT/WKB coordinates value into a GeoJSON Point."""
+        if coords is None:
+            return None
+        # Already GeoJSON
+        if isinstance(coords, dict) and coords.get("type") == "Point":
+            return coords
+        # WKT string
+        if isinstance(coords, str):
+            import re
+            m = re.search(r"POINT\(\s*([-\d.]+)\s+([-\d.]+)\s*\)", coords, re.IGNORECASE)
+            if m:
+                return {"type": "Point", "coordinates": [float(m.group(1)), float(m.group(2))]}
+            return None
+        # WKBElement (PostGIS) — use geoalchemy2 shape
+        try:
+            from geoalchemy2.shape import to_shape
+            point = to_shape(coords)
+            return {"type": "Point", "coordinates": [float(point.x), float(point.y)]}
+        except Exception:
+            return None
+
     def _to_response(self, order, order_items, customer_phone: str | None = None) -> OrderResponse:
         return OrderResponse(
             id=order.id,
+            delivery_coordinates=self._coords_to_geojson(order.delivery_coordinates),
             order_number=order.order_number,
             status=order.status.value,
             subtotal=float(order.subtotal),

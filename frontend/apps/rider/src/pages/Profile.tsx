@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, authenticatedFetch } from '@hakika/auth';
 import { Config } from '@hakika/config';
 import { CameraIcon, PhoneIcon, CheckCircleIcon, AlertIcon } from '../components/icons';
-import { color, radius, shadow, type } from '../styles/tokens';
+import { color, radius, shadow, font } from '../styles/tokens';
 
 const BackIcon: React.FC<{ size?: number; c?: string }> = ({ size = 16, c = 'currentColor' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -99,14 +99,14 @@ const Profile: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: color.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ color: color.inkFaint, fontSize: 14, fontFamily: type.family }}>Loading profile\u2026</span>
+      <div style={{ minHeight: '100vh', background: color.surfaceMuted, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ color: color.inkFaint, fontSize: 14, fontFamily: font.family }}>Loading profile\u2026</span>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: color.bg, fontFamily: type.family }}>
+    <div style={{ minHeight: '100vh', background: color.surfaceMuted, fontFamily: font.family }}>
       {/* Sticky header */}
       <div style={{ position: 'sticky', top: 0, zIndex: 20, background: color.surface, borderBottom: `1px solid ${color.border}` }}>
         <div style={{ maxWidth: 520, margin: '0 auto', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>

@@ -219,11 +219,15 @@ const OrderCard: React.FC<Props> = ({
           }}
         >
           <span>{showMore ? 'Hide details' : 'More details'}</span>
-          <ChevronRightIcon
-            size={16}
-            color={color.inkFaint}
-            style={{ transform: showMore ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s ease' }}
-          />
+          <span
+            style={{
+              display: 'inline-flex',
+              transform: showMore ? 'rotate(90deg)' : 'none',
+              transition: 'transform 0.15s ease',
+            }}
+          >
+            <ChevronRightIcon size={16} color={color.inkFaint} />
+          </span>
         </button>
       </div>
 

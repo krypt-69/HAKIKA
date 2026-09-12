@@ -26,7 +26,7 @@ import {
   AlertIcon,
   CheckCircleIcon,
 } from '../components/icons';
-import { color, radius, shadow, type } from '../styles/tokens';
+import { color, radius, shadow, font } from '../styles/tokens';
 
 import { Order, OrderItem } from '../types/order';
 
@@ -267,7 +267,7 @@ const Home: React.FC = () => {
   );
 
   return (
-    <div style={{ background: color.bg, minHeight: '100vh', fontFamily: type.family }}>
+    <div style={{ background: color.surfaceMuted, minHeight: '100vh', fontFamily: font.family }}>
       {/* Sticky header */}
       <div
         style={{
@@ -583,7 +583,7 @@ const Home: React.FC = () => {
                 disabled={tripOrderIds.length === 0}
                 style={{
                   padding: '9px 16px',
-                  background: tripOrderIds.length === 0 ? color.borderStrong : color.ink,
+                  background: tripOrderIds.length === 0 ? color.border : color.ink,
                   color: color.surface,
                   border: 'none',
                   borderRadius: radius.sm,
@@ -635,7 +635,7 @@ const Home: React.FC = () => {
               padding: '40px 16px',
               background: color.surface,
               borderRadius: radius.lg,
-              border: `1px dashed ${color.borderStrong}`,
+              border: `1px dashed ${color.border}`,
               color: color.inkFaint,
               fontSize: 13.5,
             }}

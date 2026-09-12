@@ -13,6 +13,7 @@ import { reconcileTripWithActiveOrders, advanceTripAfterStopCompleted } from '..
 import { useOrders } from '../hooks/useOrders';
 import { loadActiveTrip, saveActiveTrip, clearActiveTrip } from '../services/navigationPersistence';
 import { getDarkMode, setDarkMode } from '../mapbox/init';
+import { sendTrackingMessage } from '../websocket';
 import MapModeToggle from '../components/MapModeToggle';
 import { calculateRouteProgress, type RouteProgress } from '../services/routeProgress';
 import { orderToDestination, stopToDestination, type NavigationDestination } from '../services/navigationDestination';
@@ -118,6 +119,7 @@ const NavigationScreen: React.FC = () => {
     if (effectiveTrip) saveActiveTrip(effectiveTrip);
   }, [effectiveTrip]);
   const [navigationTarget, setNavigationTarget] = useState<NavigationDestination | null>(null);
+  const trackingOrderIdRef = useRef<string | null>(null);
   const [hasArrived, setHasArrived] = useState(false);
   useEffect(() => { setNavigationTarget(null); setHasArrived(false); }, [order?.id, effectiveTrip?.id]);
 
@@ -326,6 +328,18 @@ const NavigationScreen: React.FC = () => {
     }
   }
 
+
+  // Start tracking when a valid order is active.
+  // No dependency on mapReady — tracking is a GPS concern.
+  useEffect(() => {
+    console.log('NavigationScreen: start-tracking effect', { orderId });
+    if (!orderId) return;
+    if (trackingOrderIdRef.current === orderId) return;
+    trackingOrderIdRef.current = orderId;
+    console.log('NavigationScreen: sending start_tracking', { orderId });
+    sendTrackingMessage('start_tracking', { order_id: orderId });
+  }, [orderId]);
+
   // Request real GPS location on mount
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -361,6 +375,19 @@ const NavigationScreen: React.FC = () => {
         updateSmoothedHeading(
           typeof pos.coords.heading === 'number' ? pos.coords.heading : null
         );
+
+        // Publish to tracking only if a session is active for this order
+        const activeOrderId = trackingOrderIdRef.current;
+        if (activeOrderId) {
+          sendTrackingMessage('location_update', {
+            order_id: activeOrderId,
+            latitude: loc[1],
+            longitude: loc[0],
+            heading: typeof pos.coords.heading === 'number' ? pos.coords.heading : null,
+            speed: typeof pos.coords.speed === 'number' ? pos.coords.speed : null,
+            timestamp: new Date().toISOString(),
+          });
+        }
       },
       () => {
         console.warn('Geolocation unavailable; using fallback location.');
@@ -553,8 +580,22 @@ const NavigationScreen: React.FC = () => {
     // Placeholder for B7 evidence capture
   };
 
+  const handleBack = () => {
+    const activeOrderId = trackingOrderIdRef.current;
+    if (activeOrderId) {
+      sendTrackingMessage('stop_tracking', { order_id: activeOrderId });
+      trackingOrderIdRef.current = null;
+    }
+    navigate('/');
+  };
+
   const handleArrived = async () => {
     if (!orderId || !riderLocation) return;
+    const activeOrderId = trackingOrderIdRef.current;
+    if (activeOrderId === orderId) {
+      sendTrackingMessage('stop_tracking', { order_id: orderId });
+      trackingOrderIdRef.current = null;
+    }
     try {
       await authenticatedFetch(
         `${Config.API_BASE}/delivery/orders/${orderId}/arrive?gps_lat=${riderLocation[1]}&gps_lon=${riderLocation[0]}`,
@@ -572,6 +613,10 @@ const NavigationScreen: React.FC = () => {
     }
   };
 
+
+
+  console.log('NAV DEBUG', { order, effectiveTrip, destination, riderLocation, navigationPhase });
+
   if (!order && !effectiveTrip) {
     return <div style={{ padding: 24 }}>No navigation destination found. Please go back and try again.</div>;
   }
@@ -579,7 +624,7 @@ const NavigationScreen: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#ffffff' }}>
       <div style={{ flex: 3, minHeight: 0, position: 'relative' }}>
-        {riderLocation && (
+        {riderLocation && (order || effectiveTrip) && (
         <NavigationMap
           key={darkMode ? 'dark' : 'light'}
           riderLocation={riderLocation}
@@ -604,7 +649,7 @@ const NavigationScreen: React.FC = () => {
 
         )}
         <button
-          onClick={() => navigate('/')}
+          onClick={handleBack}
           style={{
             position: 'absolute',
             top: 16,

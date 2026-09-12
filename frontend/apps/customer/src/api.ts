@@ -50,6 +50,8 @@ export const api = {
             .then(r => { if (!r.ok) throw new Error('Payment initiation failed'); return r.json(); }),
     getPaymentStatus: (orderId: string) =>
         request<any>(`/payments/orders/${orderId}`),
+    getRiderLocation: (orderId: string, phone: string) =>
+        request<any>(`/orders/${orderId}/rider-location?phone=${encodeURIComponent(phone)}`),
     payOrder: (id: string, phone: string) =>
         request<any>(`/orders/${id}/pay?phone=${encodeURIComponent(phone)}`, { method: 'POST' }),
     mockCallback: (checkoutId: string) =>

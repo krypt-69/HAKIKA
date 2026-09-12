@@ -8,14 +8,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.20.0",
+    "@hakika/api-client": "file:../../packages/api-client",
     "@hakika/auth": "file:../../packages/auth",
-    "@hakika/ui": "file:../../packages/ui",
     "@hakika/config": "file:../../packages/config",
     "@hakika/types": "file:../../packages/types",
-    "@hakika/api-client": "file:../../packages/api-client"
+    "@hakika/ui": "file:../../packages/ui",
+    "mapbox-gl": "^3.30.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.20.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",

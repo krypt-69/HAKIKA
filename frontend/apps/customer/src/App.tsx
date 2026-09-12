@@ -1,7 +1,7 @@
 import { Config } from "@hakika/config";
 import { registerSW } from 'virtual:pwa-register'
 import UpdatePrompt from './components/UpdatePrompt';
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate, useParams } from 'react-router-dom';
 import Home from './pages/Home';
 import { api } from './api';
@@ -13,6 +13,7 @@ import OrderTracking from './pages/OrderTracking';
 import MyOrders from './pages/MyOrders';
 import Notifications from './pages/Notifications';
 import Receipt from './pages/Receipt';
+const LiveTrack = lazy(() => import('./pages/LiveTrack'));
 
 const HomeIcon: React.FC = () => (
     React.createElement('svg', {
@@ -362,6 +363,14 @@ const App: React.FC = () => {
                 <Route path="/my-orders" element={<MyOrders />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/receipt/:id" element={<Receipt />} />
+                <Route
+                    path="/order/:id/live-track"
+                    element={
+                        <Suspense fallback={<div style={{ padding: 20 }}>Loading live tracking…</div>}>
+                            <LiveTrack />
+                        </Suspense>
+                    }
+                />
             </Routes>
             <UpdatePrompt needRefresh={needRefresh} setNeedRefresh={setNeedRefresh} />
             <BottomNav />

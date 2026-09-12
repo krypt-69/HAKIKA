@@ -501,7 +501,19 @@ const OrderTracking: React.FC = () => {
 
                     <div className="ot-right-col">
                         <div className="ot-items-card">
-                            <h2 className="ot-section-title">Items</h2>
+                            {order && order.status === 'out_for_delivery' && (
+                            <div style={{ marginTop: 16, marginBottom: 16 }}>
+                                <button
+                                    onClick={() => navigate(`/order/${id}/live-track`)}
+                                    className="ot-btn ot-btn-primary"
+                                    style={{ padding: '12px 20px', borderRadius: 8, fontWeight: 600 }}
+                                >
+                                    LIVE TRACK
+                                </button>
+                            </div>
+                        )}
+
+                        <h2 className="ot-section-title">Items</h2>
                             {order.items?.map((item: any) => (
                                 <div key={item.id} className="ot-item-row">
                                     {item.thumbnail_url ? (

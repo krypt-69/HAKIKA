@@ -24,6 +24,7 @@ class OrderItemResponse(BaseModel):
 class OrderResponse(BaseModel):
     distance_km: float | None = None
     delivery_location: dict | None = None
+    delivery_coordinates: dict | None = None
     customer_phone: str | None = None
     id: uuid.UUID
     order_number: str
