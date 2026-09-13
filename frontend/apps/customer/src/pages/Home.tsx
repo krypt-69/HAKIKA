@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import { Link, useNavigate } from "react-router-dom";
+import { createPortal } from 'react-dom';
 import DesktopHome from '../components/DesktopHome';
 import { api } from '../api';
 import { useFeedContext, BusinessCard } from '../CustomerFeedContext';
@@ -487,25 +488,31 @@ const Home: React.FC = () => {
     // Guards against re-running the restore-scroll effect more than once per mount
     // (e.g. if allBusinesses updates again later from pagination).
     const restoredRef = useRef(false);
+    // True once the initial Home discovery cycle (GPS + first fetch) has finished,
+    // or once we've taken the cached/restored path that skips discovery.
+    const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
     // Fade-out state for the initial mobile loading screen.
     // Purely presentational — does not touch loading/gpsLoading/fetchBusinesses.
     const [loaderVisible, setLoaderVisible] = useState(true);
     const [loaderFading, setLoaderFading] = useState(false);
     useEffect(() => {
-        if (gpsLoading || loading) {
+        // Full-screen loader is shown ONLY during the initial Home discovery cycle.
+        // Once initialLoadComplete is true, this effect never re-shows the loader,
+        // regardless of subsequent loading/gpsLoading transitions.
+        if (!initialLoadComplete && (gpsLoading || loading)) {
             setLoaderVisible(true);
             setLoaderFading(false);
             return;
         }
-        // Loading just finished — start fade-out
+        // Initial cycle complete (or we're on the cached path) — fade out.
         setLoaderFading(true);
         const t = setTimeout(() => {
             setLoaderVisible(false);
             setLoaderFading(false);
         }, 300);
         return () => clearTimeout(t);
-    }, [gpsLoading, loading]);
+    }, [gpsLoading, loading, initialLoadComplete]);
 
     const {
         businesses: allBusinesses, nextCursor,
@@ -609,21 +616,25 @@ const Home: React.FC = () => {
                         // first synchronous statement) BEFORE flipping gpsLoading
                         // false, so there's never a moment where both are false
                         // with an empty business list still on screen.
-                        fetchBusinesses(loc.lat, loc.lon, selectedCategory, radiusMeters, searchText);
+                        fetchBusinesses(loc.lat, loc.lon, selectedCategory, radiusMeters, searchText)
+                            .then(() => setInitialLoadComplete(true));
                         setGpsLoading(false);
                     },
                     () => {
-                        fetchBusinesses(undefined, undefined, selectedCategory, undefined, searchText);
+                        fetchBusinesses(undefined, undefined, selectedCategory, undefined, searchText)
+                            .then(() => setInitialLoadComplete(true));
                         setGpsLoading(false);
                     },
                     { timeout: 8000 }
                 );
             } else {
-                fetchBusinesses(undefined, undefined, selectedCategory, undefined, searchText);
+                fetchBusinesses(undefined, undefined, selectedCategory, undefined, searchText)
+                    .then(() => setInitialLoadComplete(true));
             }
         } else {
             restoredRef.current = false;
             setLoading(false);
+            setInitialLoadComplete(true);
             if (!scrollAnchorId) window.scrollTo(0, 0);
         }
     }, []);
@@ -1129,13 +1140,13 @@ const Home: React.FC = () => {
 
                 {error && <div className="hk-container" style={{ marginTop: 10, padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#dc2626', fontSize: 12 }}>{error}</div>}
 
-                {loaderVisible && (
+                {loaderVisible && createPortal(
                     <div
                         style={{
                             position: 'fixed',
                             inset: 0,
                             background: '#FFFFFF',
-                            zIndex: 1500,
+                            zIndex: 2000,
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
@@ -1161,15 +1172,27 @@ const Home: React.FC = () => {
                             }}
                         />
                         <CategorySpinner size={64} color="#16a34a" />
-                    </div>
+                    </div>,
+                    document.body
                 )}
 
-                {!gpsLoading && !loading && (
+                {!gpsLoading && (!loading || initialLoadComplete) && (
                     <div style={{ paddingBottom: 24 }}>
+                        {/* Subsequent non-pagination fetches (category change, search, radius) —
+                            old results stay visible, spinner appears above the grid. */}
+                        {loading && initialLoadComplete && (
+                            <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
+                                <CategorySpinner size={36} color="#16a34a" />
+                            </div>
+                        )}
+
                         {allBusinesses.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '48px 20px', color: mutedText }}><div style={{ fontSize: 15, fontWeight: 600, color: textColor, marginBottom: 6 }}>No businesses found</div><div style={{ fontSize: 12 }}>Try adjusting your location or search terms</div></div>
                         ) : hasSearch ? buildSearchLayout() : buildDefaultLayout()}
+
                         <div ref={sentinelRef} style={{ height: 1 }} />
+
+                        {/* Existing pagination behavior — spinner stays below the grid. */}
                         {loadingMore && (
                             <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
                                 <CategorySpinner size={36} color="#16a34a" />
