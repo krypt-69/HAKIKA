@@ -488,6 +488,25 @@ const Home: React.FC = () => {
     // (e.g. if allBusinesses updates again later from pagination).
     const restoredRef = useRef(false);
 
+    // Fade-out state for the initial mobile loading screen.
+    // Purely presentational — does not touch loading/gpsLoading/fetchBusinesses.
+    const [loaderVisible, setLoaderVisible] = useState(true);
+    const [loaderFading, setLoaderFading] = useState(false);
+    useEffect(() => {
+        if (gpsLoading || loading) {
+            setLoaderVisible(true);
+            setLoaderFading(false);
+            return;
+        }
+        // Loading just finished — start fade-out
+        setLoaderFading(true);
+        const t = setTimeout(() => {
+            setLoaderVisible(false);
+            setLoaderFading(false);
+        }, 300);
+        return () => clearTimeout(t);
+    }, [gpsLoading, loading]);
+
     const {
         businesses: allBusinesses, nextCursor,
         searchText, selectedCategory,
@@ -1110,29 +1129,38 @@ const Home: React.FC = () => {
 
                 {error && <div className="hk-container" style={{ marginTop: 10, padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#dc2626', fontSize: 12 }}>{error}</div>}
 
-                {(gpsLoading || loading) && (
-                    <div style={{
-                        position: 'fixed',
-                        inset: 0,
-                        background: 'rgba(255,255,255,0.85)',
-                        zIndex: 1500,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 18,
-                    }}>
-                        <div style={{
-                            width: 64,
-                            height: 64,
-                            borderRadius: '50%',
-                            border: '6px solid #e5e7eb',
-                            borderTopColor: '#16a34a',
-                            animation: 'spin 0.8s linear infinite',
-                        }} />
-                        <div style={{ fontSize: 15, fontWeight: 700, color: '#16a34a' }}>
-                            Opening GPS and finding nearby shops…
-                        </div>
+                {loaderVisible && (
+                    <div
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: '#FFFFFF',
+                            zIndex: 1500,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 24,
+                            opacity: loaderFading ? 0 : 1,
+                            transition: 'opacity 300ms ease',
+                            pointerEvents: loaderFading ? 'none' : 'auto',
+                        }}
+                        role="status"
+                        aria-live="polite"
+                        aria-label="Loading nearby shops"
+                    >
+                        <img
+                            src="/customer/logo.png"
+                            alt="Hakika"
+                            style={{
+                                display: 'block',
+                                width: 400,
+                                height: 'auto',
+                                maxWidth: '60%',
+                                objectFit: 'contain',
+                            }}
+                        />
+                        <CategorySpinner size={64} color="#16a34a" />
                     </div>
                 )}
 
