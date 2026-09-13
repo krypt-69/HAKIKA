@@ -23,6 +23,43 @@ interface CreditPlan {
   description: string | null;
 }
 
+export interface BusinessDetail {
+  id: string;
+  slug: string;
+  name: string;
+  category_id: number;
+  description: string | null;
+  trust_score: number;
+  credit_balance: number | null;
+  remaining_credit_volume: number | null;
+  payment_model: string | null;
+  collect_payment_before_delivery: boolean | null;
+  next_credit_expiry: string | null;
+  logo_url: string | null;
+  locations: Array<{
+    id: string;
+    lat: number;
+    lon: number;
+    address_text: string | null;
+    is_primary: boolean;
+  }>;
+  operating_hours: Array<{
+    id: string;
+    day_of_week: number;
+    opens_at: string | null;
+    closes_at: string | null;
+    is_closed: boolean;
+  }>;
+  payment_methods: Array<{
+    id: string;
+    type: 'till' | 'paybill';
+    account_number?: string | null;
+    paybill_short_code?: string | null;
+    last_four_digits: string | null;
+    is_active: boolean;
+  }>;
+}
+
 async function getValidToken(): Promise<string | null> {
   const token = localStorage.getItem('hakika_business_token');
   if (!token) return null;
@@ -100,7 +137,7 @@ export const api = {
   },
   businesses: {
     list: () => request<any[]>('/businesses'),
-    get: (id: string) => request<any>(`/businesses/${id}`),
+    get: (id: string) => request<BusinessDetail>(`/businesses/${id}`),
     create: (data: any) => request<any>('/businesses', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => request<any>(`/businesses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   },

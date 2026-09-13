@@ -74,6 +74,7 @@ class BusinessResponse(BaseModel):
     trust_score: float
     credit_balance: float | None = None
     remaining_credit_volume: float | None = None
+    next_credit_expiry: datetime | None = None
     payment_model: str | None = None
     collect_payment_before_delivery: bool | None = None
     logo_url: str | None

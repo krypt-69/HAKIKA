@@ -38,6 +38,19 @@ const formatKES = (value: number, decimals: number = 2) =>
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' });
 
+// Strict calendar-date preservation for the credit expiry field.
+// Does NOT go through JS timezone machinery.
+const formatExpiry = (iso: string | null | undefined): string => {
+  if (!iso) return '—';
+  const datePart = iso.slice(0, 10);
+  const parts = datePart.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return '—';
+  const [y, m, d] = parts;
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  if (m < 1 || m > 12) return '—';
+  return `${d} ${MONTHS[m - 1]} ${y}`;
+};
+
 const statusTone: Record<string, { fg: string; bg: string; label: string }> = {
   completed: { fg: tokens.emerald, bg: tokens.emeraldSoft, label: 'Completed' },
   success: { fg: tokens.emerald, bg: tokens.emeraldSoft, label: 'Completed' },
@@ -289,6 +302,9 @@ const CreditPaymentsView: React.FC<{ business: any }> = ({ business }) => {
             }}
           >
             KES {formatKES(creditBalance)}
+            <span style={{ display: 'block', marginTop: 6, fontSize: '0.82rem', color: '#9BA3B2' }}>
+              Expires: {formatExpiry(business.next_credit_expiry)}
+            </span>
           </p>
           {lowCredit && (
             <p style={{ color: '#E8917C', fontSize: '0.85rem', marginTop: 10 }}>

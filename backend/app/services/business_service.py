@@ -19,6 +19,7 @@ from app.core.exceptions import HakikaHTTPException
 from app.constants.payment_policies import PaymentPolicyKey
 from app.services.payment_policy_service import PaymentPolicyService
 from app.repositories.payment_policy_repository import PaymentPolicyRepository
+from datetime import datetime
 
 class BusinessService:
     def __init__(
@@ -160,7 +161,8 @@ class BusinessService:
             locs = await self.location_repo.get_by_business(b.id)
             hrs = await self.hours_repo.get_by_business(b.id)
             pms = await self.payment_repo.get_by_business(b.id)
-            resp.append(self._build_response(b, locs, hrs, pms))
+            expiry = await self._next_credit_expiry(b.id)
+            resp.append(self._build_response(b, locs, hrs, pms, next_credit_expiry=expiry))
         return resp
 
     async def get_business_detail(self, business_id: uuid.UUID, user: User) -> BusinessResponse:
@@ -172,7 +174,8 @@ class BusinessService:
         locs = await self.location_repo.get_by_business(business.id)
         hrs = await self.hours_repo.get_by_business(business.id)
         pms = await self.payment_repo.get_by_business(business.id)
-        return self._build_response(business, locs, hrs, pms)
+        expiry = await self._next_credit_expiry(business.id)
+        return self._build_response(business, locs, hrs, pms, next_credit_expiry=expiry)
 
     async def update_business(self, business_id: uuid.UUID, user: User, data: BusinessUpdateRequest) -> BusinessResponse:
         business = await self.business_repo.get_by_id(business_id)
@@ -231,7 +234,16 @@ class BusinessService:
             raise HTTPException(status_code=403, detail="Forbidden")
         await self.business_repo.soft_delete(business)
 
-    def _build_response(self, business: Business, locations: list, hours: list, payment_methods: list) -> BusinessResponse:
+    async def _next_credit_expiry(self, business_id: uuid.UUID) -> datetime | None:
+        """Earliest non-expired allocation with remaining credit/volume, or None."""
+        from app.repositories.credit_allocation_repository import CreditAllocationRepository
+        repo = CreditAllocationRepository(self.business_repo.db)
+        rows = await repo.list_valid_for_business(business_id, datetime.utcnow())
+        if not rows:
+            return None
+        return rows[0].expires_at
+
+    def _build_response(self, business: Business, locations: list, hours: list, payment_methods: list, next_credit_expiry: datetime | None = None) -> BusinessResponse:
         loc_resps = []
         for loc in locations:
             point = to_shape(loc.coordinates)
@@ -248,6 +260,7 @@ class BusinessService:
             collect_payment_before_delivery=business.collect_payment_before_delivery,
             credit_balance=float(business.credit_balance) if business.credit_balance else 0.0,
             remaining_credit_volume=float(business.remaining_credit_volume) if business.remaining_credit_volume else 0.0,
+            next_credit_expiry=next_credit_expiry,
             logo_url=business.logo_url, locations=loc_resps, operating_hours=hrs_resps,
             payment_methods=pm_resps
         )
