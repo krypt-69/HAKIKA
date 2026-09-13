@@ -36,7 +36,7 @@ const Login: React.FC = () => {
     <div className="login-page">
       <div className="login-card">
         <div className="brand-block">
-          <div className="brand-mark">H</div>
+          <img src="/business/logo.png" alt="Hakika" className="brand-mark" />
           <h1 className="brand-title">Hakika Business</h1>
           <p className="brand-sub">Sign in to manage your store</p>
         </div>
@@ -126,16 +126,10 @@ const Login: React.FC = () => {
           margin-bottom: 28px;
         }
         .brand-mark {
-          width: 52px;
-          height: 52px;
-          border-radius: 14px;
-          background: ${BLACK};
-          color: ${GREEN};
-          font-weight: 800;
-          font-size: 1.4rem;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          width: 156px;
+          height: 156px;
+          display: block;
+          object-fit: contain;
           margin: 0 auto 14px auto;
         }
         .brand-title {

@@ -69,22 +69,16 @@ const DashboardLayout: React.FC = () => {
         >
           {/* Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
+            <img
+              src="/business/logo.png"
+              alt="Hakika"
               style={{
-                width: 34,
-                height: 34,
-                borderRadius: 8,
-                background: BLACK,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: GREEN,
-                fontWeight: 800,
-                fontSize: '1rem',
+                width: 52,
+                height: 52,
+                display: 'block',
+                objectFit: 'contain',
               }}
-            >
-              H
-            </div>
+            />
             <div>
               <h1 style={{ color: BLACK, fontSize: '1.05rem', fontWeight: 700, lineHeight: 1 }}>
                 Hakika

@@ -186,6 +186,18 @@ const DesktopHome: React.FC<Props> = ({
 
       {/* Hero / search */}
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '68px 32px 56px', textAlign: 'center' }}>
+        <img
+          src="/customer/logo.png"
+          alt="Hakika"
+          style={{
+            display: 'block',
+            width: 180,
+            height: 'auto',
+            maxWidth: '60%',
+            margin: '0 auto 28px',
+            objectFit: 'contain',
+          }}
+        />
         <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 620, fontSize: 46, lineHeight: 1.08, letterSpacing: '-0.01em', margin: 0, marginBottom: 14 }}>
           What&rsquo;s open, what&rsquo;s fresh, what&rsquo;s close
         </h1>
