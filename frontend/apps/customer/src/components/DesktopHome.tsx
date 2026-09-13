@@ -191,7 +191,7 @@ const DesktopHome: React.FC<Props> = ({
           alt="Hakika"
           style={{
             display: 'block',
-            width: 180,
+            width: 450,
             height: 'auto',
             maxWidth: '60%',
             margin: '0 auto 28px',
