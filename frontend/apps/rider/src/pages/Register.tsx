@@ -190,17 +190,34 @@ const Register: React.FC = () => {
 
         /* ---------- Form panel ---------- */
         .hk-form-panel {
+          position: relative;
           flex: 1;
           display: flex;
           align-items: center;
           justify-content: center;
           padding: 40px 24px;
           overflow-y: auto;
+          overflow-x: hidden;
         }
 
         .hk-form-card {
+          position: relative;
+          z-index: 1;
           width: 100%;
           max-width: 420px;
+        }
+
+        .hk-form-watermark {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: clamp(320px, 55vw, 520px);
+          height: auto;
+          opacity: 1;
+          pointer-events: none;
+          user-select: none;
+          z-index: 0;
         }
 
         .hk-form-card h2 {
@@ -430,6 +447,12 @@ const Register: React.FC = () => {
       </div>
 
       <div className="hk-form-panel">
+        <img
+          src="/rider/logo.png"
+          alt=""
+          aria-hidden="true"
+          className="hk-form-watermark"
+        />
         <div className="hk-form-card">
           <h2>Create your account</h2>
           <p className="hk-form-sub">A few details and you're ready to ride.</p>

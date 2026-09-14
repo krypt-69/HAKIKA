@@ -1,57 +1,64 @@
-:8080 {
-    # Redirect bare paths to slash-terminated versions
-    @customer {
-        path /customer
-    }
-    redir @customer /customer/ permanent
+:80 {
+	@customer {
+		path /customer
+	}
+	redir @customer /customer/ permanent
 
-    @business {
-        path /business
-    }
-    redir @business /business/ permanent
+	@business {
+		path /business
+	}
+	redir @business /business/ permanent
 
-    @rider {
-        path /rider
-    }
-    redir @rider /rider/ permanent
+	@rider {
+		path /rider
+	}
+	redir @rider /rider/ permanent
 
-    @admin {
-        path /admin
-    }
-    redir @admin /admin/ permanent
+	@admin {
+		path /admin
+	}
+	redir @admin /admin/ permanent
 
-    # Root redirect to customer app
-    handle / {
-        redir /customer/ permanent
-    }
+	@root {
+		path /
+	}
+	redir @root /customer/ permanent
 
-    # Customer App
-    handle /customer/* {
-        reverse_proxy localhost:3002
-    }
+	handle /customer/* {
+		reverse_proxy localhost:3002
+	}
 
-    # Business App
-    handle /business/* {
-        reverse_proxy localhost:3001
-    }
+	handle /business/* {
+		reverse_proxy localhost:3001
+	}
 
-    # Rider App
-    handle /rider/* {
-        reverse_proxy localhost:3003
-    }
+	handle /rider/* {
+		reverse_proxy localhost:3003
+	}
 
-    # Admin App
-    handle /admin/* {
-        reverse_proxy localhost:3004
-    }
+	handle /admin/* {
+		reverse_proxy localhost:3004
+	}
 
-    # Backend API
-    handle /api/v1/* {
-        reverse_proxy localhost:8000
-    }
+	# WebSocket endpoints — explicit upgrade
+	handle /api/v1/ws/* {
+		reverse_proxy localhost:8000 {
+			header_up Upgrade {http.request.header.Upgrade}
+			header_up Connection {http.request.header.Connection}
+		}
+	}
 
-    # Uploads
-    handle /uploads/* {
-        reverse_proxy localhost:8000
-    }
+	handle /api/v1/* {
+		request_body {
+			max_size 50MB
+		}
+		reverse_proxy localhost:8000
+	}
+
+	handle /uploads/* {
+		request_body {
+			max_size 50MB
+		}
+		reverse_proxy localhost:8000
+	}
 }

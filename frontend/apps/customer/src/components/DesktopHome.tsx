@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { BusinessCard } from '../CustomerFeedContext';
+import { Config } from '@hakika/config';
 
 interface Props {
   businesses: BusinessCard[];
@@ -160,6 +161,50 @@ const DesktopHome: React.FC<Props> = ({
           .hk-shop-card:hover, .hk-logo-btn:hover { transform: none !important; }
           .hk-spinner, .hk-logo-overlay, .hk-logo-zoom-img { animation: none !important; }
         }
+
+        /* ── Desktop top-left navigation (Business App / Rider App) ── */
+        .hk-topnav {
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          gap: 14px;
+          margin-bottom: 8px;
+          padding: 0 32px;
+          max-width: 2240px;
+          margin-left: auto;
+          margin-right: auto;
+          box-sizing: border-box;
+        }
+        .hk-topnav-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 12px;
+          background: ${CARD};
+          border: 1px solid ${LINE};
+          border-radius: 999px;
+          padding: 16px 24px;
+          font-family: 'Inter', sans-serif;
+          font-size: 17px;
+          font-weight: 600;
+          color: ${INK};
+          cursor: pointer;
+          transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+          white-space: nowrap;
+        }
+        .hk-topnav-link:hover {
+          border-color: ${MOSS};
+          background: ${MOSS_SOFT};
+          color: ${MOSS_DARK};
+        }
+        .hk-topnav-link svg { flex-shrink: 0; }
+
+        .hk-hero-logo {
+          display: block;
+          width: 450px;
+          max-width: 100%;
+          height: auto;
+          margin: 0 auto 28px;
+        }
       `}</style>
 
       {/* Corner menu */}
@@ -184,25 +229,51 @@ const DesktopHome: React.FC<Props> = ({
         )}
       </div>
 
+      {/* Top-left navigation (aligned with the "Shops near you" wide container) */}
+      <div className="hk-topnav">
+        <button
+          type="button"
+          className="hk-topnav-link"
+          onClick={() => window.open(Config.BUSINESS_BASE, '_blank', 'noopener,noreferrer')}
+          aria-label="Open Business App in a new tab"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="8" height="8" rx="1.5" />
+            <rect x="13" y="3" width="8" height="8" rx="1.5" />
+            <rect x="3" y="13" width="8" height="8" rx="1.5" />
+            <rect x="13" y="13" width="8" height="8" rx="1.5" />
+          </svg>
+          <span>Business App</span>
+        </button>
+
+        <button
+          type="button"
+          className="hk-topnav-link"
+          onClick={() => window.open(Config.RIDER_BASE, '_blank', 'noopener,noreferrer')}
+          aria-label="Open Rider App in a new tab"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="5.5" cy="17.5" r="3.5" />
+            <circle cx="18.5" cy="17.5" r="3.5" />
+            <path d="M15 6h-5l-1.5 6.5M10 6l2.5 5.5" />
+            <path d="M8.5 17.5h10l-2-8H5.5l3 8z" />
+          </svg>
+          <span>Rider App</span>
+        </button>
+      </div>
+
       {/* Hero / search */}
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '68px 32px 56px', textAlign: 'center' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '8px 32px 56px', textAlign: 'center' }}>
         <img
           src="/customer/logo.png"
           alt="Hakika"
-          style={{
-            display: 'block',
-            width: 450,
-            height: 'auto',
-            maxWidth: '60%',
-            margin: '0 auto 28px',
-            objectFit: 'contain',
-          }}
+          className="hk-hero-logo"
         />
         <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 620, fontSize: 46, lineHeight: 1.08, letterSpacing: '-0.01em', margin: 0, marginBottom: 14 }}>
           What&rsquo;s open, what&rsquo;s fresh, what&rsquo;s close
         </h1>
         <p style={{ fontSize: 17, color: MUTED, maxWidth: 520, margin: '0 auto 32px', lineHeight: 1.55 }}>
-          Search the shops around you, browse what they carry, and see how far it is to walk there.
+          Search the shops around you,see there distance and make an order expect the businesses to deliver
         </p>
 
         <div style={{ display: 'flex', justifyContent: 'center' }}>

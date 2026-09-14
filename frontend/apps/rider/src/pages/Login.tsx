@@ -326,6 +326,17 @@ const Login: React.FC = () => {
 
       <div className="hk-form-panel">
         <div className="hk-form-card">
+          <img
+            src="/rider/logo.png"
+            alt="Hakika Rider"
+            style={{
+              display: 'block',
+              width: 350,
+              maxWidth: '100%',
+              height: 'auto',
+              margin: '0 auto 20px',
+            }}
+          />
           <h2>Welcome back</h2>
           <p className="hk-form-sub">Log in to book and track your rides.</p>
 
