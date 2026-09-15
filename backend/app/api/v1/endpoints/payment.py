@@ -52,9 +52,12 @@ async def payment_callback(
                 logger.warning("Invalid webhook signature")
         payload = await request.json()
         return await service.process_callback(payload)
+    except HTTPException:
+        # Re-raise so FastAPI returns the correct status code
+        raise
     except Exception as e:
         logger.error(f"Callback error: {e}", exc_info=True)
-        return {"status": "error", "detail": str(e)}
+        raise HTTPException(status_code=500, detail="Callback processing failed")
 
 @router.get("/orders/{order_id}")
 async def get_payment_status(

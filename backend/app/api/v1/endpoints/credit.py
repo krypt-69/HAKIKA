@@ -120,6 +120,8 @@ async def credit_callback(
                 logger.warning("Invalid webhook signature")
         payload = await request.json()
         return await service.process_credit_callback(payload)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Credit callback error: {e}", exc_info=True)
-        return {"status": "error", "detail": str(e)}
+        raise HTTPException(status_code=500, detail="Credit callback processing failed")

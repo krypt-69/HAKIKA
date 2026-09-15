@@ -79,7 +79,12 @@ class PayHeroProvider(PaymentProvider):
             data = resp.json()
             if not data.get("success"):
                 raise Exception(f"PayHero STK Push failed: {data}")
-            return {"id": data.get("reference") or data.get("CheckoutRequestID")}
+            return {
+                "id": data.get("reference") or data.get("CheckoutRequestID"),
+                "CheckoutRequestID": data.get("CheckoutRequestID"),
+                "MerchantRequestID": data.get("MerchantRequestID"),
+                "reference": data.get("reference"),
+            }
 
     async def get_payment_status(
         self,

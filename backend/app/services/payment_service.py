@@ -15,6 +15,7 @@ from app.repositories.payment_method_repository import PaymentMethodRepository
 from app.payment.credit_purchase_handler import CreditPurchaseHandler
 from app.payment.providers.factory import PaymentProviderFactory
 from app.payment.providers.base import PaymentProviderContext, PaymentProvider
+from app.payment.providers.payhero_callback import normalise_payhero_callback
 from app.core.config import settings
 from app.payment.providers.mock import MockProvider
 from app.services.fee_calculator import calculate_processing_fee, calculate_payg_fee
@@ -128,6 +129,14 @@ class PaymentService:
             await self.payment_repo.update_status(
                 payment, PaymentStatus.pending, provider_reference=checkout_id
             )
+            if payment.provider == "payhero":
+                psd = payment.provider_specific_data or {}
+                if response.get("CheckoutRequestID"):
+                    psd["checkout_request_id"] = response.get("CheckoutRequestID")
+                if response.get("MerchantRequestID"):
+                    psd["merchant_request_id"] = response.get("MerchantRequestID")
+                payment.provider_specific_data = psd
+                await self.payment_repo.db.commit()
             if isinstance(provider, MockProvider):
                 asyncio.create_task(self._auto_complete_mock_payment(payment.id, checkout_id))
             return {
@@ -306,8 +315,12 @@ class PaymentService:
 
     async def process_callback(self, payload: dict) -> dict:
         logger.info(f"Callback payload: {payload}")
-        state = payload.get('state')
-        api_ref = payload.get('api_ref')
+        normalised = normalise_payhero_callback(payload)
+        state = normalised.get("state")
+        api_ref = normalised.get("api_ref")
+        if state == "UNRECOGNISED":
+            logger.error("Unrecognised callback shape")
+            raise HTTPException(status_code=422, detail="Unrecognised callback shape")
         if not api_ref:
             logger.error("Missing api_ref in callback")
             raise HTTPException(status_code=400, detail="Missing api_ref in callback")
@@ -333,6 +346,54 @@ class PaymentService:
         if not payment:
             logger.error(f"Payment not found for api_ref: {api_ref}")
             raise HTTPException(status_code=404, detail="Payment not found")
+
+        # --- P1 validation: compare callback fields to stored payment ---
+        if state == "COMPLETE":
+            expected_amount = float(payment.amount)
+            received_amount = normalised.get("amount")
+            if received_amount is not None and abs(float(received_amount) - expected_amount) > 0.01:
+                logger.error(
+                    f"Callback amount mismatch: expected {expected_amount}, got {received_amount}"
+                )
+                raise HTTPException(status_code=422, detail="Callback amount mismatch")
+
+            stored_checkout = None
+            if payment.provider_specific_data:
+                stored_checkout = payment.provider_specific_data.get("checkout_request_id")
+            incoming_checkout = normalised.get("provider_reference")
+            if stored_checkout and incoming_checkout and stored_checkout != incoming_checkout:
+                logger.error(
+                    f"Callback CheckoutRequestID mismatch: stored {stored_checkout}, got {incoming_checkout}"
+                )
+                raise HTTPException(status_code=422, detail="Callback reference mismatch")
+
+            order_pre = await self.order_repo.get_by_id(payment.order_id)
+            business_pre = await BusinessRepository(self.payment_repo.db).get_by_id(order_pre.business_id)
+            customer_pre = await self.customer_repo.get_by_id(order_pre.customer_id)
+
+            incoming_channel = normalised.get("channel_id")
+            if business_pre and business_pre.channel_id and incoming_channel is not None:
+                if int(incoming_channel) != int(business_pre.channel_id):
+                    logger.error(
+                        f"Callback ChannelID mismatch: business {business_pre.channel_id}, got {incoming_channel}"
+                    )
+                    raise HTTPException(status_code=422, detail="Callback channel mismatch")
+
+            incoming_phone = normalised.get("phone")
+            if customer_pre and customer_pre.phone_normalized and incoming_phone:
+                def _canon_phone(v):
+                    s = str(v).strip().replace("+", "").replace(" ", "")
+                    if s.startswith("0"):
+                        s = "254" + s[1:]
+                    if not s.startswith("254"):
+                        s = "254" + s
+                    return s
+                if _canon_phone(incoming_phone) != _canon_phone(customer_pre.phone_normalized):
+                    logger.error(
+                        f"Callback Phone mismatch: customer {customer_pre.phone_normalized}, got {incoming_phone}"
+                    )
+                    raise HTTPException(status_code=422, detail="Callback phone mismatch")
+        # --- end P1 validation ---
 
         if payment.status == PaymentStatus.verified:
             logger.info(f"Payment {payment.id} already verified.")
@@ -506,14 +567,17 @@ class PaymentService:
             raise HTTPException(status_code=500, detail="Credit purchase failed")
 
     async def process_credit_callback(self, payload: dict) -> dict:
-        # Credit callback uses PayHero explicitly
-        provider = PaymentProviderFactory.by_name("payhero")
-        # ... existing implementation unchanged
         logger.info(f"Credit callback payload: {payload}")
-        api_ref = payload.get('api_ref')
+        normalised = normalise_payhero_callback(payload)
+        state = normalised.get("state")
+        api_ref = normalised.get("api_ref")
+        if state == "UNRECOGNISED":
+            raise HTTPException(status_code=422, detail="Unrecognised callback shape")
         if not api_ref:
             logger.error("Missing api_ref in credit callback")
             raise HTTPException(status_code=400, detail="Missing api_ref in callback")
+        if state != "COMPLETE":
+            return {"status": "ignored", "state": state}
         # Delegate to CreditPurchaseHandler for completion
         from app.repositories.merchant_credit_order_repository import MerchantCreditOrderRepository
         mco_repo = MerchantCreditOrderRepository(self.payment_repo.db)
