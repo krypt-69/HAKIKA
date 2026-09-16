@@ -112,12 +112,6 @@ async def credit_callback(
     service: PaymentService = Depends(get_payment_service),
 ):
     try:
-        raw_body = await request.body()
-        signature = request.headers.get("X-IntaSend-Signature")
-        if settings.intasend_webhook_secret:
-            from app.integrations.intasend.webhook import verify_signature
-            if not verify_signature(raw_body, signature):
-                logger.warning("Invalid webhook signature")
         payload = await request.json()
         return await service.process_credit_callback(payload)
     except HTTPException:

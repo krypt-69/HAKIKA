@@ -44,12 +44,6 @@ async def payment_callback(
     service: PaymentService = Depends(get_payment_service)
 ):
     try:
-        raw_body = await request.body()
-        signature = request.headers.get("X-IntaSend-Signature")
-        if settings.intasend_webhook_secret:
-            from app.integrations.intasend.webhook import verify_signature
-            if not verify_signature(raw_body, signature):
-                logger.warning("Invalid webhook signature")
         payload = await request.json()
         return await service.process_callback(payload)
     except HTTPException:
@@ -58,6 +52,27 @@ async def payment_callback(
     except Exception as e:
         logger.error(f"Callback error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Callback processing failed")
+
+
+
+@router.post("/intasend/callback")
+async def intasend_callback(
+    request: Request,
+    service: PaymentService = Depends(get_payment_service),
+):
+    """Dedicated IntaSend callback endpoint (fail-closed)."""
+    from app.payment.providers.intasend_callback import (
+        normalise_intasend_callback,
+        validate_intasend_challenge,
+    )
+    payload = await request.json()
+    if not validate_intasend_challenge(payload, settings.intasend_challenge):
+        logger.warning("IntaSend callback rejected: invalid or missing challenge")
+        raise HTTPException(status_code=401, detail="Invalid challenge")
+    normalised = normalise_intasend_callback(payload)
+    if normalised.get("state") == "UNRECOGNISED":
+        raise HTTPException(status_code=422, detail="Unrecognised IntaSend callback state")
+    return await service.process_callback(normalised)
 
 @router.get("/orders/{order_id}")
 async def get_payment_status(

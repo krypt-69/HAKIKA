@@ -279,10 +279,12 @@ class PaymentService:
             business_id=order.business_id
         )
 
+        # Settlement creation is now part of the SAME transaction
+        # as payment/ledger/order (P2 atomicity correction).
         net_amount = float(payment.amount) - fee
-        settlement_repo = SettlementRepository(self.payment_repo.db)
         payout_ref = f"STL-{uuid.uuid4().hex[:20]}"
-        await settlement_repo.add_noncommit(
+        settlement_repo = SettlementRepository(self.payment_repo.db)
+        settlement = await settlement_repo.add_noncommit(
             business_id=order.business_id,
             amount=net_amount,
             order_id=order.id,
@@ -309,9 +311,9 @@ class PaymentService:
             on_repo = OrderNotificationRepository(self.payment_repo.db)
             await on_repo.add_or_increment(order.customer_id, order.id)
 
-        await self.payment_repo.db.commit()
-        await self.payment_repo.db.refresh(order)
-        return order
+        # Flush so IDs are available; the caller owns the single commit.
+        await self.payment_repo.db.flush()
+        return order, settlement
 
     async def process_callback(self, payload: dict) -> dict:
         logger.info(f"Callback payload: {payload}")
@@ -423,23 +425,17 @@ class PaymentService:
         else:
             fee = await calculate_processing_fee(self.payment_repo.db, float(payment.amount))
             prev = order.status
-            order = await self._process_payg_callback_transaction(payment, business, order, fee)
+            order, settlement = await self._process_payg_callback_transaction(payment, business, order, fee)
+
+            # SINGLE COMMIT for payment + ledger + order + settlement
+            await self.payment_repo.db.commit()
+            await self.payment_repo.db.refresh(order)
+            await self.payment_repo.db.refresh(settlement)
+            logger.info(f"Settlement created for payment {payment.id} (atomic with payment/order)")
+
             await publish_order_update(order, prev)
 
             settlement_repo = SettlementRepository(self.payment_repo.db)
-            existing_settlement = await settlement_repo.get_by_payment_id(payment.id)
-            if existing_settlement:
-                settlement = existing_settlement
-                logger.info(f"Settlement already exists for payment {payment.id}")
-            else:
-                net_amount = float(payment.amount) - fee
-                settlement = await settlement_repo.create(
-                    business_id=order.business_id,
-                    amount=net_amount,
-                    order_id=order.id,
-                    payment_id=payment.id
-                )
-                logger.info(f"Settlement created for payment {payment.id}")
 
             try:
                 payment_method_repo = PaymentMethodRepository(self.payment_repo.db)

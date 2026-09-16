@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     intasend_secret_key: str = ""
     intasend_wallet_id: str = os.getenv("INTASEND_WALLET_ID", "")
     intasend_webhook_secret: str = ""
+    intasend_challenge: str = os.getenv("INTASEND_CHALLENGE", "")
 
     # PayHero
     payhero_base_url: str = os.getenv("PAYHERO_BASE_URL", "https://backend.payhero.co.ke/api/v2")

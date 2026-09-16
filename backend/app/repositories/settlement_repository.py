@@ -9,13 +9,15 @@ class SettlementRepository:
         self.db = db
 
     async def create(self, business_id: uuid.UUID, amount: float,
-                     order_id: uuid.UUID, payment_id: uuid.UUID) -> Settlement:
+                     order_id: uuid.UUID, payment_id: uuid.UUID,
+                     payout_reference: str | None = None) -> Settlement:
         settlement = Settlement(
             business_id=business_id,
             order_id=order_id,
             payment_id=payment_id,
             amount=amount,
-            status=SettlementStatus.pending
+            status=SettlementStatus.pending,
+            payout_reference=payout_reference,
         )
         self.db.add(settlement)
         await self.db.commit()
