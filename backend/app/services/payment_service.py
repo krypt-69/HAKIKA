@@ -423,7 +423,7 @@ class PaymentService:
             return {"status": "verified", "settlement": "none"}
 
         else:
-            fee = await calculate_processing_fee(self.payment_repo.db, float(payment.amount))
+            fee = await calculate_payg_fee(self.payment_repo.db, float(payment.amount))
             prev = order.status
             order, settlement = await self._process_payg_callback_transaction(payment, business, order, fee)
 
