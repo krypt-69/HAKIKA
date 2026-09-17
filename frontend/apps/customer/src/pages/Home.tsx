@@ -463,11 +463,21 @@ type BarMode = 'none' | 'search' | 'location';
 
 const Home: React.FC = () => {
     const navigate = useNavigate();
+    const {
+        businesses: allBusinesses, nextCursor,
+        searchText, selectedCategory,
+        location, gpsEnabled, locationEnabled, radiusMeters,
+        scrollAnchorId,
+        setAllBusinesses, appendBusinesses, setNextCursor,
+        setSearchText, setSelectedCategory,
+        setLocation, setGpsEnabled, setLocationEnabled, setRadiusMeters,
+        saveScrollAnchor, resetFeed,
+    } = useFeedContext();
     const [categories, setCategories] = useState<any[]>([]);
     // Starts true (not false) so the very first paint — before the mount
     // effect below has even run — shows the spinner instead of a flash of
     // "No businesses found" against an empty initial list.
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(allBusinesses.length === 0);
     const [error, setError] = useState('');
     const [loadingMore, setLoadingMore] = useState(false);
     const [barMode, setBarMode] = useState<BarMode>('none');
@@ -490,7 +500,7 @@ const Home: React.FC = () => {
     const restoredRef = useRef(false);
     // True once the initial Home discovery cycle (GPS + first fetch) has finished,
     // or once we've taken the cached/restored path that skips discovery.
-    const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+    const [initialLoadComplete, setInitialLoadComplete] = useState(allBusinesses.length > 0);
 
     // Fade-out state for the initial mobile loading screen.
     // Purely presentational — does not touch loading/gpsLoading/fetchBusinesses.
@@ -514,16 +524,6 @@ const Home: React.FC = () => {
         return () => clearTimeout(t);
     }, [gpsLoading, loading, initialLoadComplete]);
 
-    const {
-        businesses: allBusinesses, nextCursor,
-        searchText, selectedCategory,
-        location, gpsEnabled, locationEnabled, radiusMeters,
-        scrollAnchorId,
-        setAllBusinesses, appendBusinesses, setNextCursor,
-        setSearchText, setSelectedCategory,
-        setLocation, setGpsEnabled, setLocationEnabled, setRadiusMeters,
-        saveScrollAnchor, resetFeed,
-    } = useFeedContext();
 
     const categoryColorMap = useMemo(() => {
         const map: Record<string, CatColor> = {};

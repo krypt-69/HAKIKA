@@ -17,6 +17,8 @@ import {
   X as XIcon,
   AlertCircle,
   Search,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 interface OrderItem {
@@ -57,7 +59,6 @@ const GREEN_LIGHT = '#dcfce7';
 const GREY = '#6b7280';
 const GREY_LIGHT = '#f3f4f6';
 
-// Every status maps to one of 4 buckets: waiting | progress | done | dead
 const STATUS_BUCKET: Record<string, 'waiting' | 'progress' | 'done' | 'dead'> = {
   waiting_acceptance: 'waiting',
   accepted: 'progress',
@@ -102,10 +103,13 @@ const Orders: React.FC = () => {
   const [creditModalOpen, setCreditModalOpen] = useState(false);
   const [creditModalMessage, setCreditModalMessage] = useState('');
   const [showMap, setShowMap] = useState(false);
-  const [businessLocation, setBusinessLocation] = useState<{lat:number;lon:number}|null>(null);
+  const [businessLocation, setBusinessLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'waiting' | 'progress' | 'done' | 'dead' | 'all'>('waiting');
+  // Default to 'all' so every order stays visible as it moves through stages.
+  // Filters narrow the view; they never hide orders by default.
+  const [activeFilter, setActiveFilter] = useState<'waiting' | 'progress' | 'done' | 'dead' | 'all'>('all');
 
   const fetchOrders = async () => {
     if (!businessId) return;
@@ -143,7 +147,8 @@ const Orders: React.FC = () => {
     fetchRiders();
   }, [businessId]);
 
-  const handleAccept = async (orderId: string) => {
+  const handleAccept = async (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation();
     setActionLoading(orderId);
     setError('');
     setSuccess('');
@@ -151,8 +156,8 @@ const Orders: React.FC = () => {
       await api.orders.accept(orderId);
       setSuccess('Order accepted!');
       await fetchOrders();
-    } catch (e: any) {
-      const msg = e.message || '';
+    } catch (err: any) {
+      const msg = err.message || '';
       if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('insufficient')) {
         setCreditModalMessage(msg);
         setCreditModalOpen(true);
@@ -164,7 +169,8 @@ const Orders: React.FC = () => {
     }
   };
 
-  const handleAssign = async (orderId: string) => {
+  const handleAssign = async (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation();
     if (!selectedRider) return;
     setActionLoading(orderId);
     setError('');
@@ -180,10 +186,29 @@ const Orders: React.FC = () => {
       setAssigningOrder(null);
       setSelectedRider('');
       await fetchOrders();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleCopyPhone = async (e: React.MouseEvent, phone: string) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(phone);
+      setCopiedPhone(phone);
+      setTimeout(() => setCopiedPhone(null), 1500);
+    } catch {
+      // Fallback for older browsers
+      const ta = document.createElement('textarea');
+      ta.value = phone;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); setCopiedPhone(phone); setTimeout(() => setCopiedPhone(null), 1500); } catch {}
+      document.body.removeChild(ta);
     }
   };
 
@@ -223,7 +248,6 @@ const Orders: React.FC = () => {
   const showPhone = (status: string) =>
     ['accepted', 'preparing', 'ready_for_delivery', 'out_for_delivery', 'arrived', 'payment_pending', 'paid', 'completed'].includes(status);
 
-  // Counts per bucket for filter badges
   const bucketCounts = useMemo(() => {
     const counts: Record<string, number> = { waiting: 0, progress: 0, done: 0, dead: 0, all: orders.length };
     orders.forEach(o => {
@@ -248,7 +272,10 @@ const Orders: React.FC = () => {
     return list;
   }, [orders, activeFilter, searchQuery]);
 
-  const acceptedOrders = useMemo(() => orders.filter(o => ['accepted','preparing','ready_for_delivery','out_for_delivery','arrived','payment_pending','paid'].includes(o.status)), [orders]);
+  const acceptedOrders = useMemo(
+    () => orders.filter(o => ['accepted', 'preparing', 'ready_for_delivery', 'out_for_delivery', 'arrived', 'payment_pending', 'paid'].includes(o.status)),
+    [orders]
+  );
 
   if (loading) {
     return (
@@ -270,68 +297,77 @@ const Orders: React.FC = () => {
       ? { bg: ORANGE_LIGHT, text: ORANGE, label: 'Awaiting Payment' }
       : { ...BUCKET_STYLE[bucket], label: getStatusLabel(order.status) };
 
-    const itemsText = order.items.map(i => `${i.product_name} ×${i.quantity}`).join(', ');
+    const itemsText = order.items.map(i => `${i.product_name} \u00d7${i.quantity}`).join(', ');
+    const phoneVisible = showPhone(order.status) && order.customer_phone;
+    const copied = phoneVisible && copiedPhone === order.customer_phone;
 
     return (
-      <div key={order.id} className="order-card" style={{ background: style.bg }}>
-        {/* Line 1 — order number, status, amount as one sentence */}
-        <p className="order-line1">
+      <div
+        key={order.id}
+        className="order-card"
+        onClick={() => navigate(`/orders/${order.id}`)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/orders/${order.id}`); }}
+      >
+        {/* Row 1: order number · stage badge · amount */}
+        <div className="order-row1">
           <span className="order-number">{order.order_number}</span>
-          {' — '}
-          <span className="order-status" style={{ color: style.text }}>{style.label}</span>
-          {' — '}
+          <span
+            className="order-status-badge"
+            style={{ background: style.bg, color: style.text }}
+          >
+            {style.label}
+          </span>
           <span className="order-amount">KES {order.total_amount.toFixed(0)}</span>
-        </p>
+        </div>
 
-        {/* Line 2 — distance (green), items count, days ago */}
-        <p className="order-line2">
+        {/* Row 2: distance (prominent) · phone (copyable) · time */}
+        <div className="order-row2">
           {order.distance_km !== null && (
-            <span className="meta-item">
-              <MapPin size={13} color={GREEN} /> <span style={{ color: GREEN }}>{order.distance_km.toFixed(1)} km</span>
+            <span className="distance-chip" title="Distance from your business">
+              <MapPin size={14} color={GREEN} />
+              <span>{order.distance_km.toFixed(1)} km</span>
             </span>
           )}
+          {phoneVisible && (
+            <button
+              type="button"
+              className={`phone-chip ${copied ? 'phone-chip--copied' : ''}`}
+              onClick={(e) => handleCopyPhone(e, order.customer_phone!)}
+              title="Click to copy"
+            >
+              <Phone size={13} />
+              <span>{order.customer_phone}</span>
+              {copied ? <Check size={13} /> : <Copy size={12} />}
+            </button>
+          )}
           <span className="meta-item">
-            <Package size={13} /> {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+            <Clock size={12} /> {formatTimeAgo(order.created_at)}
           </span>
-          <span className="meta-item">
-            <Clock size={13} /> {formatTimeAgo(order.created_at)}
-          </span>
-        </p>
+        </div>
 
-        {/* Line 3 — what was ordered, orange */}
-        <p className="order-line3" title={itemsText}>
-          {order.items[0]?.thumbnail_url ? (
+        {/* Row 3: product summary */}
+        <div className="order-row3" title={itemsText}>
+          {order.items[0]?.thumbnail_url && (
             <img
               src={order.items[0].thumbnail_url}
               alt={order.items[0].product_name}
-              style={{
-                width: 22,
-                height: 22,
-                objectFit: 'cover',
-                borderRadius: 4,
-                marginRight: 6,
-                verticalAlign: 'middle',
-                display: 'inline-block',
-              }}
+              className="order-thumb"
             />
-          ) : null}
-          {itemsText}
-        </p>
+          )}
+          <Package size={12} />
+          <span className="order-items-text">{itemsText}</span>
+        </div>
 
-        {/* Line 4 — customer phone + view details */}
-        <div className="order-line4">
-          {showPhone(order.status) && order.customer_phone ? (
-            <span className="phone-text">
-              <Phone size={13} /> {order.customer_phone}
-            </span>
-          ) : <span />}
-
-          <div className="order-line4-actions">
+        {/* Row 4: actions (only when needed) */}
+        {(isWaiting || (isActive && canAssign(order.status)) || assigningOrder === order.id) && (
+          <div className="order-row4" onClick={(e) => e.stopPropagation()}>
             {isWaiting && (
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => handleAccept(order.id)}
+                onClick={(e) => handleAccept(e, order.id)}
                 isLoading={actionLoading === order.id}
                 disabled={actionLoading === order.id}
               >
@@ -343,44 +379,44 @@ const Orders: React.FC = () => {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setAssigningOrder(order.id)}
+                onClick={(e) => { e.stopPropagation(); setAssigningOrder(order.id); }}
                 disabled={isAwaitingPayment(order)}
               >
-                <span className="btn-inline"><Bike size={14} /> Assign</span>
+                <span className="btn-inline"><Bike size={13} /> Assign Rider</span>
               </Button>
             )}
 
-            <Button variant="outline" size="sm" onClick={() => navigate(`/orders/${order.id}`)}>
-              <span className="btn-inline">View <ChevronRight size={13} /></span>
-            </Button>
-          </div>
-        </div>
-
-        {/* Inline rider-assign row when active */}
-        {assigningOrder === order.id && (
-          <div className="assign-row">
-            <select
-              value={selectedRider}
-              onChange={e => setSelectedRider(e.target.value)}
-              className="rider-select"
-            >
-              <option value="">Select rider</option>
-              {riders.map(r => (
-                <option key={r.id} value={r.id}>{r.username ? `@${r.username}` : r.name}</option>
-              ))}
-            </select>
-            <Button
-              variant="success"
-              size="sm"
-              onClick={() => handleAssign(order.id)}
-              isLoading={actionLoading === order.id}
-              disabled={!selectedRider || actionLoading === order.id}
-            >
-              Assign
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => { setAssigningOrder(null); setSelectedRider(''); }}>
-              <XIcon size={14} />
-            </Button>
+            {assigningOrder === order.id && (
+              <div className="assign-row">
+                <select
+                  value={selectedRider}
+                  onChange={e => setSelectedRider(e.target.value)}
+                  className="rider-select"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <option value="">Select rider</option>
+                  {riders.map(r => (
+                    <option key={r.id} value={r.id}>{r.username ? `@${r.username}` : r.name}</option>
+                  ))}
+                </select>
+                <Button
+                  variant="success"
+                  size="sm"
+                  onClick={(e) => handleAssign(e, order.id)}
+                  isLoading={actionLoading === order.id}
+                  disabled={!selectedRider || actionLoading === order.id}
+                >
+                  Assign
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => { e.stopPropagation(); setAssigningOrder(null); setSelectedRider(''); }}
+                >
+                  <XIcon size={13} />
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -389,23 +425,23 @@ const Orders: React.FC = () => {
 
   return (
     <div className="orders-page">
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-          <button
-            onClick={() => setShowMap(!showMap)}
-            style={{ padding: '8px 14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}
-          >
-            {showMap ? 'Hide Map' : 'Map'}
-          </button>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <button
+          onClick={() => setShowMap(!showMap)}
+          style={{ padding: '8px 14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}
+        >
+          {showMap ? 'Hide Map' : 'Map'}
+        </button>
+      </div>
+      {showMap && businessLocation && (
+        <div style={{ height: '45vh', marginBottom: 16 }}>
+          <BusinessOrdersMap
+            businessLocation={businessLocation}
+            acceptedOrders={acceptedOrders}
+            radiusKm={30}
+          />
         </div>
-        {showMap && businessLocation && (
-          <div style={{ height: '45vh', marginBottom: 16 }}>
-            <BusinessOrdersMap
-              businessLocation={businessLocation}
-              acceptedOrders={acceptedOrders}
-              radiusKm={30}
-            />
-          </div>
-        )}
+      )}
 
       <SectionHeader title="Orders" subtitle="Manage all your orders" />
 
@@ -420,7 +456,6 @@ const Orders: React.FC = () => {
         </div>
       )}
 
-      {/* Search */}
       <div className="search-bar">
         <Search size={16} color={GREY} />
         <input
@@ -437,7 +472,6 @@ const Orders: React.FC = () => {
         )}
       </div>
 
-      {/* Filter buttons — Waiting Acceptance first */}
       <div className="filter-row">
         {FILTERS.map(f => {
           const isActiveTab = activeFilter === f.key;
@@ -496,207 +530,170 @@ const Orders: React.FC = () => {
           description="Try a different search term or filter"
         />
       ) : (
-        <div className="order-grid">
+        <div className="order-list">
           {filteredOrders.map(renderOrderCard)}
         </div>
       )}
 
       <style>{`
-        .orders-page {
-          max-width: 100%;
-        }
+        .orders-page { max-width: 100%; }
 
         .alert {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 16px;
-          border-radius: 10px;
-          margin-bottom: 16px;
-          font-size: 0.875rem;
-          font-weight: 500;
+          display: flex; align-items: center; gap: 8px;
+          padding: 12px 16px; border-radius: 10px;
+          margin-bottom: 16px; font-size: 0.875rem; font-weight: 500;
         }
         .alert-success { background: ${GREEN_LIGHT}; color: ${GREEN}; }
         .alert-error { background: ${RED_LIGHT}; color: ${RED}; }
 
         .search-bar {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 10px;
-          padding: 10px 14px;
-          margin-bottom: 14px;
+          display: flex; align-items: center; gap: 8px;
+          background: #ffffff; border: 1px solid #e5e7eb;
+          border-radius: 10px; padding: 10px 14px; margin-bottom: 14px;
         }
         .search-input {
-          border: none;
-          outline: none;
-          flex: 1;
-          font-size: 0.9rem;
-          color: #111111;
+          border: none; outline: none; flex: 1;
+          font-size: 0.9rem; color: #111111;
         }
         .search-clear {
-          border: none;
-          background: transparent;
-          cursor: pointer;
-          color: ${GREY};
-          display: flex;
-          align-items: center;
+          border: none; background: transparent; cursor: pointer;
+          color: ${GREY}; display: flex; align-items: center;
         }
 
         .filter-row {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-bottom: 20px;
+          display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;
         }
         .filter-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          border: none;
-          padding: 8px 14px;
-          border-radius: 20px;
-          font-size: 0.8rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: transform 0.1s, filter 0.15s;
-          white-space: nowrap;
+          display: inline-flex; align-items: center; gap: 6px;
+          border: none; padding: 8px 14px; border-radius: 20px;
+          font-size: 0.8rem; font-weight: 600; cursor: pointer;
+          transition: transform 0.1s, filter 0.15s; white-space: nowrap;
         }
         .filter-btn:hover { filter: brightness(0.97); }
         .filter-btn:active { transform: scale(0.97); }
         .filter-count {
-          font-size: 0.7rem;
-          font-weight: 700;
-          padding: 1px 6px;
-          border-radius: 10px;
+          font-size: 0.7rem; font-weight: 700;
+          padding: 1px 6px; border-radius: 10px;
         }
 
-        .order-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-          gap: 14px;
+        /* Single-column list — cards stack cleanly and stay visible */
+        .order-list {
+          display: flex; flex-direction: column; gap: 10px;
         }
 
         .order-card {
-          border-radius: 14px;
-          padding: 14px 16px;
-          aspect-ratio: 2 / 1;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          overflow: hidden;
-          border: 1px solid rgba(0,0,0,0.05);
+          background: #ffffff;
+          border-radius: 12px;
+          padding: 12px 14px;
+          border: 1px solid rgba(0,0,0,0.06);
+          cursor: pointer;
+          transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+          display: flex; flex-direction: column; gap: 6px;
         }
+        .order-card:hover {
+          border-color: rgba(22,163,74,0.35);
+          box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .order-card:active { transform: scale(0.995); }
+        .order-card:focus { outline: 2px solid rgba(22,163,74,0.4); outline-offset: 2px; }
 
-        .order-line1 {
-          font-size: 0.9rem;
-          color: #111111;
-          margin: 0;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+        /* Row 1 — order number · stage · amount */
+        .order-row1 {
+          display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
         }
         .order-number {
-          font-weight: 800;
+          font-weight: 800; font-size: 0.88rem; color: #111111;
         }
-        .order-status {
-          font-weight: 700;
+        .order-status-badge {
+          font-size: 0.7rem; font-weight: 700;
+          padding: 3px 8px; border-radius: 10px;
+          text-transform: uppercase; letter-spacing: 0.02em;
+          white-space: nowrap;
         }
         .order-amount {
-          font-weight: 800;
+          margin-left: auto; font-weight: 800; font-size: 0.92rem; color: #111111;
         }
 
-        .order-line2 {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
-          margin: 6px 0 0 0;
+        /* Row 2 — distance (prominent) · phone · time */
+        .order-row2 {
+          display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        }
+        .distance-chip {
+          display: inline-flex; align-items: center; gap: 5px;
+          font-size: 0.82rem; font-weight: 800; color: ${GREEN};
+          background: ${GREEN_LIGHT};
+          padding: 3px 9px; border-radius: 12px;
+        }
+        .phone-chip {
+          display: inline-flex; align-items: center; gap: 5px;
+          background: #f9fafb; border: 1px solid #e5e7eb;
+          border-radius: 12px; padding: 3px 9px;
+          font-size: 0.78rem; font-weight: 600; color: #374151;
+          cursor: pointer; font-family: inherit;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .phone-chip:hover { background: #f3f4f6; border-color: #d1d5db; }
+        .phone-chip--copied {
+          background: ${GREEN_LIGHT}; border-color: ${GREEN}; color: ${GREEN};
         }
         .meta-item {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 0.75rem;
-          color: #4b5563;
-          font-weight: 500;
+          display: inline-flex; align-items: center; gap: 4px;
+          font-size: 0.72rem; color: #6b7280; font-weight: 500;
         }
 
-        .order-line3 {
-          margin: 6px 0 0 0;
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: ${ORANGE};
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+        /* Row 3 — products */
+        .order-row3 {
+          display: flex; align-items: center; gap: 6px;
+          font-size: 0.78rem; color: ${ORANGE}; font-weight: 600;
+          min-width: 0;
         }
-
-        .order-line4 {
-          margin-top: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
-        }
-        .phone-text {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 0.78rem;
-          color: #374151;
-          font-weight: 600;
-          white-space: nowrap;
-        }
-        .order-line4-actions {
-          display: flex;
-          gap: 6px;
+        .order-thumb {
+          width: 20px; height: 20px; object-fit: cover; border-radius: 4px;
           flex-shrink: 0;
         }
-        .btn-inline {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
+        .order-items-text {
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          min-width: 0;
         }
 
+        /* Row 4 — actions */
+        .order-row4 {
+          display: flex; gap: 6px; margin-top: 2px;
+        }
         .assign-row {
-          margin-top: 8px;
-          display: flex;
-          gap: 6px;
-          align-items: center;
+          display: flex; gap: 6px; align-items: center; width: 100%;
         }
         .rider-select {
-          flex: 1;
-          padding: 6px 8px;
-          border-radius: 8px;
-          border: 1px solid #d1d5db;
-          font-size: 0.78rem;
-          background: #fff;
-          color: #111111;
+          flex: 1; padding: 6px 8px; border-radius: 8px;
+          border: 1px solid #d1d5db; font-size: 0.78rem;
+          background: #fff; color: #111111;
         }
+        .btn-inline { display: inline-flex; align-items: center; gap: 4px; }
 
+        /* ── Mobile: compact cards (~50% shorter than before) ── */
         @media (max-width: 640px) {
-          .order-grid {
-            grid-template-columns: 1fr;
-          }
           .order-card {
-            aspect-ratio: unset;
-            min-height: 150px;
+            padding: 8px 10px;
+            gap: 4px;
+            border-radius: 10px;
           }
-          .order-line1 {
-            white-space: normal;
+          .order-row1 { gap: 6px; }
+          .order-number { font-size: 0.82rem; }
+          .order-status-badge {
+            font-size: 0.62rem; padding: 2px 6px;
           }
-          .order-line4 {
-            flex-direction: column;
-            align-items: flex-start;
+          .order-amount { font-size: 0.84rem; }
+          .order-row2 { gap: 8px; }
+          .distance-chip {
+            font-size: 0.76rem; padding: 2px 7px;
           }
-          .order-line4-actions {
-            width: 100%;
+          .phone-chip {
+            font-size: 0.72rem; padding: 2px 7px;
           }
-          .order-line4-actions > * {
-            flex: 1;
-          }
+          .meta-item { font-size: 0.66rem; }
+          .order-row3 { font-size: 0.72rem; gap: 4px; }
+          .order-thumb { width: 16px; height: 16px; }
+          .order-row4 { gap: 4px; }
         }
       `}</style>
     </div>

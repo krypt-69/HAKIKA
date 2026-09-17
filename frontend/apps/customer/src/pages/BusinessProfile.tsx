@@ -1,11 +1,17 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useParams } from 'react-router-dom';
 import { api, CustomerProductInfo } from '../api';
 import { Config } from '@hakika/config';
 import Toast from '../components/Toast';
 
 type Product = CustomerProductInfo;
+
+/* Per-slug cache so that navigating back into the same business within the
+   current app session reuses already-loaded data instead of refetching.
+   Short TTL ensures we don't serve stale product data indefinitely. */
+const PROFILE_CACHE_TTL_MS = 30_000;
+const profileCache = new Map<string, { business: any; products: Product[]; ts: number }>();
 
 const GOLD = '#b8860b';
 const GOLD_BRIGHT = '#f4c430';
@@ -514,6 +520,19 @@ const BusinessProfile: React.FC = () => {
     const { slug } = useParams<{ slug: string }>();
     const [business, setBusiness] = useState<any>(null);
     const navigate = useNavigate();
+    const location = useLocation();
+    const handleBack = () => {
+        // If this page is the very first entry in this browser session
+        // (direct URL, bookmark, refresh), React Router sets location.key
+        // to 'default'. In that case there is no in-app route behind us,
+        // so go to Customer Home with replace (avoids Back returning to
+        // the browser's prior unrelated page).
+        if ((location as any).key === 'default') {
+            navigate('/', { replace: true });
+        } else {
+            navigate(-1);
+        }
+    };
     const [products, setProducts] = useState<Product[]>([]);
     const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
     const [error, setError] = useState('');
@@ -555,6 +574,17 @@ const BusinessProfile: React.FC = () => {
 
     useEffect(() => {
         if (!slug) return;
+
+        // Reuse cached data if returning to the same business within TTL
+        const cached = profileCache.get(slug);
+        if (cached && Date.now() - cached.ts < PROFILE_CACHE_TTL_MS) {
+            setBusiness(cached.business);
+            setProducts(cached.products);
+            setLoading(false);
+            setError('');
+            return;
+        }
+
         setLoading(true);
         Promise.all([
             api.businessById(slug),
@@ -563,6 +593,11 @@ const BusinessProfile: React.FC = () => {
             .then(([biz, prodList]) => {
                 setBusiness(biz);
                 setProducts(prodList || []);
+                profileCache.set(slug, {
+                    business: biz,
+                    products: prodList || [],
+                    ts: Date.now(),
+                });
             })
             .catch(err => setError(err.message))
             .finally(() => setLoading(false));
@@ -684,6 +719,26 @@ const BusinessProfile: React.FC = () => {
         <div style={{ background: '#f9fafb', minHeight: '100vh', paddingBottom: bottomPadding }}>
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap');
+
+                .profile-back-btn {
+                    position: fixed;
+                    top: 12px;
+                    left: 12px;
+                    z-index: 1100;
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 50%;
+                    background: rgba(15,23,42,0.55);
+                    border: none;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    backdrop-filter: blur(4px);
+                }
+                @media (min-width: 860px) {
+                    .profile-back-btn { top: 124px; }
+                }
 
                 @keyframes gold-spin { to { transform: rotate(360deg); } }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -873,6 +928,15 @@ const BusinessProfile: React.FC = () => {
                     onClose={() => setDetailsOpen(false)}
                 />
             )}
+
+            <button
+                type="button"
+                onClick={handleBack}
+                className="profile-back-btn"
+                aria-label="Back"
+            >
+                <BackArrowSvg color={GOLD_BRIGHT} />
+            </button>
 
             <div className="page-wrap">
                 {/* ── Logo overlapping the top edge of the square cover ── */}
