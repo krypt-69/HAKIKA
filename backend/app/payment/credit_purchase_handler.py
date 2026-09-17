@@ -110,4 +110,16 @@ class CreditPurchaseHandler:
             await self.db.commit()
             await self.db.refresh(business)
 
-        return {"status": "completed", "order": order, "business": business}
+        business_summary = None
+        if business:
+            business_summary = {
+                "id": str(business.id),
+                "name": business.name,
+                "credit_balance": float(business.credit_balance),
+                "remaining_credit_volume": float(business.remaining_credit_volume),
+            }
+        return {
+            "status": "completed",
+            "order_id": str(order.id),
+            "business": business_summary,
+        }

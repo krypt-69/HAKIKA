@@ -239,3 +239,85 @@ def test_credit_callback_provider_data_checkout_id_mismatch_returns_422():
     with httpx.Client(timeout=15) as c:
         r = c.post(f"{API}/credit/callback", json=payload)
     assert r.status_code == 422
+
+# ---------------------------------------------------------------------
+# BUG-B1 regression: callback response must not fail serialization when
+# the business has non-UTF-8 LargeBinary data in logo_data / cover_data
+# ---------------------------------------------------------------------
+
+def test_credit_callback_succeeds_when_business_has_binary_logo_data():
+    """Regression for BUG-B1: business with binary logo/cover must not crash response encoding."""
+    import asyncio
+    import uuid as _uuid
+    from sqlalchemy import select
+    from app.database.session import async_session
+    from app.models.business import Business, PaymentModel
+    from app.models.category import Category
+    from app.models.credit_plan import CreditPlan
+
+    async def _setup():
+        async with async_session() as db:
+            # Category — take any existing
+            cat_res = await db.execute(select(Category).limit(1))
+            cat = cat_res.scalar_one_or_none()
+            if cat is None:
+                pytest.skip("No category available for test fixture")
+
+            # Credit plan — take any existing
+            plan_res = await db.execute(select(CreditPlan).where(CreditPlan.active == True).limit(1))
+            plan = plan_res.scalar_one_or_none()
+            if plan is None:
+                pytest.skip("No active credit plan available for test fixture")
+
+            # Unique owner — reuse admin user as owner_id
+            from app.models.user import User
+            user_res = await db.execute(select(User).limit(1))
+            user = user_res.scalar_one_or_none()
+            if user is None:
+                pytest.skip("No user available for test fixture")
+
+            # Create a throwaway business with binary data in logo/cover
+            biz = Business(
+                owner_id=user.id,
+                name=f"BUG-B1-{_uuid.uuid4().hex[:6]}",
+                category_id=cat.id,
+                slug=f"bug-b1-{_uuid.uuid4().hex[:8]}",
+                payment_model=PaymentModel.credit,
+                is_active=True,
+                credit_balance=0,
+                remaining_credit_volume=0,
+                logo_data=b"\xa0\x01\x02",   # non-UTF-8 bytes — the exact case that crashed
+                cover_data=b"\xa0\xff\xfe",
+            )
+            db.add(biz)
+            await db.commit()
+            await db.refresh(biz)
+            return str(biz.id), str(plan.id)
+
+    biz_id, plan_id = asyncio.get_event_loop().run_until_complete(_setup())
+    ref = f"CREDIT-BUG-B1-{_uuid.uuid4().hex[:8]}"
+
+    async def _create_order():
+        async with async_session() as db:
+            order = MerchantCreditOrder(
+                business_id=_uuid.UUID(biz_id),
+                credit_plan_id=_uuid.UUID(plan_id),
+                amount_paid=1000.0,
+                credit_received=10000.0,
+                status=MerchantCreditOrderStatus.pending,
+                payment_reference=ref,
+            )
+            db.add(order)
+            await db.commit()
+    asyncio.get_event_loop().run_until_complete(_create_order())
+
+    payload = _make_real_payhero_payload(external_reference=ref, amount=1000.0)
+    with httpx.Client(timeout=15) as c:
+        r = c.post(f"{API}/credit/callback", json=payload)
+
+    assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
+    body = r.json()
+    assert body.get("status") == "completed"
+    assert body.get("business", {}).get("id") == biz_id
+    # Confirm no ORM leakage (no bytes, no SQLAlchemy markers)
+    assert isinstance(body["business"], dict)
