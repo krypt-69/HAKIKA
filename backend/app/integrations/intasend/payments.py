@@ -18,12 +18,20 @@ class IntaSendPayments:
     async def verify_payment(self, checkout_id: str) -> dict:
         return await self.client.check_transaction_status(checkout_id)
 
+    async def get_wallet_balance(self) -> dict:
+        """Return wallet balance for the configured IntaSend wallet."""
+        return await self.client.get_wallet_balance()
+
     async def get_b2b_payout_status(self, tracking_id: str) -> dict:
         """Get B2B payout status by tracking id."""
         return await self.client.get_b2b_payout_status(tracking_id)
 
     async def send_b2b_payout(self, amount: float, account_number: str, account_type: str,
-                              account_reference: str, business_name: str) -> dict:
+                              account_reference: str, business_name: str,
+                              payout_reference: str | None = None) -> dict:
         """Wrapper for IntaSendClient.send_b2b_payout."""
-        return await self.client.send_b2b_payout(amount, account_number, account_type,
-                                                  account_reference, business_name)
+        return await self.client.send_b2b_payout(
+            amount, account_number, account_type,
+            account_reference, business_name,
+            payout_reference=payout_reference,
+        )

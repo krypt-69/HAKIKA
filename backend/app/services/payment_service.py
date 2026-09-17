@@ -427,56 +427,21 @@ class PaymentService:
             prev = order.status
             order, settlement = await self._process_payg_callback_transaction(payment, business, order, fee)
 
-            # SINGLE COMMIT for payment + ledger + order + settlement
+            # SINGLE COMMIT for payment + ledger + order + settlement.
+            # P3: the settlement is created with status='pending' and
+            # next_retry_at=now(). The payout is NOT attempted here — the
+            # settlement retry worker picks it up on its next tick.
             await self.payment_repo.db.commit()
             await self.payment_repo.db.refresh(order)
             await self.payment_repo.db.refresh(settlement)
-            logger.info(f"Settlement created for payment {payment.id} (atomic with payment/order)")
+            logger.info(
+                f"Settlement {settlement.id} created (deferred to worker) "
+                f"for payment {payment.id}"
+            )
 
             await publish_order_update(order, prev)
 
-            settlement_repo = SettlementRepository(self.payment_repo.db)
-
-            try:
-                payment_method_repo = PaymentMethodRepository(self.payment_repo.db)
-                methods = await payment_method_repo.get_by_business(order.business_id)
-                active_method = next((m for m in methods if m.is_active), None)
-                if not active_method:
-                    logger.error(f"No active payment method for business {order.business_id}")
-                    await settlement_repo.update_status(settlement, SettlementStatus.failed)
-                    return {"status": "verified", "settlement": "failed_no_payment_method"}
-
-                account_type = "PayBill" if active_method.type.value == "paybill" else "TillNumber"
-                account_number = active_method.encrypted_account_number
-                account_reference = order.order_number[:20]
-
-                business_repo = BusinessRepository(self.payment_repo.db)
-                business = await business_repo.get_by_id(order.business_id)
-                business_name = business.name if business else "Business"
-
-                await settlement_repo.update_status(settlement, SettlementStatus.processing)
-
-                payout_response = await provider.initiate_payout(
-                    amount=settlement.amount,
-                    account_number=account_number,
-                    account_type=account_type,
-                    account_reference=account_reference,
-                    business_name=business_name,
-                    payout_reference=settlement.payout_reference,
-                )
-                logger.info(f"B2B payout response: {payout_response}")
-                tracking_id = payout_response.get('tracking_id') or payout_response.get('file_id') or payout_response.get('transaction_id')
-                if tracking_id:
-                    settlement.provider_payout_reference = tracking_id
-                provider_ref = payout_response.get('file_id') or payout_response.get('transaction_id') or payout_response.get('reference')
-                await settlement_repo.update_status(settlement, SettlementStatus.completed,
-                                                    provider_reference=provider_ref)
-                logger.info(f"Settlement {settlement.id} completed.")
-                return {"status": "verified", "settlement": "completed"}
-            except Exception as e:
-                logger.error(f"B2B payout failed for settlement {settlement.id}: {e}")
-                await settlement_repo.update_status(settlement, SettlementStatus.failed)
-                return {"status": "verified", "settlement": "failed_b2b_error", "error": str(e)}
+            return {"status": "verified", "settlement": "deferred_to_worker"}
 
     async def get_payment_status(self, order_id: uuid.UUID) -> dict:
         payment = await self.payment_repo.get_by_order(order_id)

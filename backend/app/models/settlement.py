@@ -8,6 +8,7 @@ import enum
 
 class SettlementStatus(str, enum.Enum):
     pending = "pending"
+    waiting_for_funds = "waiting_for_funds"
     processing = "processing"
     completed = "completed"
     failed = "failed"
@@ -26,3 +27,10 @@ class Settlement(Base):
     provider_payout_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_retry_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
     created_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, default=datetime.utcnow)
+
+    # P3 fields
+    next_retry_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
+    submitted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
+    first_waiting_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
+    escalated_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)

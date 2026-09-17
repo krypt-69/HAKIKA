@@ -47,6 +47,13 @@ app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
+import asyncio
+from app.workers.settlement_retry import settlement_retry_loop
+
+@app.on_event("startup")
+async def _start_settlement_worker():
+    asyncio.create_task(settlement_retry_loop())
+
 @app.get("/")
 async def root():
     return {"message": "Hakika API running"}

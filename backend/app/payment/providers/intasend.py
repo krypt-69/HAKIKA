@@ -42,6 +42,10 @@ class IntaSendProvider(PaymentProvider):
             payout_reference=payout_reference,
         )
 
+    async def get_wallet_balance(self) -> dict:
+        """Return the current wallet balance for this provider."""
+        return await self.client.get_wallet_balance()
+
     async def get_payout_status(
         self,
         provider_reference: str,

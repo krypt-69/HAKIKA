@@ -8,7 +8,29 @@ interface Settlement {
   status: string;
   retry_count: number;
   created_at: string;
+  failure_reason?: string | null;
+  next_retry_at?: string | null;
+  submitted_at?: string | null;
+  escalated_at?: string | null;
+  first_waiting_at?: string | null;
 }
+
+const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+  pending: { label: 'Pending', color: '#B4791F', bg: '#F6ECD9' },
+  waiting_for_funds: { label: 'Waiting for funds', color: '#B4791F', bg: '#F6ECD9' },
+  processing: { label: 'Processing', color: '#B4791F', bg: '#F6ECD9' },
+  completed: { label: 'Completed', color: '#0E7A53', bg: '#E4F1EA' },
+  failed: { label: 'Failed', color: '#B4402A', bg: '#F6E5E0' },
+};
+
+const StatusPill: React.FC<{ status: string }> = ({ status }) => {
+  const t = STATUS_LABELS[(status || '').toLowerCase()] || { label: status, color: '#5B6472', bg: '#EEEDE7' };
+  return (
+    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: '0.78rem', fontWeight: 600, color: t.color, background: t.bg }}>
+      {t.label}
+    </span>
+  );
+};
 
 const SettlementsPage: React.FC = () => {
   const [settlements, setSettlements] = useState<Settlement[]>([]);
@@ -64,6 +86,8 @@ const SettlementsPage: React.FC = () => {
               <th style={{ padding: 12 }}>Status</th>
               <th style={{ padding: 12 }}>Retries</th>
               <th style={{ padding: 12 }}>Date</th>
+              <th style={{ padding: 12 }}>Failure reason</th>
+              <th style={{ padding: 12 }}>Next retry</th>
               <th style={{ padding: 12 }}>Actions</th>
             </tr>
           </thead>
@@ -72,9 +96,11 @@ const SettlementsPage: React.FC = () => {
               <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <td style={{ padding: 12, fontSize: '0.875rem' }}>{s.business_id?.slice(0, 8)}…</td>
                 <td style={{ padding: 12 }}>KES {s.amount?.toFixed(2)}</td>
-                <td style={{ padding: 12 }}>{s.status}</td>
+                <td style={{ padding: 12 }}><StatusPill status={s.status} /></td>
                 <td style={{ padding: 12 }}>{s.retry_count}</td>
                 <td style={{ padding: 12, fontSize: '0.875rem' }}>{s.created_at ? new Date(s.created_at).toLocaleDateString() : '—'}</td>
+                <td style={{ padding: 12, fontSize: '0.8rem', color: '#5B6472' }}>{s.failure_reason || '—'}</td>
+                <td style={{ padding: 12, fontSize: '0.8rem', color: '#5B6472' }}>{s.next_retry_at ? new Date(s.next_retry_at).toLocaleString() : '—'}</td>
                 <td style={{ padding: 12 }}>
                   <button
                     onClick={() => handleProcess(s.id)}

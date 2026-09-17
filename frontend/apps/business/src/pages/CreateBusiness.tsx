@@ -371,7 +371,9 @@ const CreateBusiness: React.FC = () => {
                 {step === 0 && (
                   <div>
                     <h2 style={styles.sectionTitle}>How do you want to receive payments?</h2>
-                    <p style={styles.sectionSub}>You can change this later from your business settings.</p>
+                    <p style={styles.sectionSub}>
+                      Credit is the only available option at this time.
+                    </p>
 
                     <div style={styles.planGrid} className="hb-plan-grid">
                       <label
@@ -407,38 +409,42 @@ const CreateBusiness: React.FC = () => {
                         </p>
                       </label>
 
-                      <label
-                        style={{
-                          ...styles.planCard,
-                          borderColor: paymentModel === 'pay_as_you_go' ? COLORS.orange : COLORS.line,
-                          background: paymentModel === 'pay_as_you_go' ? COLORS.orangeLight : COLORS.card,
-                          boxShadow: paymentModel === 'pay_as_you_go' ? `0 0 0 1px ${COLORS.orange}` : 'none',
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="paymentModel"
-                          value="pay_as_you_go"
-                          checked={paymentModel === 'pay_as_you_go'}
-                          onChange={() => setPaymentModel('pay_as_you_go')}
-                          style={styles.radioHidden}
-                        />
-                        <div style={styles.planTop}>
-                          <div style={{ ...styles.planIconBadge, background: COLORS.orange }}>
-                            <IconCard size={20} />
-                          </div>
-                          {paymentModel === 'pay_as_you_go' && (
-                            <div style={{ ...styles.planCheck, background: COLORS.orange }}>
-                              <IconCheck size={12} />
+
+                      {/* PAYG temporarily disabled — see ADR — Credit-only onboarding. */}
+                      {false && (
+                                              <label
+                            style={{
+                              ...styles.planCard,
+                              borderColor: paymentModel === 'pay_as_you_go' ? COLORS.orange : COLORS.line,
+                              background: paymentModel === 'pay_as_you_go' ? COLORS.orangeLight : COLORS.card,
+                              boxShadow: paymentModel === 'pay_as_you_go' ? `0 0 0 1px ${COLORS.orange}` : 'none',
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="paymentModel"
+                              value="pay_as_you_go"
+                              checked={paymentModel === 'pay_as_you_go'}
+                              onChange={() => setPaymentModel('pay_as_you_go')}
+                              style={styles.radioHidden}
+                            />
+                            <div style={styles.planTop}>
+                              <div style={{ ...styles.planIconBadge, background: COLORS.orange }}>
+                                <IconCard size={20} />
+                              </div>
+                              {paymentModel === 'pay_as_you_go' && (
+                                <div style={{ ...styles.planCheck, background: COLORS.orange }}>
+                                  <IconCheck size={12} />
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                        <strong style={styles.planTitle}>Hakika collects for me</strong>
-                        <p style={styles.planTag}>Pay-as-you-go</p>
-                        <p style={styles.optionDesc}>
-                          For freelancers and occasional sellers who don't need a subscription — no Till or PayBill required.
-                        </p>
-                      </label>
+                            <strong style={styles.planTitle}>Hakika collects for me</strong>
+                            <p style={styles.planTag}>Pay-as-you-go</p>
+                            <p style={styles.optionDesc}>
+                              For freelancers and occasional sellers who don't need a subscription — no Till or PayBill required.
+                            </p>
+                          </label>
+                      )}
                     </div>
                   </div>
                 )}

@@ -18,6 +18,29 @@ class IntaSendClient:
             "Content-Type": "application/json",
         }
 
+    async def get_wallet_balance(self) -> dict:
+        """Return wallet balance for the configured IntaSend wallet."""
+        url = f"{self.base_url}/api/v1/wallets/"
+        async with httpx.AsyncClient(timeout=15) as c:
+            resp = await c.get(url, headers=self._headers())
+            if resp.status_code >= 400:
+                raise Exception(f"IntaSend wallets endpoint failed: HTTP {resp.status_code}")
+            data = resp.json()
+
+        results = data.get("results") if isinstance(data, dict) else None
+        if not isinstance(results, list):
+            raise Exception("IntaSend wallets response malformed (no results list)")
+
+        for w in results:
+            if w.get("wallet_id") == self.wallet_id:
+                return {
+                    "wallet_id": w.get("wallet_id"),
+                    "currency": w.get("currency"),
+                    "available_balance": float(w.get("available_balance") or 0.0),
+                    "current_balance": float(w.get("current_balance") or 0.0),
+                }
+        raise Exception(f"Wallet {self.wallet_id} not found in IntaSend wallets response")
+
     def _format_phone(self, phone: str) -> str:
         """Convert to 254XXXXXXXXX format (digits only)."""
         # Remove any +, spaces, or leading 0
@@ -72,6 +95,7 @@ class IntaSendClient:
         payload = {
             "currency": "KES",
             "provider": "MPESA-B2B",
+            "wallet_id": self.wallet_id,
             "requires_approval": "NO",
             "transactions": [{
                 "name": business_name,

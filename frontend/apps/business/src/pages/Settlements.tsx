@@ -57,16 +57,26 @@ const statusTone: Record<string, { fg: string; bg: string; label: string }> = {
   paid: { fg: tokens.emerald, bg: tokens.emeraldSoft, label: 'Paid' },
   pending: { fg: tokens.gold, bg: tokens.goldSoft, label: 'Pending' },
   processing: { fg: tokens.gold, bg: tokens.goldSoft, label: 'Processing' },
+  waiting_for_funds: { fg: tokens.gold, bg: tokens.goldSoft, label: 'Waiting for funds' },
   failed: { fg: tokens.brick, bg: tokens.brickSoft, label: 'Failed' },
   cancelled: { fg: tokens.brick, bg: tokens.brickSoft, label: 'Cancelled' },
 };
 
 const Status: React.FC<{ status: string }> = ({ status }) => {
-  const tone = statusTone[status?.toLowerCase()] || { fg: tokens.inkSoft, bg: '#EEEDE7', label: status };
+  const key = status?.toLowerCase();
+  const tone = statusTone[key] || { fg: tokens.inkSoft, bg: '#EEEDE7', label: status };
+  const showWaitingHint = key === 'waiting_for_funds';
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', fontWeight: 500, color: tone.fg }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: tone.fg, flexShrink: 0 }} />
-      {tone.label}
+    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, fontSize: '0.85rem', fontWeight: 500, color: tone.fg }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: tone.fg, flexShrink: 0 }} />
+        {tone.label}
+      </span>
+      {showWaitingHint && (
+        <span style={{ fontSize: '0.78rem', color: tokens.inkSoft, fontWeight: 400 }}>
+          Payment received. Payout will be sent automatically as soon as funds are available.
+        </span>
+      )}
     </span>
   );
 };

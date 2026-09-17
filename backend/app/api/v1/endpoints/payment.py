@@ -74,6 +74,79 @@ async def intasend_callback(
         raise HTTPException(status_code=422, detail="Unrecognised IntaSend callback state")
     return await service.process_callback(normalised)
 
+
+
+@router.post("/intasend/payout-callback")
+async def intasend_payout_callback(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Defensive handler for IntaSend Send Money (B2B) callbacks.
+
+    NOTE: The exact callback contract is captured from the sandbox in
+    E2E-1 and the parser is frozen against the observed shape. Until
+    then, this handler:
+      - validates the challenge (fail-closed)
+      - attempts correlation by tracking_id, then by our payout_reference
+      - logs the full raw payload at WARNING for every request
+      - returns 200 for anything it cannot correlate (no retry storm)
+      - only mutates state on a recognised status_code
+    """
+    from app.repositories.settlement_repository import SettlementRepository
+    from app.models.settlement import SettlementStatus
+
+    raw = await request.json()
+    logger.warning(f"IntaSend B2B callback raw: {raw}")
+
+    incoming_challenge = raw.get("challenge")
+    if not settings.intasend_challenge or incoming_challenge != settings.intasend_challenge:
+        raise HTTPException(status_code=401, detail="Invalid challenge")
+
+    repo = SettlementRepository(db)
+
+    # Correlate settlement
+    settlement = None
+    tracking_id = raw.get("tracking_id")
+    if tracking_id:
+        settlement = await repo.get_by_provider_payout_reference(str(tracking_id))
+    if settlement is None and raw.get("reference"):
+        settlement = await repo.get_by_payout_reference(str(raw.get("reference")))
+    if settlement is None:
+        txs = raw.get("transactions")
+        if isinstance(txs, list) and txs:
+            ref = txs[0].get("reference")
+            if ref:
+                settlement = await repo.get_by_payout_reference(str(ref))
+
+    if settlement is None:
+        logger.warning("IntaSend B2B callback: no settlement matched")
+        return {"status": "ignored", "reason": "no_match"}
+
+    if settlement.status in (SettlementStatus.completed, SettlementStatus.failed):
+        return {"status": "already_terminal", "state": settlement.status.value}
+
+    # Extract status_code
+    status_code = None
+    txs = raw.get("transactions")
+    if isinstance(txs, list) and txs:
+        status_code = txs[0].get("status_code") or raw.get("status_code")
+    else:
+        status_code = raw.get("status_code")
+
+    if status_code == "TS100":
+        await repo.mark_completed(settlement.id)
+        return {"status": "completed"}
+    if status_code in ("TF106", "TF103", "BF102", "BF105", "BF107", "TC108", "BE111"):
+        await repo.mark_failed(settlement.id, reason=f"intasend_rejected_{status_code}")
+        return {"status": "failed", "code": status_code}
+    if status_code == "TF105":
+        logger.warning(f"IntaSend B2B callback TF105 pending for settlement {settlement.id}")
+        return {"status": "processing", "code": status_code}
+
+    logger.warning(f"IntaSend B2B callback unhandled status_code={status_code}")
+    return {"status": "ignored", "code": status_code}
+
+
 @router.get("/orders/{order_id}")
 async def get_payment_status(
     order_id: str,
