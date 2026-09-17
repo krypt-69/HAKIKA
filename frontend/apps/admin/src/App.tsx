@@ -13,9 +13,10 @@ import Categories from './pages/Categories'
 import AdminLayout from './components/AdminLayout'
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   if (isLoading) return <div>Loading...</div>;
   if (!isAuthenticated) return <Navigate to="/login" />;
+  if (user?.role !== 'admin') return <Navigate to="/login" />;
   return <>{children}</>;
 };
 

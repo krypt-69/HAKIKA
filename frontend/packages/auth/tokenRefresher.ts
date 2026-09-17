@@ -1,5 +1,5 @@
 import { Config } from '@hakika/config';
-import { getTokenKey, getRefreshTokenKey } from './storage';
+import { getTokenKey, getRefreshTokenKey, getExpectedRoleKey } from './storage';
 
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
@@ -34,6 +34,23 @@ export async function getValidToken(namespace: string): Promise<string | null> {
       });
       if (!resp.ok) throw new Error('Refresh failed');
       const data = await resp.json();
+      // Role boundary: do not accept a refreshed token whose role differs
+      // from the expected role for this namespace.
+      const expected = localStorage.getItem(getExpectedRoleKey(namespace));
+      if (expected) {
+        try {
+          const payload = JSON.parse(atob(data.access_token.split('.')[1]));
+          if (payload.role !== expected) {
+            localStorage.removeItem(getTokenKey(namespace));
+            localStorage.removeItem(getRefreshTokenKey(namespace));
+            return null;
+          }
+        } catch {
+          localStorage.removeItem(getTokenKey(namespace));
+          localStorage.removeItem(getRefreshTokenKey(namespace));
+          return null;
+        }
+      }
       localStorage.setItem(getTokenKey(namespace), data.access_token);
       localStorage.setItem(getRefreshTokenKey(namespace), data.refresh_token);
       return data.access_token;

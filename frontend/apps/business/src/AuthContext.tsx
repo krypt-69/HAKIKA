@@ -76,9 +76,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const login = useCallback(async (email: string, password: string) => {
         const data = await apiLogin(email, password);
+        let payload: any;
+        try {
+            payload = JSON.parse(atob(data.access_token.split('.')[1]));
+        } catch {
+            throw new Error('Invalid credentials');
+        }
+        if (payload.role !== 'owner') {
+            // Wrong application for this account — do not persist tokens.
+            localStorage.removeItem('hakika_business_token');
+            localStorage.removeItem('hakika_business_refresh_token');
+            throw new Error('Invalid credentials');
+        }
         localStorage.setItem('hakika_business_token', data.access_token);
         localStorage.setItem('hakika_business_refresh_token', data.refresh_token);
-        const payload = JSON.parse(atob(data.access_token.split('.')[1]));
         setUser({ id: payload.sub, email, role: payload.role });
         await fetchBusiness();
     }, []);
@@ -99,6 +110,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
+            if (payload.role !== 'owner') {
+                // Wrong-role token from a prior build/session — purge.
+                localStorage.removeItem('hakika_business_token');
+                localStorage.removeItem('hakika_business_refresh_token');
+                setIsLoading(false);
+                return;
+            }
             setUser({ id: payload.sub, email: payload.email || '', role: payload.role });
         } catch {
             localStorage.removeItem('hakika_business_token');

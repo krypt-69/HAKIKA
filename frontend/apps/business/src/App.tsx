@@ -14,9 +14,10 @@ import Profile from './pages/Profile'
 import DashboardLayout from './components/DashboardLayout'
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   if (isLoading) return <div>Loading...</div>;
   if (!isAuthenticated) return <Navigate to="/login" />;
+  if (user?.role !== 'owner') return <Navigate to="/login" />;
   return <>{children}</>;
 };
 

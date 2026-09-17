@@ -24,18 +24,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      setUser({ email: payload.sub || 'admin', role: payload.role || 'admin' });
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.role !== 'admin') {
+          // Wrong-role token from a prior build/session — purge.
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+        setUser({ email: payload.sub || '', role: payload.role });
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        setUser(null);
+      }
     }
     setIsLoading(false);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await api.auth.login(email, password);
+    let payload: any;
+    try {
+      payload = JSON.parse(atob(data.access_token.split('.')[1]));
+    } catch {
+      throw new Error('Invalid credentials');
+    }
+    if (payload.role !== 'admin') {
+      // Wrong application for this account — do not persist tokens.
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      throw new Error('Invalid credentials');
+    }
     localStorage.setItem('token', data.access_token);
     if (data.refresh_token) localStorage.setItem('refreshToken', data.refresh_token);
-    const payload = JSON.parse(atob(data.access_token.split('.')[1]));
-    setUser({ email: payload.sub || email, role: payload.role || 'admin' });
+    setUser({ email: payload.sub || email, role: payload.role });
   }, []);
 
   const logout = useCallback(() => {

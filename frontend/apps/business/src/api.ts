@@ -82,6 +82,18 @@ async function getValidToken(): Promise<string | null> {
       });
       if (!resp.ok) throw new Error('Refresh failed');
       const data = await resp.json();
+      try {
+        const payload = JSON.parse(atob(data.access_token.split('.')[1]));
+        if (payload.role !== 'owner') {
+          localStorage.removeItem('hakika_business_token');
+          localStorage.removeItem('hakika_business_refresh_token');
+          return null;
+        }
+      } catch {
+        localStorage.removeItem('hakika_business_token');
+        localStorage.removeItem('hakika_business_refresh_token');
+        return null;
+      }
       localStorage.setItem('hakika_business_token', data.access_token);
       localStorage.setItem('hakika_business_refresh_token', data.refresh_token);
       return data.access_token;

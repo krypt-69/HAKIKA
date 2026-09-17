@@ -18,17 +18,17 @@ const App: React.FC = () => {
 
   return (
     <QueryProvider>
-      <AuthProvider namespace="hakika_rider">
+      <AuthProvider namespace="hakika_rider" expectedRole="rider">
         <BrowserRouter basename="/rider">
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/activate" element={<Activate />} />
-            <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-            <Route path="/navigate/:orderId" element={<ProtectedRoute><NavigationScreen /></ProtectedRoute>} />
-            <Route path="/navigate-trip" element={<ProtectedRoute><NavigationScreen /></ProtectedRoute>} />
-            <Route path="/trip-preview" element={<ProtectedRoute><TripPreview /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/" element={<ProtectedRoute expectedRole="rider"><Home /></ProtectedRoute>} />
+            <Route path="/navigate/:orderId" element={<ProtectedRoute expectedRole="rider"><NavigationScreen /></ProtectedRoute>} />
+            <Route path="/navigate-trip" element={<ProtectedRoute expectedRole="rider"><NavigationScreen /></ProtectedRoute>} />
+            <Route path="/trip-preview" element={<ProtectedRoute expectedRole="rider"><TripPreview /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute expectedRole="rider"><Profile /></ProtectedRoute>} />
           </Routes>
           <UpdatePrompt needRefresh={needRefresh[0]} updateServiceWorker={updateServiceWorker} />
         </BrowserRouter>
