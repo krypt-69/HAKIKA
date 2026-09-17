@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useParams } from 'react-router-dom';
 import { api, CustomerProductInfo } from '../api';
 import { Config } from '@hakika/config';
+import Toast from '../components/Toast';
 
 type Product = CustomerProductInfo;
 
@@ -520,6 +521,30 @@ const BusinessProfile: React.FC = () => {
     const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
     const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    const handleCopyLink = async () => {
+        const url = `https://hakika.co.ke/customer/business/${slug}`;
+        try {
+            await navigator.clipboard.writeText(url);
+            setToastMessage('Link copied');
+        } catch {
+            // Fallback for browsers without the async clipboard API
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = url;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                setToastMessage('Link copied');
+            } catch {
+                setToastMessage('Could not copy link');
+            }
+        }
+    };
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -850,18 +875,6 @@ const BusinessProfile: React.FC = () => {
             )}
 
             <div className="page-wrap">
-                <button
-                    onClick={() => navigate(-1)}
-                    aria-label="Back"
-                    style={{
-                        position: 'fixed', top: 14, left: 14, zIndex: 1200,
-                        width: 40, height: 40, borderRadius: '50%', background: '#ffffff',
-                        border: '1px solid #e5e7eb', cursor: 'pointer', display: 'flex',
-                        alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-                    }}
-                >
-                    <BackArrowSvg color="#111827" size={20} />
-                </button>
                 {/* ── Logo overlapping the top edge of the square cover ── */}
                 <div className="top-header">
                     <div className="cover-logo-wrap">
@@ -896,7 +909,15 @@ const BusinessProfile: React.FC = () => {
                                 {open ? 'Open' : 'Closed'}
                             </span>
                         </div>
+
+                        <button className="side-btn" onClick={handleCopyLink} type="button">
+                            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#4b5563' }}>Copy link</span>
+                        </button>
                     </div>
+
+                    {toastMessage && (
+                        <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
+                    )}
 
                     {searchOpen && (
                         <div className="search-row">
