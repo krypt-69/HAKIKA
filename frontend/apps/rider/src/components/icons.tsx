@@ -138,3 +138,28 @@ export const CloseIcon: React.FC<IconProps> = ({ size = 20, color = 'currentColo
     <path d="M6 6l12 12M18 6L6 18" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
   </svg>
 );
+
+export const PinIcon: React.FC<IconProps> = ({ size = 18, color = 'currentColor', strokeWidth = 1.8 }) => (
+  <svg {...base(size)} xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinejoin="round"
+    />
+    <circle cx="12" cy="10" r="2.6" stroke={color} strokeWidth={strokeWidth} />
+  </svg>
+);
+
+export const ClockIcon: React.FC<IconProps> = ({ size = 18, color = 'currentColor', strokeWidth = 1.8 }) => (
+  <svg {...base(size)} xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="9" stroke={color} strokeWidth={strokeWidth} />
+    <path
+      d="M12 7v5l3 2"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);

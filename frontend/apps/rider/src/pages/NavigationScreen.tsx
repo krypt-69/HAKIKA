@@ -15,8 +15,10 @@ import { loadActiveTrip, saveActiveTrip, clearActiveTrip } from '../services/nav
 import { getDarkMode, setDarkMode } from '../mapbox/init';
 import { sendTrackingMessage } from '../websocket';
 import MapModeToggle from '../components/MapModeToggle';
+import { PhoneIcon, CameraIcon, CheckCircleIcon, GpsIcon, PinIcon, ClockIcon } from '../components/icons';
 import { calculateRouteProgress, type RouteProgress } from '../services/routeProgress';
 import { orderToDestination, stopToDestination, type NavigationDestination } from '../services/navigationDestination';
+import { color, font, space, radius, shadow } from '../styles/tokens';
 
 function formatDistance(meters: number): string {
   if (meters == null) return '--';
@@ -711,118 +713,328 @@ const NavigationScreen: React.FC = () => {
         style={{
           flex: 1,
           minHeight: 200,
-          borderTop: '1px solid #e5e7eb',
-          padding: '16px 20px',
+          borderTop: `1px solid ${color.border}`,
+          background: color.surfaceMuted,
           overflowY: 'auto',
-          background: '#ffffff',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Drag-handle pill — decorative, indicates this is a sheet */}
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: space(2), paddingBottom: space(1) }}>
+          <div style={{ width: 36, height: 4, borderRadius: radius.pill, background: color.border }} />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: space(3), padding: `${space(3)}px ${space(5)}px ${space(5)}px` }}>
+          {/* ── Stop header ─────────────────────────── */}
+          <div
+            style={{
+              background: color.surface,
+              border: `1px solid ${color.border}`,
+              borderRadius: radius.lg,
+              padding: space(4),
+              boxShadow: shadow.card,
+              display: 'flex',
+              alignItems: 'center',
+              gap: space(3),
+            }}
+          >
             {display?.logo && (
               <img
                 src={display.logo}
                 alt="Business"
-                style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8 }}
+                style={{
+                  width: 52,
+                  height: 52,
+                  objectFit: 'cover',
+                  borderRadius: radius.md,
+                  border: `1px solid ${color.border}`,
+                  flexShrink: 0,
+                }}
               />
             )}
-            <div>
-              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#111827' }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontFamily: font.family,
+                  fontSize: font.size.title,
+                  fontWeight: font.weight.bold,
+                  color: color.ink,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
                 {display?.title || 'Navigation'}
               </h2>
-              <p style={{ margin: '2px 0 0', fontSize: 14, color: '#6b7280' }}>
+              <p
+                style={{
+                  margin: `${space(1)}px 0 0`,
+                  fontFamily: font.family,
+                  fontSize: font.size.small,
+                  fontWeight: font.weight.medium,
+                  color: color.inkMuted,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
                 {display?.subtitle || ''}
               </p>
             </div>
           </div>
 
+          {/* ── Items ───────────────────────────────── */}
           {display && display.items.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {display.items.slice(0, 3).map((item: any) => (
-                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                background: color.surface,
+                border: `1px solid ${color.border}`,
+                borderRadius: radius.lg,
+                padding: space(4),
+                boxShadow: shadow.card,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: font.size.caption,
+                  fontWeight: font.weight.semibold,
+                  color: color.inkFaint,
+                  letterSpacing: 0.4,
+                  textTransform: 'uppercase',
+                  marginBottom: space(2),
+                }}
+              >
+                Items
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: space(2) }}>
+                {display.items.slice(0, 3).map((item: any) => (
                   <div
+                    key={item.id}
                     style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 6,
-                      backgroundColor: '#f3f4f6',
-                      overflow: 'hidden',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      gap: space(3),
+                      background: color.surfaceMuted,
+                      borderRadius: radius.md,
+                      padding: space(2),
                     }}
                   >
-                    {item.thumbnail_url ? (
-                      <img
-                        src={item.thumbnail_url}
-                        alt={item.product_name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <div style={{ width: '100%', height: '100%', backgroundColor: '#e5e7eb' }} />
-                    )}
+                    <div
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: radius.sm,
+                        backgroundColor: color.border,
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {item.thumbnail_url ? (
+                        <img
+                          src={item.thumbnail_url}
+                          alt={item.product_name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', backgroundColor: color.border }} />
+                      )}
+                    </div>
+                    <span
+                      style={{
+                        flex: 1,
+                        fontFamily: font.family,
+                        fontSize: font.size.body,
+                        color: color.ink,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {item.product_name}
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: font.family,
+                        fontSize: font.size.body,
+                        fontWeight: font.weight.semibold,
+                        color: color.inkMuted,
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      × {item.quantity}
+                    </span>
                   </div>
-                  <span style={{ fontSize: 14, color: '#111827' }}>
-                    {item.product_name} × {item.quantity}
+                ))}
+                {display.items.length > 3 && (
+                  <span
+                    style={{
+                      fontFamily: font.family,
+                      fontSize: font.size.small,
+                      color: color.inkMuted,
+                      textAlign: 'right',
+                    }}
+                  >
+                    +{display.items.length - 3} more
                   </span>
-                </div>
-              ))}
-              {display.items.length > 3 && (
-                <span style={{ fontSize: 12, color: '#6b7280' }}>
-                  +{display.items.length - 3} more
-                </span>
-              )}
+                )}
+              </div>
             </div>
           )}
 
+          {/* ── Customer contact row ────────────────── */}
           {display?.phone && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 15, color: '#374151', fontWeight: 500 }}>
-                📞 {display.phone}
-              </span>
+            <div
+              style={{
+                background: color.surface,
+                border: `1px solid ${color.border}`,
+                borderRadius: radius.lg,
+                padding: space(4),
+                boxShadow: shadow.card,
+                display: 'flex',
+                alignItems: 'center',
+                gap: space(3),
+              }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: radius.pill,
+                  background: color.amberSoft,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <PhoneIcon size={18} color={color.amberDark} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: font.size.caption,
+                    fontWeight: font.weight.semibold,
+                    color: color.inkFaint,
+                    letterSpacing: 0.4,
+                    textTransform: 'uppercase',
+                    marginBottom: 2,
+                  }}
+                >
+                  Customer
+                </div>
+                <div
+                  style={{
+                    fontFamily: font.family,
+                    fontSize: font.size.body,
+                    fontWeight: font.weight.semibold,
+                    color: color.ink,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {display.phone}
+                </div>
+              </div>
               <a
                 href={`tel:${display.phone}`}
                 style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#2563eb',
-                  color: '#fff',
-                  borderRadius: 8,
-                  fontWeight: 700,
+                  height: 36,
+                  padding: `0 ${space(4)}px`,
+                  background: color.amber,
+                  color: color.ink,
+                  borderRadius: radius.pill,
+                  fontWeight: font.weight.semibold,
+                  fontSize: font.size.small,
                   textDecoration: 'none',
-                  display: 'inline-block',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: space(1.5),
+                  flexShrink: 0,
+                  fontFamily: font.family,
                 }}
               >
+                <PhoneIcon size={14} color={color.ink} />
                 Call
               </a>
             </div>
           )}
 
+          {/* ── Delivery information card ───────────── */}
           {display?.deliveryNote && display.deliveryNote.trim() && (
             <div
               style={{
-                backgroundColor: '#fef3c7',
-                border: '1px solid #fde68a',
-                borderRadius: 8,
-                padding: '10px 12px',
+                background: color.amberSoft,
+                border: `1px solid #F0C97A`,
+                borderLeft: `3px solid ${color.amber}`,
+                borderRadius: radius.lg,
+                padding: space(4),
               }}
             >
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#92400e', marginBottom: 4 }}>
-                Delivery information
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: space(2),
+                  marginBottom: space(1.5),
+                }}
+              >
+                <PinIcon size={16} color={color.amberDark} />
+                <span
+                  style={{
+                    fontSize: font.size.caption,
+                    fontWeight: font.weight.semibold,
+                    color: color.amberDark,
+                    letterSpacing: 0.4,
+                    textTransform: 'uppercase',
+                    fontFamily: font.family,
+                  }}
+                >
+                  Delivery information
+                </span>
               </div>
-              <div style={{ fontSize: 14, color: '#78350f', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              <div
+                style={{
+                  fontFamily: font.family,
+                  fontSize: font.size.body,
+                  color: color.amberDark,
+                  lineHeight: 1.5,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}
+              >
                 {display.deliveryNote}
               </div>
             </div>
           )}
 
           {currentStopInvalidated && (
-            <div style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '8px 12px', borderRadius: 6, fontSize: 14 }}>
+            <div
+              style={{
+                background: color.amberSoft,
+                border: `1px solid #F0C97A`,
+                color: color.amberDark,
+                padding: `${space(3)}px ${space(4)}px`,
+                borderRadius: radius.md,
+                fontSize: font.size.small,
+                fontFamily: font.family,
+              }}
+            >
               This stop is no longer available. Please review remaining stops.
             </div>
           )}
 
           {recalculating && (
-            <div style={{ backgroundColor: '#eff6ff', color: '#1e40af', padding: '8px 12px', borderRadius: 6, fontSize: 14 }}>
+            <div
+              style={{
+                background: color.infoSoft,
+                border: `1px solid #B9D4DD`,
+                color: color.info,
+                padding: `${space(3)}px ${space(4)}px`,
+                borderRadius: radius.md,
+                fontSize: font.size.small,
+                fontFamily: font.family,
+              }}
+            >
               Recalculating route…
             </div>
           )}
@@ -847,40 +1059,109 @@ const NavigationScreen: React.FC = () => {
           )}
 
           {navigationError && (
-            <div style={{ backgroundColor: '#fef2f2', color: '#b91c1c', padding: '8px 12px', borderRadius: 6, fontSize: 14 }}>
+            <div
+              style={{
+                background: color.dangerSoft,
+                border: `1px solid #EBC1B6`,
+                color: color.danger,
+                padding: `${space(3)}px ${space(4)}px`,
+                borderRadius: radius.md,
+                fontSize: font.size.small,
+                fontFamily: font.family,
+              }}
+            >
               {navigationError}
             </div>
           )}
 
+          {/* ── Distance & ETA ──────────────────────── */}
           {navigationPhase === 'active' && activeRouteData && routeProgress && (
             <div
               style={{
+                background: color.surface,
+                border: `1px solid ${color.border}`,
+                borderRadius: radius.lg,
+                padding: space(4),
+                boxShadow: shadow.card,
                 display: 'flex',
-                justifyContent: 'space-between',
-                backgroundColor: '#f9fafb',
-                padding: '10px 14px',
-                borderRadius: 8,
-                fontSize: 15,
-                fontWeight: 700,
-                color: '#111827',
+                alignItems: 'stretch',
               }}
             >
-              <span>{formatDistance(routeProgress.remainingDistanceMeters)}</span>
-              <span>{formatDuration(routeProgress.remainingDurationSeconds)}</span>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: space(3) }}>
+                <GpsIcon size={20} color={color.inkMuted} />
+                <div>
+                  <div
+                    style={{
+                      fontSize: font.size.caption,
+                      fontWeight: font.weight.semibold,
+                      color: color.inkFaint,
+                      letterSpacing: 0.4,
+                      textTransform: 'uppercase',
+                      fontFamily: font.family,
+                    }}
+                  >
+                    Distance
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: font.family,
+                      fontSize: font.size.bodyLarge,
+                      fontWeight: font.weight.bold,
+                      color: color.ink,
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {formatDistance(routeProgress.remainingDistanceMeters)}
+                  </div>
+                </div>
+              </div>
+              <div style={{ width: 1, background: color.border, margin: `0 ${space(3)}px` }} />
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: space(3) }}>
+                <ClockIcon size={20} color={color.inkMuted} />
+                <div>
+                  <div
+                    style={{
+                      fontSize: font.size.caption,
+                      fontWeight: font.weight.semibold,
+                      color: color.inkFaint,
+                      letterSpacing: 0.4,
+                      textTransform: 'uppercase',
+                      fontFamily: font.family,
+                    }}
+                  >
+                    ETA
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: font.family,
+                      fontSize: font.size.bodyLarge,
+                      fontWeight: font.weight.bold,
+                      color: color.ink,
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {formatDuration(routeProgress.remainingDurationSeconds)}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          {/* ── Actions ─────────────────────────────── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: space(2) }}>
             {navigationPhase === 'overview' && (
               <button
                 onClick={() => handleStartNavigation()}
                 style={{
-                  padding: '12px 18px',
-                  backgroundColor: '#2563eb',
-                  color: '#fff',
+                  width: '100%',
+                  minHeight: 50,
+                  background: color.ink,
+                  color: color.surface,
                   border: 'none',
-                  borderRadius: 8,
-                  fontWeight: 700,
+                  borderRadius: radius.md,
+                  fontFamily: font.family,
+                  fontWeight: font.weight.bold,
+                  fontSize: font.size.bodyLarge,
                   cursor: 'pointer',
                 }}
               >
@@ -892,34 +1173,49 @@ const NavigationScreen: React.FC = () => {
               onClick={handleArrived}
               disabled={!canMarkArrived}
               style={{
-                padding: '12px 18px',
-                backgroundColor: '#10b981',
-                color: '#fff',
+                width: '100%',
+                minHeight: 54,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: space(2),
+                background: color.amber,
+                color: color.ink,
                 border: 'none',
-                borderRadius: 8,
-                fontWeight: 700,
+                borderRadius: 14,
+                fontFamily: font.family,
+                fontWeight: font.weight.bold,
+                fontSize: font.size.bodyLarge,
                 cursor: canMarkArrived ? 'pointer' : 'not-allowed',
                 opacity: canMarkArrived ? 1 : 0.6,
+                boxShadow: canMarkArrived ? '0 4px 12px rgba(240,166,59,0.35)' : 'none',
               }}
             >
+              <CheckCircleIcon size={20} color={color.ink} />
               Mark as Arrived
             </button>
-
-
 
             <button
               disabled
               style={{
-                padding: '12px 18px',
-                backgroundColor: '#6366f1',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 8,
-                fontWeight: 700,
+                width: '100%',
+                minHeight: 48,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: space(2),
+                background: 'transparent',
+                color: color.inkMuted,
+                border: `1px solid ${color.border}`,
+                borderRadius: radius.md,
+                fontFamily: font.family,
+                fontWeight: font.weight.semibold,
+                fontSize: font.size.body,
                 cursor: 'not-allowed',
                 opacity: 0.6,
               }}
             >
+              <CameraIcon size={18} color={color.inkMuted} />
               Submit Evidence
             </button>
           </div>
