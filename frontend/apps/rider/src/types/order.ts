@@ -21,5 +21,6 @@ export interface Order {
   business_logo?: string | null;
   pickup_location?: { lat: any; lon: any } | null;
   delivery_location?: { lat: any; lon: any } | null;
+  delivery_note?: string | null;
   items: OrderItem[];
 }

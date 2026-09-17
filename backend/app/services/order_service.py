@@ -111,6 +111,11 @@ class OrderService:
         delivery_fee = 0.0
         total = subtotal + delivery_fee
 
+        # Trim and cap the optional delivery note before persistence.
+        delivery_note = (data.delivery_note or '').strip() or None
+        if delivery_note and len(delivery_note) > 500:
+            delivery_note = delivery_note[:500]
+
         order = await self.order_repo.create_order_with_items_no_commit(
             customer_id=customer.id,
             business_id=data.business_id,
@@ -118,7 +123,8 @@ class OrderService:
             delivery_coordinates=(data.delivery_lat, data.delivery_lon),
             subtotal=subtotal,
             delivery_fee=delivery_fee,
-            total_amount=total
+            total_amount=total,
+            delivery_note=delivery_note,
         )
         await self.db.commit()
         await self.db.refresh(order)
@@ -387,6 +393,7 @@ class OrderService:
 
     def _to_response(self, order, order_items, customer_phone: str | None = None) -> OrderResponse:
         return OrderResponse(
+            delivery_note=getattr(order, 'delivery_note', None),
             id=order.id,
             delivery_coordinates=self._coords_to_geojson(order.delivery_coordinates),
             order_number=order.order_number,

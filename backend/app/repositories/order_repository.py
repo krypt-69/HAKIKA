@@ -21,7 +21,8 @@ class OrderRepository:
         delivery_coordinates: tuple[float, float],
         subtotal: float,
         delivery_fee: float,
-        total_amount: float
+        total_amount: float,
+        delivery_note: str | None = None,
     ) -> Order:
         order_number = await self.generate_order_number()
         order = Order(
@@ -33,6 +34,7 @@ class OrderRepository:
             delivery_fee=delivery_fee,
             total_amount=total_amount,
             delivery_coordinates=f'SRID=4326;POINT({delivery_coordinates[1]} {delivery_coordinates[0]})',
+            delivery_note=delivery_note,
         )
         self.db.add(order)
         await self.db.flush()
@@ -77,7 +79,8 @@ class OrderRepository:
         delivery_coordinates: tuple[float, float],
         subtotal: float,
         delivery_fee: float,
-        total_amount: float
+        total_amount: float,
+        delivery_note: str | None = None,
     ) -> Order:
         order_number = await self.generate_order_number()
         order = Order(
@@ -89,6 +92,7 @@ class OrderRepository:
             delivery_fee=delivery_fee,
             total_amount=total_amount,
             delivery_coordinates=f'SRID=4326;POINT({delivery_coordinates[1]} {delivery_coordinates[0]})',
+            delivery_note=delivery_note,
         )
         self.db.add(order)
         await self.db.flush()

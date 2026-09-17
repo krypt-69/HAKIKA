@@ -29,6 +29,7 @@ const OrderPage: React.FC = () => {
     const [phone, setPhone] = useState('');
     const [deliveryLat, setDeliveryLat] = useState('');
     const [deliveryLon, setDeliveryLon] = useState('');
+    const [deliveryNote, setDeliveryNote] = useState('');
     const [locationSet, setLocationSet] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -133,6 +134,7 @@ const OrderPage: React.FC = () => {
                 items: cart.map(item => ({ product_id: item.product.id, quantity: item.quantity })),
                 delivery_lat: parseFloat(deliveryLat),
                 delivery_lon: parseFloat(deliveryLon),
+                delivery_note: deliveryNote.trim() || undefined,
             });
             setOrderId(data.id);
             sessionStorage.setItem(`hakika_order_phone_${data.id}`, phone);
@@ -279,6 +281,20 @@ const OrderPage: React.FC = () => {
                             ) : (
                                 <p className="location-status pending">Location required to place an order</p>
                             )}
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="delivery-note">Additional info (optional)</label>
+                            <textarea
+                                id="delivery-note"
+                                value={deliveryNote}
+                                onChange={e => setDeliveryNote(e.target.value)}
+                                maxLength={500}
+                                rows={2}
+                                placeholder="Any additional info useful for the rider like room etc."
+                                className="text-input"
+                                style={{ resize: 'vertical', minHeight: 60 }}
+                            />
                         </div>
 
                         {error && <p className="error-msg">{error}</p>}

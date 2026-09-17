@@ -144,6 +144,7 @@ const NavigationScreen: React.FC = () => {
         subtitle: `Order ${order.order_number} · KES ${order.total_amount}`,
         items: order.items || [],
         phone: order.customer_phone || null,
+        deliveryNote: order.delivery_note || null,
       };
     }
     if (currentTripStop) {
@@ -153,6 +154,7 @@ const NavigationScreen: React.FC = () => {
         subtitle: `${currentTripStop.type === 'pickup' ? 'Pickup' : 'Delivery'} · ${currentTripStop.orderIds.length} order(s)`,
         items: [],
         phone: null,
+        deliveryNote: null,
       };
     }
     return null;
@@ -792,6 +794,24 @@ const NavigationScreen: React.FC = () => {
               >
                 Call
               </a>
+            </div>
+          )}
+
+          {display?.deliveryNote && display.deliveryNote.trim() && (
+            <div
+              style={{
+                backgroundColor: '#fef3c7',
+                border: '1px solid #fde68a',
+                borderRadius: 8,
+                padding: '10px 12px',
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#92400e', marginBottom: 4 }}>
+                Delivery information
+              </div>
+              <div style={{ fontSize: 14, color: '#78350f', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {display.deliveryNote}
+              </div>
             </div>
           )}
 

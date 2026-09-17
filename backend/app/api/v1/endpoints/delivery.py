@@ -175,6 +175,7 @@ async def get_order_for_rider(
         "customer_id": str(order.customer_id),
         "business_id": str(order.business_id),
         "customer_phone": None,
+        "delivery_note": order.delivery_note,
     }
     if order.status in (OrderStatus.arrived, OrderStatus.customer_confirmed_delivery, OrderStatus.payment_pending, OrderStatus.paid, OrderStatus.completed):
         customer_repo = CustomerRepository(db)
@@ -272,6 +273,7 @@ async def rider_orders(
             "business_logo": business_logo,
             "delivery_location": serialize_point(order.delivery_coordinates),
             "pickup_location": pickup_location,
+            "delivery_note": order.delivery_note,
         }
         if order.status.value in ('arrived', 'customer_confirmed_delivery', 'payment_pending', 'paid', 'completed'):
             order_data["customer_phone"] = customer.phone_normalized if customer else None

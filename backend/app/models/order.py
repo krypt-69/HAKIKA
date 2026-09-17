@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import String, Numeric, Boolean, TIMESTAMP, ForeignKey, Integer
+from sqlalchemy import String, Numeric, Boolean, TIMESTAMP, ForeignKey, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID, ENUM
 from sqlalchemy.orm import Mapped, mapped_column
 from geoalchemy2 import Geography
@@ -39,6 +39,7 @@ class Order(Base):
     delivery_fee: Mapped[float] = mapped_column(Numeric, nullable=False, default=0)
     total_amount: Mapped[float] = mapped_column(Numeric, nullable=False)
     delivery_coordinates = mapped_column(Geography(geometry_type="POINT", srid=4326), nullable=True)
+    delivery_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     requires_deposit: Mapped[bool] = mapped_column(Boolean, default=False)
     deposit_amount: Mapped[float | None] = mapped_column(Numeric, nullable=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, default=datetime.utcnow)

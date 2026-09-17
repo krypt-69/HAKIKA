@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import uuid
 from datetime import datetime
 
@@ -12,6 +12,7 @@ class OrderCreateRequest(BaseModel):
     items: list[OrderItemCreate]
     delivery_lat: float
     delivery_lon: float
+    delivery_note: str | None = Field(default=None, max_length=500)
 
 class OrderItemResponse(BaseModel):
     id: uuid.UUID
@@ -23,6 +24,7 @@ class OrderItemResponse(BaseModel):
 
 class OrderResponse(BaseModel):
     distance_km: float | None = None
+    delivery_note: str | None = None
     delivery_location: dict | None = None
     delivery_coordinates: dict | None = None
     customer_phone: str | None = None

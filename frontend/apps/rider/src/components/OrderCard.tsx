@@ -174,6 +174,24 @@ const OrderCard: React.FC<Props> = ({
           </div>
         </div>
 
+        {order.delivery_note && order.delivery_note.trim() && (
+          <div
+            style={{
+              marginTop: space(3),
+              paddingTop: space(3),
+              borderTop: `1px solid ${color.border}`,
+              fontSize: font.size.small,
+            }}
+          >
+            <div style={{ fontSize: font.size.caption, color: color.inkFaint, marginBottom: space(1) }}>
+              Delivery information
+            </div>
+            <div style={{ color: color.ink, fontWeight: font.weight.medium, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              {order.delivery_note}
+            </div>
+          </div>
+        )}
+
         {totalTrip !== null && (
           <div
             style={{
