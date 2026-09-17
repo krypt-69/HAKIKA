@@ -43,6 +43,7 @@ class Settings(BaseSettings):
             self.payhero_collection_channel_id = int(v)
     payhero_webhook_secret: str = os.getenv("PAYHERO_WEBHOOK_SECRET", "")
     payhero_callback_url: str = os.getenv("PAYHERO_CALLBACK_URL", "http://localhost:8000/api/v1/payments/callback")
+    payhero_credit_callback_url: str = os.getenv("PAYHERO_CREDIT_CALLBACK_URL", "http://localhost:8000/api/v1/credit/callback")
 
     # PayHero STK Simulator (for development)
     payhero_api_base: str = os.getenv("PAYHERO_API_BASE", "https://backend.payhero.co.ke/api/v2")

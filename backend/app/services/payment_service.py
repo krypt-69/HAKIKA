@@ -514,7 +514,8 @@ class PaymentService:
                 code="CREDIT_CHANNEL_NOT_CONFIGURED",
             )
         collection_channel_id = settings.payhero_collection_channel_id
-        context = PaymentProviderContext(channel_id=collection_channel_id)
+        credit_callback_url = getattr(settings, "payhero_credit_callback_url", None) or settings.payhero_callback_url
+        context = PaymentProviderContext(channel_id=collection_channel_id, callback_url=credit_callback_url)
         try:
             response = await provider.initiate_payment(
                 phone=phone,
@@ -522,7 +523,18 @@ class PaymentService:
                 reference=payment_ref,
                 context=context,
             )
-            return {"checkout_url": response.get('id', '')}  # simplified; real flow returns checkout ID
+            # Persist PayHero correlation on the MerchantCreditOrder for later callback validation
+            provider_data = order.provider_data or {}
+            if response.get("CheckoutRequestID"):
+                provider_data["checkout_request_id"] = response["CheckoutRequestID"]
+            if response.get("MerchantRequestID"):
+                provider_data["merchant_request_id"] = response["MerchantRequestID"]
+            if response.get("reference"):
+                provider_data["payhero_reference"] = response["reference"]
+            order.provider_data = provider_data
+            await self.payment_repo.db.commit()
+            await self.payment_repo.db.refresh(order)
+            return {"checkout_url": response.get('id', '')}
         except Exception as e:
             logger.error(f"Credit purchase initiation failed: {e}")
             raise HTTPException(status_code=500, detail="Credit purchase failed")
@@ -545,6 +557,61 @@ class PaymentService:
         order = await mco_repo.get_by_payment_reference(api_ref)
         if not order:
             raise HTTPException(status_code=404, detail="Credit order not found")
+        # --- Flow B validation block ---
+        received_amount = normalised.get("amount")
+        if received_amount is not None:
+            if abs(float(received_amount) - float(order.amount_paid)) > 0.01:
+                logger.error(
+                    f"Credit callback amount mismatch: order {order.amount_paid}, got {received_amount}"
+                )
+                raise HTTPException(status_code=422, detail="Credit callback amount mismatch")
+
+        incoming_channel = normalised.get("channel_id")
+        if incoming_channel is not None and settings.payhero_collection_channel_id is not None:
+            if int(incoming_channel) != int(settings.payhero_collection_channel_id):
+                logger.error(
+                    f"Credit callback channel mismatch: config {settings.payhero_collection_channel_id}, got {incoming_channel}"
+                )
+                raise HTTPException(status_code=422, detail="Credit callback channel mismatch")
+
+        stored_checkout = (order.provider_data or {}).get("checkout_request_id")
+        incoming_checkout = normalised.get("provider_reference")
+        if stored_checkout and incoming_checkout and stored_checkout != incoming_checkout:
+            logger.error(
+                f"Credit callback CheckoutRequestID mismatch: stored {stored_checkout}, got {incoming_checkout}"
+            )
+            raise HTTPException(status_code=422, detail="Credit callback reference mismatch")
+
+        incoming_phone = normalised.get("phone")
+        if incoming_phone:
+            from sqlalchemy import select as _select
+            from app.models.user import User as _User
+            business_pre = await BusinessRepository(self.payment_repo.db).get_by_id(order.business_id)
+            if business_pre and business_pre.owner_id:
+                result_owner = await self.payment_repo.db.execute(
+                    _select(_User).where(_User.id == business_pre.owner_id)
+                )
+                owner = result_owner.scalar_one_or_none()
+                if owner and owner.phone:
+                    def _canon_phone(v):
+                        s = str(v).strip().replace("+", "").replace(" ", "")
+                        if s.startswith("0"):
+                            s = "254" + s[1:]
+                        if not s.startswith("254"):
+                            s = "254" + s
+                        return s
+                    if _canon_phone(incoming_phone) != _canon_phone(owner.phone):
+                        logger.error(
+                            f"Credit callback phone mismatch: owner {owner.phone}, got {incoming_phone}"
+                        )
+                        raise HTTPException(status_code=422, detail="Credit callback phone mismatch")
+
+        if normalised.get("mpesa_receipt"):
+            provider_data = order.provider_data or {}
+            provider_data["mpesa_receipt"] = normalised["mpesa_receipt"]
+            order.provider_data = provider_data
+            await self.payment_repo.db.commit()
+
         handler = CreditPurchaseHandler(self.payment_repo.db)
         return await handler.complete_purchase(order.id, api_ref)
     async def get_order_payment_state(self, order_id: uuid.UUID) -> str:

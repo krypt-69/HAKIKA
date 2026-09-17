@@ -25,8 +25,9 @@ import {
   ArchiveIcon,
   AlertIcon,
   CheckCircleIcon,
+  MapIcon,
 } from '../components/icons';
-import { color, radius, shadow, font } from '../styles/tokens';
+import { color, radius, shadow, font, space } from '../styles/tokens';
 
 import { Order, OrderItem } from '../types/order';
 
@@ -513,25 +514,23 @@ const Home: React.FC = () => {
               <button
                 onClick={() => setShowMap(v => !v)}
                 style={{
-                  background: '#111111',
+                  background: color.danger,
                   border: 'none',
-                  color: '#ffffff',
-                  borderRadius: 10,
-                  padding: '12px 22px',
-                  fontWeight: 700,
-                  fontSize: 14,
+                  color: color.surface,
+                  borderRadius: radius.pill,
+                  padding: `${space(2.5)}px ${space(5)}px`,
+                  fontWeight: font.weight.bold,
+                  fontSize: font.size.body,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 8,
+                  gap: space(2),
+                  fontFamily: font.family,
+                  boxShadow: '0 4px 12px rgba(180,72,47,0.35)',
                 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z" />
-                  <line x1="8" y1="2" x2="8" y2="22" />
-                  <line x1="16" y1="6" x2="16" y2="22" />
-                </svg>
-                {showMap ? 'Hide map' : 'Show map'}
+                <MapIcon size={16} color={color.surface} />
+                {showMap ? 'Close Overview Map' : 'Open Overview Map'}
               </button>
             </div>
             {showMap && (

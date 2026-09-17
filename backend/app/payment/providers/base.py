@@ -5,7 +5,7 @@ from dataclasses import dataclass
 @dataclass
 class PaymentProviderContext:
     channel_id: Optional[int] = None
-    # Add other provider-specific fields here as needed, typed.
+    callback_url: Optional[str] = None
 
 class PaymentProvider(ABC):
     @abstractmethod

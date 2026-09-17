@@ -57,7 +57,7 @@ class PayHeroProvider(PaymentProvider):
             "channel_id": context.channel_id,
             "provider": "m-pesa",
             "external_reference": reference,
-            "callback_url": settings.payhero_callback_url if hasattr(settings, "payhero_callback_url") else "http://localhost:8000/api/v1/payments/callback",
+            "callback_url": (context.callback_url if context and context.callback_url else settings.payhero_callback_url),
         }
         url = f"{self._payment_base()}/payments"
         headers = self._headers()

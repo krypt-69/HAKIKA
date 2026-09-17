@@ -163,3 +163,16 @@ export const ClockIcon: React.FC<IconProps> = ({ size = 18, color = 'currentColo
     />
   </svg>
 );
+
+export const MapIcon: React.FC<IconProps> = ({ size = 18, color = 'currentColor', strokeWidth = 1.8 }) => (
+  <svg {...base(size)} xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20V6.5z"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinejoin="round"
+    />
+    <path d="M9 4v13.5M15 6.5V20" stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />
+    <circle cx="12" cy="11" r="1.8" stroke={color} strokeWidth={strokeWidth} />
+  </svg>
+);
