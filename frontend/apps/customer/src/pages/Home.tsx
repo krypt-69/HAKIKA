@@ -351,9 +351,9 @@ const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; dark
     const bizPath = `/business/${biz.slug ?? biz.id}`;
     return (
         <div style={{ marginTop: 48, marginBottom: 48 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
                 {biz.snippet_products.slice(0, 4).map(p => (
-                    <Link key={p.id} to={bizPath} style={{ textDecoration: 'none', display: 'block', background: '#f3f4f6', borderRadius: 10, overflow: 'hidden' }}>
+                    <Link key={p.id} to={bizPath} style={{ textDecoration: 'none', display: 'block', background: '#f3f4f6', borderRadius: 10, overflow: 'hidden', flex: '0 0 calc(50% - 6px)', maxWidth: 'calc(50% - 6px)' }}>
                         <div style={{ width: '100%', aspectRatio: '3 / 4', overflow: 'hidden', background: catColor.light }}>
                             {p.image_url ? (
                                 <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -363,7 +363,7 @@ const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; dark
                                 </div>
                             )}
                         </div>
-                        <div style={{ padding: '5px 8px 7px', fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 16, color: '#7A5C00', background: '#f3f4f6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                        <div style={{ padding: '5px 8px 7px', fontFamily: "'Caveat', cursive", fontWeight: 700, fontSize: 20, color: '#7A5C00', background: '#f3f4f6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
                     </Link>
                 ))}
             </div>

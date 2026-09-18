@@ -46,7 +46,43 @@ const DesktopHome: React.FC<Props> = ({
 }) => {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [zoomedLogo, setZoomedLogo] = React.useState<{ url: string; name: string } | null>(null);
+  const [activeCategory, setActiveCategory] = React.useState<string | null>(null);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
+  const firstRowRef = React.useRef<HTMLDivElement>(null);
+
+  // Disable the browser's own "restore previous scroll on refresh" behavior
+  // as early as possible — useLayoutEffect runs before paint, ahead of a
+  // plain useEffect, which matters for winning this race on a hard refresh.
+  React.useLayoutEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
+  // Land on the first row of shops — scrolling to the row itself (not the
+  // section header above it) keeps the whole card in view instead of
+  // cutting it off halfway.
+  React.useEffect(() => {
+    const scrollToFirstRow = () => {
+      if (!firstRowRef.current) return;
+      const top = firstRowRef.current.getBoundingClientRect().top + window.scrollY - 16;
+      window.scrollTo({ top: Math.max(top, 0), behavior: 'auto' });
+    };
+
+    requestAnimationFrame(() => requestAnimationFrame(scrollToFirstRow));
+    const t1 = setTimeout(scrollToFirstRow, 150);
+    // Covers the hard-refresh case, where the browser's own restore can
+    // fire on window 'load' — after our rAF calls above have already run.
+    window.addEventListener('load', scrollToFirstRow);
+    // Covers back-forward-cache restores (Safari/Firefox bfcache).
+    window.addEventListener('pageshow', scrollToFirstRow);
+
+    return () => {
+      clearTimeout(t1);
+      window.removeEventListener('load', scrollToFirstRow);
+      window.removeEventListener('pageshow', scrollToFirstRow);
+    };
+  }, []);
 
   React.useEffect(() => {
     if (!sentinelRef.current) return;
@@ -72,6 +108,21 @@ const DesktopHome: React.FC<Props> = ({
   const hasLocation = businesses.some(
     b => typeof b.distance_meters === 'number' && b.distance_meters !== null
   );
+
+  // Categories derived from whatever's actually on the page right now —
+  // no separate fetch, always in sync with what's visible.
+  const categories = React.useMemo(() => {
+    const seen = new Map<string, number>();
+    businesses.forEach(b => {
+      if (!b.category_name) return;
+      seen.set(b.category_name, (seen.get(b.category_name) || 0) + 1);
+    });
+    return Array.from(seen.entries()).sort((a, b) => b[1] - a[1]);
+  }, [businesses]);
+
+  const visibleBusinesses = activeCategory
+    ? businesses.filter(b => b.category_name === activeCategory)
+    : businesses;
 
   return (
     <div style={{ minHeight: '100vh', background: PAPER, color: INK, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
@@ -100,17 +151,23 @@ const DesktopHome: React.FC<Props> = ({
           box-shadow: 0 22px 40px rgba(34, 31, 26, 0.11);
           border-color: #D8CDB4;
         }
+        .hk-shop-card:hover .hk-view-cta { opacity: 1; transform: translateX(0); }
 
         .hk-search-btn:hover { background: ${MOSS_DARK}; }
         .hk-locate-btn:hover { background: ${MOSS_SOFT}; }
 
-        .hk-logo-btn {
+        .hk-chip {
+          transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+        }
+        .hk-chip:hover { border-color: ${MOSS}; color: ${MOSS_DARK}; }
+
+        .hk-logo-ring {
           transition: transform 160ms ease, box-shadow 160ms ease;
           cursor: zoom-in;
         }
-        .hk-logo-btn:hover {
+        .hk-logo-ring:hover {
           transform: scale(1.06);
-          box-shadow: 0 6px 16px rgba(34,31,26,0.28);
+          box-shadow: 0 6px 16px rgba(34,31,26,0.22);
         }
 
         .hk-icon-btn:focus-visible,
@@ -119,7 +176,8 @@ const DesktopHome: React.FC<Props> = ({
         .hk-locate-btn:focus-visible,
         .hk-shop-card:focus-visible,
         .hk-menu-item:focus-visible,
-        .hk-logo-btn:focus-visible {
+        .hk-chip:focus-visible,
+        .hk-logo-ring:focus-visible {
           outline: 2px solid ${MOSS};
           outline-offset: 2px;
         }
@@ -157,8 +215,8 @@ const DesktopHome: React.FC<Props> = ({
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .hk-shop-card, .hk-logo-btn { transition: none !important; }
-          .hk-shop-card:hover, .hk-logo-btn:hover { transform: none !important; }
+          .hk-shop-card, .hk-logo-ring, .hk-view-cta { transition: none !important; }
+          .hk-shop-card:hover, .hk-logo-ring:hover { transform: none !important; }
           .hk-spinner, .hk-logo-overlay, .hk-logo-zoom-img { animation: none !important; }
         }
 
@@ -273,7 +331,9 @@ const DesktopHome: React.FC<Props> = ({
           What&rsquo;s open, what&rsquo;s fresh, what&rsquo;s close
         </h1>
         <p style={{ fontSize: 17, color: MUTED, maxWidth: 520, margin: '0 auto 32px', lineHeight: 1.55 }}>
-          Search the shops around you,see there distance and make an order expect the businesses to deliver
+          {businesses.length > 0
+            ? `${businesses.length} ${businesses.length === 1 ? 'shop is' : 'shops are'} ready to deliver near you — search, pick, and track your order the whole way.`
+            : 'Search the shops around you, see how far they are, and get it delivered.'}
         </p>
 
         <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -331,100 +391,166 @@ const DesktopHome: React.FC<Props> = ({
 
       {/* Shop grid */}
       <div style={{ maxWidth: 2240, margin: '0 auto', padding: '0 32px 88px' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 26, borderBottom: `1px solid ${LINE}`, paddingBottom: 16 }}>
-          <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 600, fontSize: 24, margin: 0 }}>Shops near you</h2>
-          <span style={{ fontSize: 13, color: MUTED }}>{businesses.length} {businesses.length === 1 ? 'shop' : 'shops'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22, gap: 24, flexWrap: 'wrap' }}>
+          <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 600, fontSize: 24, margin: 0, flexShrink: 0 }}>Shops near you</h2>
+
+          {categories.length > 1 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <button
+                className="hk-chip"
+                onClick={() => setActiveCategory(null)}
+                style={{
+                  background: activeCategory === null ? MOSS : CARD,
+                  color: activeCategory === null ? '#FFFFFF' : INK,
+                  border: `1px solid ${activeCategory === null ? MOSS : LINE}`,
+                  borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                All
+              </button>
+              {categories.map(([name, count]) => (
+                <button
+                  key={name}
+                  className="hk-chip"
+                  onClick={() => setActiveCategory(prev => (prev === name ? null : name))}
+                  style={{
+                    background: activeCategory === name ? MOSS : CARD,
+                    color: activeCategory === name ? '#FFFFFF' : INK,
+                    border: `1px solid ${activeCategory === name ? MOSS : LINE}`,
+                    borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  {name} <span style={{ opacity: 0.65, fontWeight: 500 }}>· {count}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{ borderBottom: `1px solid ${LINE}`, marginBottom: 26, paddingBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
+          <span style={{ fontSize: 13, color: MUTED }}>{visibleBusinesses.length} {visibleBusinesses.length === 1 ? 'shop' : 'shops'}</span>
         </div>
 
-        {(() => {
-          const rows: BusinessCard[][] = [];
-          for (let i = 0; i < businesses.length; i += 3) rows.push(businesses.slice(i, i + 3));
+        {visibleBusinesses.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '72px 24px', border: `1px dashed ${LINE}`, borderRadius: 18, background: CARD }}>
+            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 21, fontWeight: 600, marginBottom: 8 }}>
+              Nothing here yet
+            </div>
+            <p style={{ fontSize: 14, color: MUTED, maxWidth: 380, margin: '0 auto' }}>
+              {activeCategory
+                ? `No shops in "${activeCategory}" right now — try another category or clear the filter.`
+                : 'Try a different search, or turn on location to find shops closest to you.'}
+            </p>
+            {activeCategory && (
+              <button
+                onClick={() => setActiveCategory(null)}
+                style={{ marginTop: 18, background: 'transparent', border: `1px solid ${MOSS}`, color: MOSS, borderRadius: 999, padding: '8px 18px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+              >
+                Clear filter
+              </button>
+            )}
+          </div>
+        ) : (
+          (() => {
+            const rows: BusinessCard[][] = [];
+            for (let i = 0; i < visibleBusinesses.length; i += 3) rows.push(visibleBusinesses.slice(i, i + 3));
 
-          return rows.map((row, rowIdx) => (
-            <div key={rowIdx} style={{ marginBottom: 144 }}>
-              {/* Cards */}
-              <div className="hk-shop-grid" style={{ marginBottom: 26 }}>
-                {row.map(biz => {
-                  const km = biz.distance_meters ? (biz.distance_meters / 1000).toFixed(1) : null;
-                  return (
-                    <Link
-                      to={`/business/${biz.slug || biz.id}`}
-                      key={biz.id}
-                      className="hk-shop-card"
-                      style={{ textDecoration: 'none', color: 'inherit', display: 'block', background: CARD, border: `1px solid ${LINE}`, borderRadius: 18, overflow: 'hidden' }}
-                    >
-                      {/* Cover — shown in full, nothing overlapping it (height +20%) */}
-                      <div style={{ position: 'relative', width: '100%', height: 486, background: '#EDE6D5' }}>
-                        {biz.cover_url ? (
-                          <img src={biz.cover_url} alt={biz.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '100%', height: '100%', background: 'repeating-linear-gradient(135deg, #EDE6D5, #EDE6D5 10px, #E6DDC7 10px, #E6DDC7 20px)' }} />
-                        )}
+            return rows.map((row, rowIdx) => (
+              <div key={rowIdx} ref={rowIdx === 0 ? firstRowRef : undefined} style={{ marginBottom: 144 }}>
+                <div className="hk-shop-grid" style={{ marginBottom: 26 }}>
+                  {row.map(biz => {
+                    const km = biz.distance_meters ? (biz.distance_meters / 1000).toFixed(1) : null;
+                    return (
+                      <Link
+                        to={`/business/${biz.slug || biz.id}`}
+                        key={biz.id}
+                        className="hk-shop-card"
+                        style={{ textDecoration: 'none', color: 'inherit', display: 'block', background: CARD, border: `1px solid ${LINE}`, borderRadius: 18, overflow: 'hidden' }}
+                      >
+                        {/* Cover */}
+                        <div style={{ position: 'relative', width: '100%', height: 486, background: '#EDE6D5' }}>
+                          {biz.cover_url ? (
+                            <img src={biz.cover_url} alt={biz.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', background: 'repeating-linear-gradient(135deg, #EDE6D5, #EDE6D5 10px, #E6DDC7 10px, #E6DDC7 20px)' }} />
+                          )}
 
-                        {biz.category_name && (
-                          <span style={{ position: 'absolute', top: 14, left: 14, background: 'rgba(34,31,26,0.72)', color: '#FFFFFF', fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 999 }}>
-                            <span style={{ fontFamily: "'Fraunces', serif" }}>{biz.category_name}</span>
-                          </span>
-                        )}
+                          {biz.category_name && (
+                            <span style={{ position: 'absolute', top: 14, left: 14, background: 'rgba(34,31,26,0.72)', color: '#FFFFFF', fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 999 }}>
+                              <span style={{ fontFamily: "'Fraunces', serif" }}>{biz.category_name}</span>
+                            </span>
+                          )}
 
-                        {km && (
-                          <span style={{ position: 'absolute', top: 14, right: 14, background: CLAY, color: '#FFFFFF', fontSize: 13, fontWeight: 700, padding: '6px 12px', borderRadius: 999, boxShadow: '0 4px 10px rgba(181,80,46,0.35)' }}>
-                            {km} km
-                          </span>
-                        )}
-                      </div>
+                          {km && (
+                            <span style={{ position: 'absolute', top: 14, right: 14, background: CLAY, color: '#FFFFFF', fontSize: 13, fontWeight: 700, padding: '6px 12px', borderRadius: 999, boxShadow: '0 4px 10px rgba(181,80,46,0.35)' }}>
+                              {km} km
+                            </span>
+                          )}
 
-                      {/* Details — logo now lives in here, beside the name */}
-                      <div style={{ padding: '24px 24px 28px', display: 'flex', alignItems: 'center', gap: 16 }}>
-                        {biz.logo_url && (
-                          <div
+                          <span
+                            className="hk-view-cta"
                             style={{
-                              flexShrink: 0,
-                              width: 76,
-                              height: 76,
-                              borderRadius: '50%',
-                              padding: 3,
-                              background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)',
+                              position: 'absolute', bottom: 14, right: 14,
+                              background: CARD, color: MOSS_DARK, fontSize: 13, fontWeight: 700,
+                              padding: '8px 14px', borderRadius: 999,
+                              opacity: 0, transform: 'translateX(6px)', transition: 'opacity 180ms ease, transform 180ms ease',
+                              boxShadow: '0 6px 16px rgba(34,31,26,0.18)',
                             }}
                           >
-                            <button
-                              type="button"
-                              className="hk-logo-btn"
-                              onClick={e => { e.preventDefault(); e.stopPropagation(); setZoomedLogo({ url: biz.logo_url as string, name: biz.name }); }}
-                              aria-label={`View ${biz.name}'s logo larger`}
-                              style={{ width: '100%', height: '100%', padding: 0, border: `3px solid ${CARD}`, borderRadius: '50%', background: CARD }}
+                            View shop →
+                          </span>
+                        </div>
+
+                        {/* Details */}
+                        <div style={{ padding: '24px 24px 28px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                          {biz.logo_url && (
+                            <div
+                              style={{
+                                flexShrink: 0,
+                                width: 76,
+                                height: 76,
+                                borderRadius: '50%',
+                                padding: 3,
+                                background: `linear-gradient(135deg, ${MOSS} 0%, ${CLAY} 100%)`,
+                              }}
                             >
-                              <img
-                                src={biz.logo_url}
-                                alt={`${biz.name} logo`}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', display: 'block' }}
-                              />
-                            </button>
-                          </div>
-                        )}
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 600, fontSize: 23, lineHeight: 1.25, marginBottom: 8 }}>
-                            <span style={{ fontFamily: "'Fraunces', serif" }}>{biz.name}</span>
-                          </div>
-                          {biz.address_text && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13.5, color: MOSS }}>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={MOSS} strokeWidth="2" style={{ flexShrink: 0 }}>
-                                <path d="M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11z" />
-                                <circle cx="12" cy="10" r="2.5" />
-                              </svg>
-                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{biz.address_text}</span>
+                              <button
+                                type="button"
+                                className="hk-logo-ring"
+                                onClick={e => { e.preventDefault(); e.stopPropagation(); setZoomedLogo({ url: biz.logo_url as string, name: biz.name }); }}
+                                aria-label={`View ${biz.name}'s logo larger`}
+                                style={{ width: '100%', height: '100%', padding: 0, border: `3px solid ${CARD}`, borderRadius: '50%', background: CARD }}
+                              >
+                                <img
+                                  src={biz.logo_url}
+                                  alt={`${biz.name} logo`}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', display: 'block' }}
+                                />
+                              </button>
                             </div>
                           )}
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 600, fontSize: 23, lineHeight: 1.25, marginBottom: 8 }}>
+                              <span style={{ fontFamily: "'Fraunces', serif" }}>{biz.name}</span>
+                            </div>
+                            {biz.address_text && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13.5, color: MOSS }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={MOSS} strokeWidth="2" style={{ flexShrink: 0 }}>
+                                  <path d="M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11z" />
+                                  <circle cx="12" cy="10" r="2.5" />
+                                </svg>
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{biz.address_text}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </Link>
-                  );
-                })}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-
-            </div>
-          ));
-        })()}
+            ));
+          })()
+        )}
 
         <div ref={sentinelRef} style={{ height: 1 }} />
         {loadingMore && (
