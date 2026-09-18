@@ -1186,7 +1186,12 @@ const Home: React.FC = () => {
                             </div>
                         )}
 
-                        {allBusinesses.length === 0 ? (
+                        {allBusinesses.length === 0 && !initialLoadComplete ? (
+                            // Initial fetch still in flight — the loader overlay already covers
+                            // this area, so render nothing rather than a premature empty state.
+                            // Prevents the "No businesses found" flash before the API responds.
+                            null
+                        ) : allBusinesses.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '48px 20px', color: mutedText }}><div style={{ fontSize: 15, fontWeight: 600, color: textColor, marginBottom: 6 }}>No businesses found</div><div style={{ fontSize: 12 }}>Try adjusting your location or search terms</div></div>
                         ) : hasSearch ? buildSearchLayout() : buildDefaultLayout()}
 
