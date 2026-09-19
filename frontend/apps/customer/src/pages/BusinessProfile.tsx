@@ -289,7 +289,7 @@ const ProfileFullPage: React.FC<{ business: any; hours: any[]; open: boolean; st
                     {business.location?.address_text && (
                         <div className="profile-row">
                             <LocationSvg />
-                            <span>{business.location.address_text}</span>
+                            <span style={{ color: '#6b7280' }}>{business.location.address_text}</span>
                         </div>
                     )}
                     <div className="profile-row">

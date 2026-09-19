@@ -65,9 +65,10 @@ const getStatusInfo = (hours: any[]): { open: boolean; label: string } => {
 /* ── Design tokens ──────────────────────────────────── */
 type CatColor = { name: string; ring: string; light: string; strong: string };
 
+/* Bright palette — no green, no blue. Everything else is fair game. */
 const CATEGORY_COLORS: CatColor[] = [
     { name: 'orange', ring: '#fb923c', light: '#ffedd5', strong: '#c2410c' },
-    { name: 'green',  ring: '#22c55e', light: '#dcfce7', strong: '#15803d' },
+    { name: 'amber',  ring: '#f59e0b', light: '#fef3c7', strong: '#b45309' },
     { name: 'pink',   ring: '#f472b6', light: '#fce7f3', strong: '#be185d' },
     { name: 'grey',   ring: '#9ca3af', light: '#f3f4f6', strong: '#4b5563' },
     { name: 'purple', ring: '#a78bfa', light: '#ede9fe', strong: '#6d28d9' },
@@ -79,10 +80,10 @@ const DEFAULT_CAT_COLOR: CatColor = { name: 'grey', ring: '#9ca3af', light: '#f3
 const ALL_CAT_COLOR: CatColor = { name: 'gold', ring: '#D4AF37', light: '#fdf6e3', strong: '#92720c' };
 
 const RADIUS_OPTIONS = [
-    { value: 1000, label: '1 km', light: '#dbeafe', strong: '#1d4ed8' },
-    { value: 5000, label: '5 km', light: '#dcfce7', strong: '#15803d' },
-    { value: 12000, label: '12 km', light: '#fae8ff', strong: '#a21caf' },
-    { value: 20000, label: '20 km', light: '#ffedd5', strong: '#c2410c' },
+    { value: 1000, label: '1 km', light: '#fef3c7', strong: '#b45309' }, // amber
+    { value: 5000, label: '5 km', light: '#fce7f3', strong: '#be185d' }, // pink
+    { value: 12000, label: '12 km', light: '#ede9fe', strong: '#6d28d9' }, // purple
+    { value: 20000, label: '20 km', light: '#ffedd5', strong: '#c2410c' }, // orange
 ];
 
 const hexToRgba = (hex: string, alpha: number): string => {
@@ -350,13 +351,13 @@ const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; dark
     if (!biz.snippet_title || !biz.snippet_products || biz.snippet_products.length === 0) return null;
     const bizPath = `/business/${biz.slug ?? biz.id}`;
     return (
-        <div style={{ marginTop: 48, marginBottom: 48 }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
+        <div style={{ marginTop: 0, marginBottom: 0 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 36, justifyContent: 'center' }}>
                 {biz.snippet_products.slice(0, 4).map(p => (
-                    <Link key={p.id} to={bizPath} style={{ textDecoration: 'none', display: 'block', background: '#f3f4f6', borderRadius: 10, overflow: 'hidden', flex: '0 0 calc(46% - 6px)', maxWidth: 'calc(46% - 6px)' }}>
-                        <div style={{ width: '100%', aspectRatio: '15 / 16', overflow: 'hidden', background: catColor.light }}>
+                    <Link key={p.id} to={bizPath} style={{ textDecoration: 'none', display: 'block', background: '#f3f4f6', borderRadius: 3, overflow: 'hidden', flex: '0 0 calc(45% - 18px)', maxWidth: 'calc(45% - 18px)' }}>
+                        <div style={{ width: '100%', aspectRatio: '7 / 5', overflow: 'hidden', background: '#ffffff' }}>
                             {p.image_url ? (
-                                <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
                             ) : (
                                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <ShopSvg size={20} />
@@ -367,31 +368,6 @@ const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; dark
                     </Link>
                 ))}
             </div>
-
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '30px 2px 0' }}>
-                <span style={{
-                    fontSize: 13,
-                    fontWeight: 800,
-                    color: darkMode ? '#f3f4f6' : '#111827',
-                    fontFamily: 'inherit',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                }}>{biz.snippet_title}</span>
-                <span style={{ flex: 1, height: 1, background: darkMode ? '#262626' : '#e5e7eb' }} />
-            </div>
-
-            <Link to={bizPath} style={{ textDecoration: 'none', display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    color: '#F4C430',
-                    fontSize: 26, fontWeight: 700,
-                    fontFamily: "'Caveat', cursive",
-                    marginTop: 10,
-                }}>
-                    Shop more
-                    <ShopMoreArrowSvg color="#000000" size={24} />
-                </span>
-            </Link>
         </div>
     );
 };
@@ -484,6 +460,10 @@ const Home: React.FC = () => {
     const [menuOpen, setMenuOpen] = useState(false);
     const [catBarHidden, setCatBarHidden] = useState(false);
     const catBarLastY = useRef(0);
+    // Accumulated upward scroll since the last hide. Bars only reappear
+    // once the rider has scrolled up past this threshold — prevents the
+    // bar from snapping back on the very first upward tick.
+    const catBarScrollUp = useRef(0);
     // Only start reacting to scroll for the hide/show behavior once the person
     // has made a genuine scroll gesture (wheel or touch). Without this, our own
     // programmatic scrolling on load (scrollTo, scroll-anchor restoration) fires
@@ -670,7 +650,20 @@ const Home: React.FC = () => {
                 const diff = y - catBarLastY.current;
                 if (Math.abs(diff) > 6) {
                     if (userScrolledRef.current) {
-                        setCatBarHidden(diff > 0 && y > 80);
+                        if (diff > 0 && y > 80) {
+                            // Scrolling down — hide immediately.
+                            setCatBarHidden(true);
+                            catBarScrollUp.current = 0;
+                        } else if (diff < 0) {
+                            // Scrolling up — accumulate. Only reveal once the
+                            // rider has scrolled up enough for it to feel
+                            // intentional, not jittery.
+                            catBarScrollUp.current += Math.abs(diff);
+                            if (catBarScrollUp.current > 660) {
+                                setCatBarHidden(false);
+                                catBarScrollUp.current = 0;
+                            }
+                        }
                     }
                     catBarLastY.current = y;
                 }
@@ -932,7 +925,7 @@ const Home: React.FC = () => {
                    On desktop the app's top nav bar sits at the very top of the
                    viewport, so this needs to sit below it instead of underneath it —
                    see the desktop override further down. */
-                .hk-cat-sticky { position: sticky; top: 0; z-index: 20; border-top: 2px solid #d1d5db; transition: transform 0.3s ease; transform: translateY(0); }
+                .hk-cat-sticky { position: sticky; top: 0; z-index: 20; border-top: 2px solid #d1d5db; transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1); transform: translateY(0); will-change: transform; }
                 .hk-cat-sticky--hidden { transform: translateY(-100%); }
 
                 /* ── Business card shelf: mobile = horizontal belt, desktop = grid ── */

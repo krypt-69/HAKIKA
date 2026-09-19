@@ -201,6 +201,9 @@ const BottomNav: React.FC = () => {
     const isActive = (path: string) => location.pathname === path;
     const [hidden, setHidden] = React.useState(false);
     const lastYRef = React.useRef(0);
+    // Accumulated upward scroll since last hide — same behaviour as the
+    // category bar: don't show until the rider has scrolled up deliberately.
+    const scrollUpRef = React.useRef(0);
 
     React.useEffect(() => {
         let ticking = false;
@@ -213,7 +216,19 @@ const BottomNav: React.FC = () => {
                 // Only react to a deliberate scroll (avoids jitter from tiny
                 // wobbles) and never hide while still near the very top.
                 if (Math.abs(diff) > 6) {
-                    setHidden(diff > 0 && y > 40);
+                    if (diff > 0 && y > 40) {
+                        // Scrolling down — hide immediately.
+                        setHidden(true);
+                        scrollUpRef.current = 0;
+                    } else if (diff < 0) {
+                        // Scrolling up — accumulate. Only reveal once the
+                        // rider has scrolled up past the threshold.
+                        scrollUpRef.current += Math.abs(diff);
+                        if (scrollUpRef.current > 660) {
+                            setHidden(false);
+                            scrollUpRef.current = 0;
+                        }
+                    }
                     lastYRef.current = y;
                 }
                 ticking = false;
@@ -274,8 +289,9 @@ const App: React.FC = () => {
                 border-top: 1px solid #d1d5db;
                 box-shadow: 0 -1px 6px rgba(0,0,0,0.04);
                 z-index: 1000;
-                transition: transform 0.3s ease;
+                transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
                 transform: translateY(0);
+                will-change: transform;
             }
             /* Mobile: nav sits at the bottom, so hiding slides it straight down. */
             .hk-navbar--hidden { transform: translateY(100%); }
