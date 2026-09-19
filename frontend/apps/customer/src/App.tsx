@@ -201,9 +201,11 @@ const BottomNav: React.FC = () => {
     const isActive = (path: string) => location.pathname === path;
     const [hidden, setHidden] = React.useState(false);
     const lastYRef = React.useRef(0);
-    // Accumulated upward scroll since last hide — same behaviour as the
-    // category bar: don't show until the rider has scrolled up deliberately.
+    // Signed accumulator — see the category-bar comment in Home.tsx.
+    // Same rule: symmetric thresholds for hide and reveal, so a short
+    // page never loses the nav with no way to bring it back.
     const scrollUpRef = React.useRef(0);
+    const hiddenRef = React.useRef(false);
 
     React.useEffect(() => {
         let ticking = false;
@@ -217,15 +219,27 @@ const BottomNav: React.FC = () => {
                 // wobbles) and never hide while still near the very top.
                 if (Math.abs(diff) > 6) {
                     if (diff > 0 && y > 40) {
-                        // Scrolling down — hide immediately.
-                        setHidden(true);
-                        scrollUpRef.current = 0;
+                        // Scrolling down — symmetric 660px threshold.
+                        if (!hiddenRef.current) {
+                            scrollUpRef.current += diff;
+                            if (scrollUpRef.current > 660) {
+                                hiddenRef.current = true;
+                                setHidden(true);
+                                scrollUpRef.current = 0;
+                            }
+                        } else {
+                            scrollUpRef.current = 0;
+                        }
                     } else if (diff < 0) {
-                        // Scrolling up — accumulate. Only reveal once the
-                        // rider has scrolled up past the threshold.
-                        scrollUpRef.current += Math.abs(diff);
-                        if (scrollUpRef.current > 660) {
-                            setHidden(false);
+                        // Scrolling up — mirror of the above.
+                        if (hiddenRef.current) {
+                            scrollUpRef.current += Math.abs(diff);
+                            if (scrollUpRef.current > 660) {
+                                hiddenRef.current = false;
+                                setHidden(false);
+                                scrollUpRef.current = 0;
+                            }
+                        } else {
                             scrollUpRef.current = 0;
                         }
                     }

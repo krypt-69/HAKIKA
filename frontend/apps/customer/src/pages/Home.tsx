@@ -65,25 +65,27 @@ const getStatusInfo = (hours: any[]): { open: boolean; label: string } => {
 /* ── Design tokens ──────────────────────────────────── */
 type CatColor = { name: string; ring: string; light: string; strong: string };
 
-/* Bright palette — no green, no blue. Everything else is fair game. */
+/* Maroon / purple / red family — every entry is on the spectrum between
+   those three anchors, walking maroon → wine → magenta → plum → aubergine
+   → violet → crimson. No bright or cold hues. */
 const CATEGORY_COLORS: CatColor[] = [
-    { name: 'orange', ring: '#fb923c', light: '#ffedd5', strong: '#c2410c' },
-    { name: 'amber',  ring: '#f59e0b', light: '#fef3c7', strong: '#b45309' },
-    { name: 'pink',   ring: '#f472b6', light: '#fce7f3', strong: '#be185d' },
-    { name: 'grey',   ring: '#9ca3af', light: '#f3f4f6', strong: '#4b5563' },
-    { name: 'purple', ring: '#a78bfa', light: '#ede9fe', strong: '#6d28d9' },
-    { name: 'maroon', ring: '#9f1239', light: '#ffe4e6', strong: '#881337' },
-    { name: 'red',    ring: '#ef4444', light: '#fee2e2', strong: '#b91c1c' },
+    { name: 'maroon',    ring: '#800000', light: '#f2e6e6', strong: '#4d0000' },
+    { name: 'wine',      ring: '#8a1a3a', light: '#f2e6ec', strong: '#4d0e20' },
+    { name: 'magenta',   ring: '#9c1e6e', light: '#f5e6f0', strong: '#5c1040' },
+    { name: 'plum',      ring: '#7a1a5c', light: '#f2e6ef', strong: '#47103a' },
+    { name: 'aubergine', ring: '#5c1a7a', light: '#ede6f5', strong: '#330e47' },
+    { name: 'violet',    ring: '#4a1a8f', light: '#e6e6f7', strong: '#290e52' },
+    { name: 'crimson',   ring: '#b91c1c', light: '#f5e6e6', strong: '#7a1414' },
 ];
 
 const DEFAULT_CAT_COLOR: CatColor = { name: 'grey', ring: '#9ca3af', light: '#f3f4f6', strong: '#4b5563' };
 const ALL_CAT_COLOR: CatColor = { name: 'gold', ring: '#D4AF37', light: '#fdf6e3', strong: '#92720c' };
 
 const RADIUS_OPTIONS = [
-    { value: 1000, label: '1 km', light: '#fef3c7', strong: '#b45309' }, // amber
-    { value: 5000, label: '5 km', light: '#fce7f3', strong: '#be185d' }, // pink
-    { value: 12000, label: '12 km', light: '#ede9fe', strong: '#6d28d9' }, // purple
-    { value: 20000, label: '20 km', light: '#ffedd5', strong: '#c2410c' }, // orange
+    { value: 1000,  label: '1 km',  light: '#f2e6ec', strong: '#4d0e20' }, // wine
+    { value: 5000,  label: '5 km',  light: '#f5e6f0', strong: '#5c1040' }, // magenta
+    { value: 12000, label: '12 km', light: '#ede6f5', strong: '#330e47' }, // aubergine
+    { value: 20000, label: '20 km', light: '#e6e6f7', strong: '#290e52' }, // violet
 ];
 
 const hexToRgba = (hex: string, alpha: number): string => {
@@ -464,10 +466,15 @@ const Home: React.FC = () => {
     const [menuOpen, setMenuOpen] = useState(false);
     const [catBarHidden, setCatBarHidden] = useState(false);
     const catBarLastY = useRef(0);
-    // Accumulated upward scroll since the last hide. Bars only reappear
-    // once the rider has scrolled up past this threshold — prevents the
-    // bar from snapping back on the very first upward tick.
+    // Accumulated scroll distance since the last state flip. Signed:
+    // positive = user has net-scrolled down, negative = net-scrolled up.
+    // A direction flip resets the other side, so the rider always needs
+    // a fresh ~660px of movement in one direction to trigger a flip.
     const catBarScrollUp = useRef(0);
+    // Mirror of catBarHidden for use inside the scroll listener closure
+    // (the listener is registered once with [] deps, so it can't read
+    // the live state value directly).
+    const catBarHiddenRef = useRef(false);
     // Only start reacting to scroll for the hide/show behavior once the person
     // has made a genuine scroll gesture (wheel or touch). Without this, our own
     // programmatic scrolling on load (scrollTo, scroll-anchor restoration) fires
@@ -655,16 +662,30 @@ const Home: React.FC = () => {
                 if (Math.abs(diff) > 6) {
                     if (userScrolledRef.current) {
                         if (diff > 0 && y > 80) {
-                            // Scrolling down — hide immediately.
-                            setCatBarHidden(true);
-                            catBarScrollUp.current = 0;
+                            // Scrolling down. Symmetric with scroll-up: only
+                            // hide once the rider has net-scrolled ~660px in
+                            // this direction. Short pages therefore can't
+                            // lose the bar with no way to bring it back.
+                            if (!catBarHiddenRef.current) {
+                                catBarScrollUp.current += diff;
+                                if (catBarScrollUp.current > 660) {
+                                    catBarHiddenRef.current = true;
+                                    setCatBarHidden(true);
+                                    catBarScrollUp.current = 0;
+                                }
+                            } else {
+                                catBarScrollUp.current = 0;
+                            }
                         } else if (diff < 0) {
-                            // Scrolling up — accumulate. Only reveal once the
-                            // rider has scrolled up enough for it to feel
-                            // intentional, not jittery.
-                            catBarScrollUp.current += Math.abs(diff);
-                            if (catBarScrollUp.current > 660) {
-                                setCatBarHidden(false);
+                            // Scrolling up — same 660px threshold, mirrored.
+                            if (catBarHiddenRef.current) {
+                                catBarScrollUp.current += Math.abs(diff);
+                                if (catBarScrollUp.current > 660) {
+                                    catBarHiddenRef.current = false;
+                                    setCatBarHidden(false);
+                                    catBarScrollUp.current = 0;
+                                }
+                            } else {
                                 catBarScrollUp.current = 0;
                             }
                         }
