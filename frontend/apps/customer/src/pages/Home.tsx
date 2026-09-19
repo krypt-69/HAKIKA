@@ -360,7 +360,7 @@ const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; dark
         <div style={{ marginTop: 36, marginBottom: 36 }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 36, justifyContent: 'center' }}>
                 {biz.snippet_products.slice(0, 4).map(p => (
-                    <Link key={p.id} to={bizPath} style={{ textDecoration: 'none', display: 'block', background: '#f3f4f6', borderRadius: 3, overflow: 'hidden', flex: productsInRow === 3 ? '0 0 calc(33.333% - 24px)' : '0 0 calc(45% - 18px)', maxWidth: productsInRow === 3 ? 'calc(33.333% - 24px)' : 'calc(45% - 18px)' }}>
+                    <Link key={p.id} to={bizPath} style={{ textDecoration: 'none', display: 'block', background: '#ffffff', borderRadius: 3, overflow: 'hidden', flex: productsInRow === 3 ? '0 0 calc(33.333% - 24px)' : '0 0 calc(45% - 18px)', maxWidth: productsInRow === 3 ? 'calc(33.333% - 24px)' : 'calc(45% - 18px)' }}>
                         <div style={{ width: '100%', aspectRatio: '7 / 5', overflow: 'hidden', background: '#ffffff' }}>
                             {p.image_url ? (
                                 <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
@@ -370,7 +370,7 @@ const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; dark
                                 </div>
                             )}
                         </div>
-                        <div style={{ padding: '5px 8px 7px', fontFamily: "'Caveat', cursive", fontWeight: 700, fontSize: 20, color: '#7A5C00', background: '#f3f4f6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                        <div style={{ padding: '4px 6px 6px', fontFamily: "'Fraunces', serif", fontStyle: 'italic', fontWeight: 700, fontSize: 12, color: '#6b7280', letterSpacing: '-0.005em', background: '#ffffff', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
                     </Link>
                 ))}
             </div>
