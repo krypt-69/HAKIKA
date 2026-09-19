@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
+import { useTheme } from '../ThemeContext';
 import { Link, useNavigate } from "react-router-dom";
 import { createPortal } from 'react-dom';
 import DesktopHome from '../components/DesktopHome';
@@ -482,7 +483,7 @@ const Home: React.FC = () => {
     // down", hiding the bar immediately after load with no actual interaction.
     const userScrolledRef = useRef(false);
     const [gpsLoading, setGpsLoading] = useState(false);
-    const [darkMode, setDarkMode] = useState(false); // default light
+    const { darkMode, toggleDarkMode } = useTheme();
     const sentinelRef = useRef<HTMLDivElement>(null);
     const catScrollRef = useRef<HTMLDivElement>(null);
     const requestIdRef = useRef(0);
@@ -784,7 +785,6 @@ const Home: React.FC = () => {
 
     const hasSearch = searchText.trim().length > 0;
 
-    const toggleDarkMode = () => setDarkMode(prev => !prev);
 
     const mainBg = darkMode ? '#0a0a0a' : '#f9fafb';
     // Semi-transparent so the page-wide watermark logo shows faintly through

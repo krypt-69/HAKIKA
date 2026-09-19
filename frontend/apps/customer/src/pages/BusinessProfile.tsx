@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { api, CustomerProductInfo } from '../api';
 import { Config } from '@hakika/config';
 import Toast from '../components/Toast';
+import { useTheme } from '../ThemeContext';
 
 type Product = CustomerProductInfo;
 
@@ -521,6 +522,7 @@ const BusinessProfile: React.FC = () => {
     const [business, setBusiness] = useState<any>(null);
     const navigate = useNavigate();
     const location = useLocation();
+    const { darkMode } = useTheme();
     const handleBack = () => {
         // If this page is the very first entry in this browser session
         // (direct URL, bookmark, refresh), React Router sets location.key
@@ -716,7 +718,7 @@ const BusinessProfile: React.FC = () => {
 
 
     return (
-        <div style={{ background: '#f9fafb', minHeight: '100vh', paddingBottom: bottomPadding }}>
+        <div style={{ background: darkMode ? '#0a0a0a' : '#f9fafb', minHeight: '100vh', paddingBottom: bottomPadding, transition: 'background 0.2s ease' }}>
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap');
 

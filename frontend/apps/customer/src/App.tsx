@@ -3,6 +3,7 @@ import { registerSW } from 'virtual:pwa-register'
 import UpdatePrompt from './components/UpdatePrompt';
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate, useParams } from 'react-router-dom';
+import { ThemeProvider, useTheme } from './ThemeContext';
 import Home from './pages/Home';
 import { api } from './api';
 import { CustomerFeedProvider } from './CustomerFeedContext';
@@ -198,6 +199,7 @@ const NavItem: React.FC<{ to: string; icon: React.ReactNode; label: string; acti
    scrolling up — like most modern mobile app chrome. */
 const BottomNav: React.FC = () => {
     const location = useLocation();
+    const { darkMode } = useTheme();
     const isActive = (path: string) => location.pathname === path;
     const [hidden, setHidden] = React.useState(false);
     const lastYRef = React.useRef(0);
@@ -253,7 +255,10 @@ const BottomNav: React.FC = () => {
     }, []);
 
     return (
-        <div className={`hk-navbar${hidden ? ' hk-navbar--hidden' : ''}`}>
+        <div
+            className={`hk-navbar${hidden ? ' hk-navbar--hidden' : ''}`}
+            style={darkMode ? { background: '#1a1a1a', borderTopColor: '#333' } : undefined}
+        >
             <div className="hk-navbar-inner">
                 <div className="hk-nav-group-left">
                     <NavItem to="/" icon={<HomeIcon />} label="Home" active={isActive('/')} />
@@ -284,6 +289,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
+    <ThemeProvider>
     <BrowserRouter basename="/customer">
       <CustomerFeedProvider>
         <OrdersProvider>
@@ -411,6 +417,7 @@ const App: React.FC = () => {
         </OrdersProvider>
       </CustomerFeedProvider>
     </BrowserRouter>
+    </ThemeProvider>
   );
 };
 
