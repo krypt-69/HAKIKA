@@ -1,6 +1,7 @@
 import { Config } from "@hakika/config";
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../AuthContext';
+import { usePendingOrders } from '../PendingOrdersContext';
 import { authenticatedFetch } from '@hakika/auth';
 import { api } from '../api';
 import { Card, Button, LoadingSpinner, ErrorState, EmptyState, SectionHeader, Modal } from '../components';
@@ -90,6 +91,7 @@ const FILTERS: { key: 'waiting' | 'progress' | 'done' | 'dead' | 'all'; label: s
 
 const Orders: React.FC = () => {
   const { businessId } = useAuth();
+  const { refresh: refreshPending } = usePendingOrders();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [riders, setRiders] = useState<Rider[]>([]);
@@ -156,6 +158,7 @@ const Orders: React.FC = () => {
       await api.orders.accept(orderId);
       setSuccess('Order accepted!');
       await fetchOrders();
+      await refreshPending();
     } catch (err: any) {
       const msg = err.message || '';
       if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('insufficient')) {

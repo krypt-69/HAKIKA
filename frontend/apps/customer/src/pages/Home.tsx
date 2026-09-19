@@ -353,8 +353,8 @@ const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; dark
         <div style={{ marginTop: 48, marginBottom: 48 }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
                 {biz.snippet_products.slice(0, 4).map(p => (
-                    <Link key={p.id} to={bizPath} style={{ textDecoration: 'none', display: 'block', background: '#f3f4f6', borderRadius: 10, overflow: 'hidden', flex: '0 0 calc(50% - 6px)', maxWidth: 'calc(50% - 6px)' }}>
-                        <div style={{ width: '100%', aspectRatio: '3 / 4', overflow: 'hidden', background: catColor.light }}>
+                    <Link key={p.id} to={bizPath} style={{ textDecoration: 'none', display: 'block', background: '#f3f4f6', borderRadius: 10, overflow: 'hidden', flex: '0 0 calc(46% - 6px)', maxWidth: 'calc(46% - 6px)' }}>
+                        <div style={{ width: '100%', aspectRatio: '15 / 16', overflow: 'hidden', background: catColor.light }}>
                             {p.image_url ? (
                                 <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                             ) : (
@@ -899,7 +899,11 @@ const Home: React.FC = () => {
                     width: 38px; height: 38px; border-radius: 50%; border: 3px solid #FFD700;
                     background: #FCF3D2; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
                 }
-                .hk-location-label { font-family: "Caveat", cursive; font-weight: 700; font-size: 18px; white-space: nowrap; }
+                .hk-location-label {
+                    font-family: 'Fraunces', serif; font-style: italic; font-weight: 700;
+                    font-size: 14.5px; color: #7A5C00;
+                    white-space: nowrap; letter-spacing: -0.005em;
+                }
 
                 .hk-search-chip {
                     display: flex; align-items: center; gap: 6px; border: none; cursor: pointer;
@@ -933,6 +937,10 @@ const Home: React.FC = () => {
 
                 /* ── Business card shelf: mobile = horizontal belt, desktop = grid ── */
                 .hk-biz-card-link { text-decoration: none; color: inherit; display: block; }
+                /* Keep the first business fully visible below the sticky category bar.
+                   scroll-margin-top applies to scrollIntoView (anchor restore); the
+                   list container's padding-top provides clearance on initial render. */
+                .hk-belt-item, .hk-vgroup-item, [data-business-id] { scroll-margin-top: 130px; }
                 .hk-biz-name { font-size: 13px; margin-bottom: 1px; }
                 .hk-biz-cat { font-size: 10px; }
                 .hk-biz-trust { font-size: 10px; }
@@ -1036,7 +1044,7 @@ const Home: React.FC = () => {
                             <span className="hk-location-ring" style={{ borderColor: locationEnabled ? '#16a34a' : '#FFD700' }}>
                                 {gpsLoading ? <SpinnerSvg /> : <LocationSvg size={16} color="#4b5563" />}
                             </span>
-                            <span className="hk-location-label" style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>
+                            <span className="hk-location-label">
                                 {gpsLoading ? 'Locating…' : 'Location'}
                             </span>
                         </button>
@@ -1177,7 +1185,7 @@ const Home: React.FC = () => {
                 )}
 
                 {!gpsLoading && (!loading || initialLoadComplete) && (
-                    <div style={{ paddingBottom: 24 }}>
+                    <div style={{ paddingTop: 8, paddingBottom: 24 }}>
                         {/* Subsequent non-pagination fetches (category change, search, radius) —
                             old results stay visible, spinner appears above the grid. */}
                         {loading && initialLoadComplete && (

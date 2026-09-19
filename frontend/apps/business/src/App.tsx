@@ -1,5 +1,6 @@
 import React from 'react'
 import { AuthProvider, useAuth } from './AuthContext'
+import { PendingOrdersProvider } from './PendingOrdersContext'
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -30,6 +31,7 @@ const RequireBusiness: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
 const App: React.FC = () => (
   <AuthProvider>
+    <PendingOrdersProvider>
     <BrowserRouter basename="/business">
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -47,6 +49,7 @@ const App: React.FC = () => (
         </Route>
       </Routes>
     </BrowserRouter>
+    </PendingOrdersProvider>
   </AuthProvider>
 )
 

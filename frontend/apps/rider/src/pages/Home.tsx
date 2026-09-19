@@ -53,7 +53,7 @@ const Home: React.FC = () => {
   const [tripOrderIds, setTripOrderIds] = useState<string[]>(() => loadTripSelection().orderIds);
   const [tripMessage, setTripMessage] = useState('');
   const [archiveOpen, setArchiveOpen] = useState(false);
-  const [showMap, setShowMap] = useState(false);
+  const [showMap, setShowMap] = useState(true);
 
   useEffect(() => {
     saveTripSelection(tripOrderIds, isSelectingForTrip);

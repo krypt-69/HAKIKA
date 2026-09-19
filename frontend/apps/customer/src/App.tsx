@@ -259,7 +259,7 @@ const App: React.FC = () => {
       <CustomerFeedProvider>
         <OrdersProvider>
         <style>{`
-            @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,700;1,700&display=swap');
 
             .hk-app-shell { padding-bottom: 56px; background: #F4F1EA; min-height: 100vh; }
 
@@ -290,12 +290,15 @@ const App: React.FC = () => {
                top line) on a soft grey chip, mobile and desktop. */
             .hk-nav-label {
                 font-family: 'Fraunces', serif !important;
+                font-style: italic !important;
                 font-weight: 700 !important;
-                color: #000000 !important;
+                font-size: 12.5px !important;
+                color: #7A5C00 !important;
                 background: #e5e7eb;
-                padding: 1px 8px 0;
+                padding: 1px 9px 2px;
                 border-radius: 6px;
                 margin-top: 1px;
+                letter-spacing: -0.005em;
             }
 
             /* ── Desktop: noticeably bigger nav, scaled to the
@@ -341,9 +344,9 @@ const App: React.FC = () => {
                     flex: none !important;
                     min-width: 100px;
                 }
-                .hk-nav-pill { padding: 8px 20px !important; gap: 5px !important; border-radius: 16px !important; color: #16a34a !important; }
+                .hk-nav-pill { padding: 8px 20px !important; gap: 5px !important; border-radius: 16px !important; color: #D4AF37 !important; }
                 .hk-nav-pill svg { width: 26px !important; height: 26px !important; }
-                .hk-nav-label { font-size: 18px !important; padding: 2px 12px 0 !important; }
+                .hk-nav-label { font-size: 13.5px !important; padding: 2px 11px 3px !important; }
                 .hk-nav-dot { background: #16a34a !important; }
                 .hk-nav-underline { background: #16a34a !important; }
                 .hk-notif-badge {

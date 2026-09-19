@@ -106,18 +106,8 @@ const Login: React.FC = () => {
           stroke-dasharray: 6 8;
         }
 
-        .hk-route-dot {
-          fill: var(--amber);
-          filter: drop-shadow(0 0 6px rgba(244, 165, 54, 0.7));
-          offset-path: path('M -20 420 C 120 380, 160 220, 300 200 S 460 60, 620 40');
-          animation: hk-travel 8s ease-in-out infinite;
-        }
-
-        @keyframes hk-travel {
-          0% { offset-distance: 0%; opacity: 0; }
-          8% { opacity: 1; }
-          92% { opacity: 1; }
-          100% { offset-distance: 100%; opacity: 0; }
+        .hk-route-arrow {
+          filter: drop-shadow(0 0 4px rgba(13, 148, 136, 0.45));
         }
 
         .hk-pin {
@@ -290,28 +280,24 @@ const Login: React.FC = () => {
             display: none;
           }
 
-          .hk-route-svg {
-            opacity: 0.6;
+          .hk-brand {
+            display: none;
           }
 
           .hk-form-panel {
-            padding: 28px 20px 40px;
+            padding: 40px 20px;
           }
         }
 
-        @media (prefers-reduced-motion: reduce) {
-          .hk-route-dot {
-            animation: none;
-            offset-distance: 40%;
-            opacity: 1;
-          }
-        }
       `}</style>
 
       <div className="hk-brand">
         <svg className="hk-route-svg" viewBox="0 0 640 460" preserveAspectRatio="xMidYMid slice">
           <path className="hk-route-path" d="M -20 420 C 120 380, 160 220, 300 200 S 460 60, 620 40" />
-          <path className="hk-route-dot" d="M-10 0 L0 -8 L10 0 L-10 0 Z" fill="none" stroke="#f4a536" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          <g className="hk-route-arrow" stroke="#0d9488" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none">
+            <path d="M 555 75 L 600 52" />
+            <path d="M 588 53 L 602 52 L 595 66" />
+          </g>
         </svg>
 
         <div className="hk-wordmark">Hakika Rider</div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
+import { usePendingOrders } from '../PendingOrdersContext';
 import {
   LayoutDashboard,
   ClipboardList,
@@ -15,6 +16,7 @@ import {
 
 const DashboardLayout: React.FC = () => {
   const { user, logout, businessName } = useAuth();
+  const { pendingCount } = usePendingOrders();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -104,6 +106,7 @@ const DashboardLayout: React.FC = () => {
                   key={item.path}
                   to={item.path}
                   style={{
+                    position: 'relative',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 6,
@@ -131,6 +134,31 @@ const DashboardLayout: React.FC = () => {
                 >
                   <Icon size={17} strokeWidth={2} />
                   {item.label}
+                  {item.path === '/orders' && pendingCount > 0 && (
+                    <span
+                      aria-label={`${pendingCount} orders awaiting acceptance`}
+                      style={{
+                        position: 'absolute',
+                        top: -4,
+                        right: -4,
+                        minWidth: 18,
+                        height: 18,
+                        padding: '0 5px',
+                        borderRadius: 9,
+                        background: '#dc2626',
+                        color: '#ffffff',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 0 0 2px #ffffff',
+                      }}
+                    >
+                      {pendingCount > 99 ? '99+' : pendingCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -230,6 +258,7 @@ const DashboardLayout: React.FC = () => {
                   to={item.path}
                   onClick={() => setMenuOpen(false)}
                   style={{
+                    position: 'relative',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 10,
@@ -244,6 +273,28 @@ const DashboardLayout: React.FC = () => {
                 >
                   <Icon size={18} strokeWidth={2} />
                   {item.label}
+                  {item.path === '/orders' && pendingCount > 0 && (
+                    <span
+                      aria-label={`${pendingCount} orders awaiting acceptance`}
+                      style={{
+                        marginLeft: 'auto',
+                        minWidth: 20,
+                        height: 20,
+                        padding: '0 6px',
+                        borderRadius: 10,
+                        background: '#dc2626',
+                        color: '#ffffff',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {pendingCount > 99 ? '99+' : pendingCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}

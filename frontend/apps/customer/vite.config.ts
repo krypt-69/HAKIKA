@@ -14,8 +14,8 @@ export default defineConfig({
       },
       manifest: {
         id: '/customer/',
-        name: 'Hakika Customer',
-        short_name: 'Customer',
+        name: 'Hakika',
+        short_name: 'Hakika',
         description: 'Hakika Customer application',
         start_url: '/customer/',
         scope: '/customer/',

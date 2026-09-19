@@ -609,9 +609,10 @@ const NavigationScreen: React.FC = () => {
       refetchOrders();
       if (effectiveTrip) {
         handleConfirmStopAndAdvance();
-      } else {
-        navigate('/');
       }
+      // Stay on this screen after arrival — the rider remains in the
+      // delivery context so the customer details stay visible and the
+      // next action (delivery confirmation) is reachable without leaving.
     } catch (e) {
       console.error('Arrive failed', e);
     }
@@ -724,6 +725,207 @@ const NavigationScreen: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: space(3), padding: `${space(3)}px ${space(5)}px ${space(5)}px` }}>
+          {/* ── Customer contact row ────────────────── */}
+          {display?.phone && (
+            <div
+              style={{
+                background: color.surface,
+                border: `1px solid ${color.border}`,
+                borderRadius: radius.lg,
+                padding: space(4),
+                boxShadow: shadow.card,
+                display: 'flex',
+                alignItems: 'center',
+                gap: space(3),
+              }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: radius.pill,
+                  background: color.amberSoft,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <PhoneIcon size={18} color={color.amberDark} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: font.size.caption,
+                    fontWeight: font.weight.semibold,
+                    color: color.inkFaint,
+                    letterSpacing: 0.4,
+                    textTransform: 'uppercase',
+                    marginBottom: 2,
+                  }}
+                >
+                  Customer
+                </div>
+                <div
+                  style={{
+                    fontFamily: font.family,
+                    fontSize: font.size.body,
+                    fontWeight: font.weight.semibold,
+                    color: color.ink,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {display.phone}
+                </div>
+              </div>
+              <a
+                href={`tel:${display.phone}`}
+                style={{
+                  height: 36,
+                  padding: `0 ${space(4)}px`,
+                  background: color.amber,
+                  color: color.ink,
+                  borderRadius: radius.pill,
+                  fontWeight: font.weight.semibold,
+                  fontSize: font.size.small,
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: space(1.5),
+                  flexShrink: 0,
+                  fontFamily: font.family,
+                }}
+              >
+                <PhoneIcon size={14} color={color.ink} />
+                Call
+              </a>
+            </div>
+          )}
+
+
+          {/* ── Delivery information card ───────────── */}
+          {display?.deliveryNote && display.deliveryNote.trim() && (
+            <div
+              style={{
+                background: color.amberSoft,
+                border: `1px solid #F0C97A`,
+                borderLeft: `3px solid ${color.amber}`,
+                borderRadius: radius.lg,
+                padding: space(4),
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: space(2),
+                  marginBottom: space(1.5),
+                }}
+              >
+                <PinIcon size={16} color={color.amberDark} />
+                <span
+                  style={{
+                    fontSize: font.size.caption,
+                    fontWeight: font.weight.semibold,
+                    color: color.amberDark,
+                    letterSpacing: 0.4,
+                    textTransform: 'uppercase',
+                    fontFamily: font.family,
+                  }}
+                >
+                  Delivery information
+                </span>
+              </div>
+              <div
+                style={{
+                  fontFamily: font.family,
+                  fontSize: font.size.body,
+                  color: color.amberDark,
+                  lineHeight: 1.5,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}
+              >
+                {display.deliveryNote}
+              </div>
+            </div>
+          )}
+
+
+          {/* ── Distance & ETA ──────────────────────── */}
+          {activeRouteData && routeProgress && (
+            <div
+              style={{
+                background: color.surface,
+                border: `1px solid ${color.border}`,
+                borderRadius: radius.lg,
+                padding: space(4),
+                boxShadow: shadow.card,
+                display: 'flex',
+                alignItems: 'stretch',
+              }}
+            >
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: space(3) }}>
+                <GpsIcon size={20} color={color.inkMuted} />
+                <div>
+                  <div
+                    style={{
+                      fontSize: font.size.caption,
+                      fontWeight: font.weight.semibold,
+                      color: color.inkFaint,
+                      letterSpacing: 0.4,
+                      textTransform: 'uppercase',
+                      fontFamily: font.family,
+                    }}
+                  >
+                    Distance
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: font.family,
+                      fontSize: font.size.bodyLarge,
+                      fontWeight: font.weight.bold,
+                      color: color.ink,
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {formatDistance(routeProgress.remainingDistanceMeters)}
+                  </div>
+                </div>
+              </div>
+              <div style={{ width: 1, background: color.border, margin: `0 ${space(3)}px` }} />
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: space(3) }}>
+                <ClockIcon size={20} color={color.inkMuted} />
+                <div>
+                  <div
+                    style={{
+                      fontSize: font.size.caption,
+                      fontWeight: font.weight.semibold,
+                      color: color.inkFaint,
+                      letterSpacing: 0.4,
+                      textTransform: 'uppercase',
+                      fontFamily: font.family,
+                    }}
+                  >
+                    ETA
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: font.family,
+                      fontSize: font.size.bodyLarge,
+                      fontWeight: font.weight.bold,
+                      color: color.ink,
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {formatDuration(routeProgress.remainingDurationSeconds)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+
           {/* ── Stop header ─────────────────────────── */}
           <div
             style={{
@@ -882,130 +1084,7 @@ const NavigationScreen: React.FC = () => {
             </div>
           )}
 
-          {/* ── Customer contact row ────────────────── */}
-          {display?.phone && (
-            <div
-              style={{
-                background: color.surface,
-                border: `1px solid ${color.border}`,
-                borderRadius: radius.lg,
-                padding: space(4),
-                boxShadow: shadow.card,
-                display: 'flex',
-                alignItems: 'center',
-                gap: space(3),
-              }}
-            >
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: radius.pill,
-                  background: color.amberSoft,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <PhoneIcon size={18} color={color.amberDark} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: font.size.caption,
-                    fontWeight: font.weight.semibold,
-                    color: color.inkFaint,
-                    letterSpacing: 0.4,
-                    textTransform: 'uppercase',
-                    marginBottom: 2,
-                  }}
-                >
-                  Customer
-                </div>
-                <div
-                  style={{
-                    fontFamily: font.family,
-                    fontSize: font.size.body,
-                    fontWeight: font.weight.semibold,
-                    color: color.ink,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {display.phone}
-                </div>
-              </div>
-              <a
-                href={`tel:${display.phone}`}
-                style={{
-                  height: 36,
-                  padding: `0 ${space(4)}px`,
-                  background: color.amber,
-                  color: color.ink,
-                  borderRadius: radius.pill,
-                  fontWeight: font.weight.semibold,
-                  fontSize: font.size.small,
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: space(1.5),
-                  flexShrink: 0,
-                  fontFamily: font.family,
-                }}
-              >
-                <PhoneIcon size={14} color={color.ink} />
-                Call
-              </a>
-            </div>
-          )}
 
-          {/* ── Delivery information card ───────────── */}
-          {display?.deliveryNote && display.deliveryNote.trim() && (
-            <div
-              style={{
-                background: color.amberSoft,
-                border: `1px solid #F0C97A`,
-                borderLeft: `3px solid ${color.amber}`,
-                borderRadius: radius.lg,
-                padding: space(4),
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: space(2),
-                  marginBottom: space(1.5),
-                }}
-              >
-                <PinIcon size={16} color={color.amberDark} />
-                <span
-                  style={{
-                    fontSize: font.size.caption,
-                    fontWeight: font.weight.semibold,
-                    color: color.amberDark,
-                    letterSpacing: 0.4,
-                    textTransform: 'uppercase',
-                    fontFamily: font.family,
-                  }}
-                >
-                  Delivery information
-                </span>
-              </div>
-              <div
-                style={{
-                  fontFamily: font.family,
-                  fontSize: font.size.body,
-                  color: color.amberDark,
-                  lineHeight: 1.5,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                }}
-              >
-                {display.deliveryNote}
-              </div>
-            </div>
-          )}
 
           {currentStopInvalidated && (
             <div
@@ -1074,78 +1153,6 @@ const NavigationScreen: React.FC = () => {
             </div>
           )}
 
-          {/* ── Distance & ETA ──────────────────────── */}
-          {navigationPhase === 'active' && activeRouteData && routeProgress && (
-            <div
-              style={{
-                background: color.surface,
-                border: `1px solid ${color.border}`,
-                borderRadius: radius.lg,
-                padding: space(4),
-                boxShadow: shadow.card,
-                display: 'flex',
-                alignItems: 'stretch',
-              }}
-            >
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: space(3) }}>
-                <GpsIcon size={20} color={color.inkMuted} />
-                <div>
-                  <div
-                    style={{
-                      fontSize: font.size.caption,
-                      fontWeight: font.weight.semibold,
-                      color: color.inkFaint,
-                      letterSpacing: 0.4,
-                      textTransform: 'uppercase',
-                      fontFamily: font.family,
-                    }}
-                  >
-                    Distance
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: font.family,
-                      fontSize: font.size.bodyLarge,
-                      fontWeight: font.weight.bold,
-                      color: color.ink,
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  >
-                    {formatDistance(routeProgress.remainingDistanceMeters)}
-                  </div>
-                </div>
-              </div>
-              <div style={{ width: 1, background: color.border, margin: `0 ${space(3)}px` }} />
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: space(3) }}>
-                <ClockIcon size={20} color={color.inkMuted} />
-                <div>
-                  <div
-                    style={{
-                      fontSize: font.size.caption,
-                      fontWeight: font.weight.semibold,
-                      color: color.inkFaint,
-                      letterSpacing: 0.4,
-                      textTransform: 'uppercase',
-                      fontFamily: font.family,
-                    }}
-                  >
-                    ETA
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: font.family,
-                      fontSize: font.size.bodyLarge,
-                      fontWeight: font.weight.bold,
-                      color: color.ink,
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  >
-                    {formatDuration(routeProgress.remainingDurationSeconds)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* ── Actions ─────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: space(2) }}>
