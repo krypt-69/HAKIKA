@@ -350,11 +350,15 @@ const ShopMoreArrowSvg = ({ color = '#fff', size = 14 }: { color?: string; size?
 const ProductSnippetGrid: React.FC<{ biz: BusinessCard; catColor: CatColor; darkMode: boolean }> = ({ biz, catColor, darkMode }) => {
     if (!biz.snippet_title || !biz.snippet_products || biz.snippet_products.length === 0) return null;
     const bizPath = `/business/${biz.slug ?? biz.id}`;
+    // Layout rule: 3 products render on a single row; any other count uses
+    // the default 2-per-row layout (2, 4 → exact rows; 1 → centered).
+    const productCount = Math.min(biz.snippet_products.length, 4);
+    const productsInRow = productCount === 3 ? 3 : 2;
     return (
-        <div style={{ marginTop: 0, marginBottom: 0 }}>
+        <div style={{ marginTop: 36, marginBottom: 36 }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 36, justifyContent: 'center' }}>
                 {biz.snippet_products.slice(0, 4).map(p => (
-                    <Link key={p.id} to={bizPath} style={{ textDecoration: 'none', display: 'block', background: '#f3f4f6', borderRadius: 3, overflow: 'hidden', flex: '0 0 calc(45% - 18px)', maxWidth: 'calc(45% - 18px)' }}>
+                    <Link key={p.id} to={bizPath} style={{ textDecoration: 'none', display: 'block', background: '#f3f4f6', borderRadius: 3, overflow: 'hidden', flex: productsInRow === 3 ? '0 0 calc(33.333% - 24px)' : '0 0 calc(45% - 18px)', maxWidth: productsInRow === 3 ? 'calc(33.333% - 24px)' : 'calc(45% - 18px)' }}>
                         <div style={{ width: '100%', aspectRatio: '7 / 5', overflow: 'hidden', background: '#ffffff' }}>
                             {p.image_url ? (
                                 <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
@@ -962,7 +966,7 @@ const Home: React.FC = () => {
                    group (sits right under the sticky category bar), bigger spacing
                    between cards. On desktop this becomes the same edge-to-edge grid
                    as belts (see media query). ── */
-                .hk-vgroup-track { display: flex; flex-direction: column; gap: 61px; padding: ${BELT_LOGO_D / 2 + 4}px 16px 8px 16px; }
+                .hk-vgroup-track { display: flex; flex-direction: column; gap: 36px; padding: ${BELT_LOGO_D / 2 + 4}px 16px 8px 16px; }
                 .hk-vgroup-track:first-of-type { padding-top: ${BELT_LOGO_D / 2}px; margin-top: 0; }
                 .hk-vgroup-item { width: 100%; }
 
