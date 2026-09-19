@@ -160,21 +160,21 @@ const NavItem: React.FC<{ to: string; icon: React.ReactNode; label: string; acti
             alignItems: 'center',
             justifyContent: 'center',
             gap: 2,
-            padding: active ? '4px 12px' : '4px 5px',
+            padding: active ? '3px 10px' : '3px 5px',
             borderRadius: 12,
-            background: active ? '#ECFDF5' : 'transparent',
-            color: '#16a34a',
+            background: active ? '#e5e7eb' : 'transparent',
+            color: '#6b7280',
             transform: active ? 'scale(1.03)' : 'scale(1)',
             transition: 'background 0.18s ease, color 0.18s ease, transform 0.18s ease',
         }}>
             {active && (
                 <span className="hk-nav-dot" style={{
                     position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)',
-                    width: 3.5, height: 3.5, borderRadius: '50%', background: '#16a34a',
+                    width: 3.5, height: 3.5, borderRadius: '50%', background: '#6b7280',
                 }} />
             )}
             {icon}
-            <span className="hk-nav-label" style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}>
+            <span className="hk-nav-label" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
                 {label}
             </span>
         </div>
@@ -185,7 +185,7 @@ const NavItem: React.FC<{ to: string; icon: React.ReactNode; label: string; acti
             width: active ? 16 : 0,
             height: 2,
             borderRadius: 2,
-            background: '#16a34a',
+            background: '#6b7280',
             transition: 'width 0.18s ease',
         }} />
     </Link>
@@ -268,10 +268,10 @@ const App: React.FC = () => {
                 bottom: 0;
                 left: 0;
                 right: 0;
-                padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+                padding: 3.6px 8px calc(3.6px + env(safe-area-inset-bottom));
                 background: #ffffff;
                 border-radius: 22px 22px 0 0;
-                border-top: 2px solid #b8860b;
+                border-top: 1px solid #d1d5db;
                 box-shadow: 0 -1px 6px rgba(0,0,0,0.04);
                 z-index: 1000;
                 transition: transform 0.3s ease;
@@ -292,11 +292,11 @@ const App: React.FC = () => {
                 font-family: 'Fraunces', serif !important;
                 font-style: italic !important;
                 font-weight: 700 !important;
-                font-size: 12.5px !important;
-                color: #7A5C00 !important;
-                background: #e5e7eb;
-                padding: 1px 9px 2px;
-                border-radius: 6px;
+                font-size: 11px !important;
+                color: #6b7280 !important;
+                background: transparent;
+                padding: 0;
+                border-radius: 0;
                 margin-top: 1px;
                 letter-spacing: -0.005em;
             }
@@ -312,7 +312,7 @@ const App: React.FC = () => {
                    ≈ 105px. The previous 76px under-reserved this, which is
                    why content (search/location on the Home page) rendered
                    too high and got covered by the fixed nav. */
-                .hk-app-shell { padding-bottom: 0; padding-top: 112px; background: #F4F1EA; min-height: 100vh; }
+                .hk-app-shell { padding-bottom: 0; padding-top: 101px; background: #F4F1EA; min-height: 100vh; }
 
                 /* Desktop: nav sits at the top, so hiding slides it up instead. */
                 .hk-navbar--hidden { transform: translateY(-100%); }
@@ -323,10 +323,10 @@ const App: React.FC = () => {
                     bottom: auto;
                     left: 0;
                     right: 0;
-                    padding: 14px 56px;
+                    padding: 12.6px 56px;
                     background: #ffffff;
                     border-top: none;
-                    border-bottom: 2px solid #b8860b;
+                    border-bottom: 1px solid #d1d5db;
                     border-radius: 0 0 22px 22px;
                     box-shadow: 0 1px 8px rgba(0,0,0,0.05);
                 }
@@ -344,11 +344,11 @@ const App: React.FC = () => {
                     flex: none !important;
                     min-width: 100px;
                 }
-                .hk-nav-pill { padding: 8px 20px !important; gap: 5px !important; border-radius: 16px !important; color: #D4AF37 !important; }
+                .hk-nav-pill { padding: 7.2px 20px !important; gap: 5px !important; border-radius: 16px !important; color: #6b7280 !important; }
                 .hk-nav-pill svg { width: 26px !important; height: 26px !important; }
-                .hk-nav-label { font-size: 13.5px !important; padding: 2px 11px 3px !important; }
-                .hk-nav-dot { background: #16a34a !important; }
-                .hk-nav-underline { background: #16a34a !important; }
+                .hk-nav-label { font-size: 12px !important; padding: 0 !important; }
+                .hk-nav-dot { background: #6b7280 !important; }
+                .hk-nav-underline { background: #6b7280 !important; }
                 .hk-notif-badge {
                     min-width: 20px !important; height: 20px !important; font-size: 12px !important;
                     top: -6px !important; right: -10px !important; border-width: 2.5px !important;

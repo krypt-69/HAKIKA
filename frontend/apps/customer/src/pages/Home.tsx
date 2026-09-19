@@ -454,7 +454,7 @@ const CategoryStory: React.FC<{ label: string; active: boolean; colors: CatColor
                 )}
             </div>
         </div>
-        <span className="hk-cat-label" style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, color: '#B8860B', background: 'transparent', letterSpacing: '0.005em', padding: '3px 10px 3px', borderRadius: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: size + 24 }}>{label}</span>
+        <span className="hk-cat-label" style={{ fontFamily: "'Fraunces', serif", fontStyle: 'italic', fontWeight: 700, color: '#6b7280', background: 'transparent', letterSpacing: '-0.005em', padding: '2px 6px 2px', borderRadius: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: size + 40 }}>{label}</span>
     </button>
 );
 
@@ -915,7 +915,7 @@ const Home: React.FC = () => {
                 .hk-cat-scroll { display: flex; align-items: flex-start; overflow-x: auto; padding: 14px 16px; gap: 42px; scrollbar-width: none; transition: gap 0.25s ease, justify-content 0.25s ease; scroll-behavior: smooth; }
                 .hk-cat-story { display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; border: none; cursor: pointer; flex-shrink: 0; font-family: inherit; padding: 0; }
                 .hk-cat-ring { display: flex; align-items: center; justify-content: center; transition: transform 0.25s ease, background 0.25s ease; }
-                .hk-cat-label { font-size: 15px; }
+                .hk-cat-label { font-size: 11px; }
 
                 .hk-cat-nav-btn {
                     width: 30px; height: 30px; border-radius: 50%; border: none; cursor: pointer;
@@ -988,7 +988,7 @@ const Home: React.FC = () => {
                     .hk-cat-scroll { padding: 30px 40px !important; gap: 120px !important; }
                     .hk-cat-ring { width: 92px !important; height: 92px !important; }
                     .hk-cat-story { width: 104px !important; }
-                    .hk-cat-label { font-size: 19px !important; max-width: 130px !important; padding: 3px 14px 5px !important; }
+                    .hk-cat-label { font-size: 13.5px !important; max-width: 150px !important; padding: 2px 10px 4px !important; }
 
                     /* Uniform 3-per-row on desktop for BOTH group types, matching the
                        vertical group's sizing — belts (4 on mobile) collapse to the
