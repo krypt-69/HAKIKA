@@ -270,6 +270,18 @@ const BottomNav: React.FC = () => {
     );
 };
 
+/* ── App shell ────────────────────────────────────────
+   Wraps the routed page tree and flips a `hk-app-shell--dark`
+   class so all pages see the same dark surface and CSS variables. */
+const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { darkMode } = useTheme();
+    return (
+        <div className={`hk-app-shell${darkMode ? ' hk-app-shell--dark' : ''}`}>
+            {children}
+        </div>
+    );
+};
+
 /* ── App ─────────────────────────────────────────────── */
 const LegacyBusinessRedirect = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -390,8 +402,85 @@ const App: React.FC = () => {
                     top: -6px !important; right: -10px !important; border-width: 2.5px !important;
                 }
             }
+
+            /* ── Dark mode surface overrides ──────────────────────
+               Pages in scope: Home, BusinessProfile, MyOrders,
+               Notifications, OrderTracking, OrderPage.
+               Pages intentionally spared: Receipt, LiveTrack (map). */
+            .hk-app-shell--dark {
+                background: #0a0a0a !important;
+                color: #e5e7eb;
+                --paper: #121212;
+                --card: #1a1a1a;
+                --ink: #e5e7eb;
+                --ink-2: #9ca3af;
+                --ink-muted: #9ca3af;
+                --border: #333;
+                --hk-paper: #121212;
+                --hk-card: #1a1a1a;
+            }
+
+            /* MyOrders — uses CSS variables on .mo-page */
+            .hk-app-shell--dark .mo-page {
+                --paper: #121212;
+                --card: #1a1a1a;
+                background: #121212 !important;
+            }
+            .hk-app-shell--dark .mo-page .mo-card,
+            .hk-app-shell--dark .mo-page .mo-order-card,
+            .hk-app-shell--dark .mo-page .mo-tab,
+            .hk-app-shell--dark .mo-page .mo-empty {
+                background: #1a1a1a !important;
+                color: #e5e7eb !important;
+                border-color: #333 !important;
+            }
+
+            /* Notifications — hardcoded PAPER constant */
+            .hk-app-shell--dark .nt-page {
+                background: #0a0a0a !important;
+                color: #e5e7eb !important;
+            }
+            .hk-app-shell--dark .nt-page .nt-phone-card,
+            .hk-app-shell--dark .nt-page .nt-list,
+            .hk-app-shell--dark .nt-page .nt-row,
+            .hk-app-shell--dark .nt-page .nt-empty {
+                background: #1a1a1a !important;
+                color: #e5e7eb !important;
+                border-color: #333 !important;
+            }
+
+            /* OrderTracking */
+            .hk-app-shell--dark .ot-page {
+                background: #0a0a0a !important;
+                color: #e5e7eb !important;
+            }
+            .hk-app-shell--dark .ot-page .ot-container,
+            .hk-app-shell--dark .ot-page .ot-card,
+            .hk-app-shell--dark .ot-page .ot-step,
+            .hk-app-shell--dark .ot-page .ot-order-card {
+                color: #e5e7eb;
+            }
+
+            /* OrderPage (checkout) */
+            .hk-app-shell--dark .order-page {
+                background: #0a0a0a !important;
+                color: #e5e7eb !important;
+            }
+            .hk-app-shell--dark .order-page .order-container,
+            .hk-app-shell--dark .order-page .cart-card,
+            .hk-app-shell--dark .order-page .summary-card,
+            .hk-app-shell--dark .order-page .success-card {
+                background: #1a1a1a !important;
+                color: #e5e7eb !important;
+                border-color: #333 !important;
+            }
+            .hk-app-shell--dark .order-page .page-title,
+            .hk-app-shell--dark .order-page h1,
+            .hk-app-shell--dark .order-page h2 {
+                color: #e5e7eb !important;
+            }
         `}</style>
-        <div className="hk-app-shell">
+        <AppShell>
             
             <Routes>
                 <Route path="/" element={<Home />} />
@@ -413,7 +502,7 @@ const App: React.FC = () => {
             </Routes>
             <UpdatePrompt needRefresh={needRefresh} setNeedRefresh={setNeedRefresh} />
             <BottomNav />
-        </div>
+        </AppShell>
         </OrdersProvider>
       </CustomerFeedProvider>
     </BrowserRouter>
